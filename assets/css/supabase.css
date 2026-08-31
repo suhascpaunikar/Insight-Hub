@@ -858,30 +858,82 @@ img { max-width: 100%; }
 .asst-body[data-fade-top="true"] { --asst-fade-top: 18px; }
 .asst-body[data-fade-bottom="true"] { --asst-fade-bottom: 22px; }
 
-/* ---------- Explain mode ----------
-   While the mode is on, every explainable panel carries a faint violet outline
-   so what is pickable is visible before you hover it, and the whole panel takes
-   the help cursor — including its buttons and selects, whose clicks the capture
-   handler is intercepting. Violet again, because an explanation is a claim. */
-body[data-asst-explain="true"] [data-explain] {
+/* ---------- Pointer mode ----------
+   The companion trails the real cursor; resting on a panel for a beat asks it
+   what its numbers say. Panels outline faintly while the pointer is armed so
+   what can be read is visible before you reach it, and the armed panel lifts
+   as the dwell ring closes. Violet throughout — a reading is a claim. */
+.asst-pointer {
+  position: fixed; top: 0; left: 0; z-index: 79;   /* under the card, over the page */
+  width: 40px; height: 40px; margin: -20px 0 0 -20px;
+  pointer-events: none;
+  display: grid; place-items: center;
+  opacity: 0; transition: opacity 160ms ease;
+}
+.asst-pointer[data-visible="true"] { opacity: 1; }
+
+.asst-pointer-mark {
+  position: relative;
+  display: grid; place-items: center;
+  width: 22px; height: 22px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--ai-400);
+  background: var(--background-100);
+  color: var(--ai-fg);
+  box-shadow: var(--shadow-2);
+}
+.asst-pointer-mark svg { width: 12px; height: 12px; }
+
+/* The ring closes over the dwell, so the wait reads as deliberate. */
+.asst-pointer-ring {
+  position: absolute; inset: 0;
+  width: 40px; height: 40px;
+  transform: rotate(-90deg);
+  fill: none;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.asst-pointer[data-dwelling="true"] .asst-pointer-ring { opacity: 1; }
+.asst-pointer-track { stroke: var(--ai-400); stroke-width: 2.5; }
+.asst-pointer-progress {
+  stroke: var(--ai-fg); stroke-width: 2.5; stroke-linecap: round;
+  stroke-dasharray: 107; stroke-dashoffset: 107;   /* 2πr, r = 17 */
+}
+.asst-pointer[data-dwelling="true"] .asst-pointer-progress {
+  animation: asst-dwell 600ms linear forwards;
+}
+@keyframes asst-dwell { to { stroke-dashoffset: 0; } }
+
+body[data-asst-pointer="true"] [data-insight] {
   outline: 1px dashed var(--ai-400);
   outline-offset: 2px;
   border-radius: var(--radius-lg);
   transition: outline-color 120ms ease, background 120ms ease;
 }
-body[data-asst-explain="true"] [data-explain],
-body[data-asst-explain="true"] [data-explain] * {
-  cursor: help !important;
-}
-body[data-asst-explain="true"] [data-explain]:hover {
+body[data-asst-pointer="true"] [data-insight][data-insight-armed] {
   outline: 2px solid var(--ai-fg);
   background: var(--ai-200);
+  position: relative; z-index: 1;
 }
-/* Nested panels: a theme card sits inside no other panel, but keeping the
-   hovered one on top stops an ancestor's tint bleeding over it. */
-body[data-asst-explain="true"] [data-explain]:hover { position: relative; z-index: 1; }
 
-.asst-icon-btn[aria-pressed="true"] {
-  background: var(--ai-200);
-  color: var(--ai-fg);
+.asst-icon-btn[aria-pressed="true"] { background: var(--ai-200); color: var(--ai-fg); }
+
+/* A fixed 240px box will cut a line in half whenever an answer runs past it.
+   Fading only the edge the content overflows makes that cut read as "there is
+   more this way" rather than as a clipped render. */
+.asst-body {
+  --asst-fade-top: 0px;
+  --asst-fade-bottom: 0px;
+  -webkit-mask-image: linear-gradient(to bottom,
+    transparent 0, #000 var(--asst-fade-top),
+    #000 calc(100% - var(--asst-fade-bottom)), transparent 100%);
+  mask-image: linear-gradient(to bottom,
+    transparent 0, #000 var(--asst-fade-top),
+    #000 calc(100% - var(--asst-fade-bottom)), transparent 100%);
+}
+.asst-body[data-fade-top="true"] { --asst-fade-top: 18px; }
+.asst-body[data-fade-bottom="true"] { --asst-fade-bottom: 22px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .asst-pointer-progress { animation: none; stroke-dashoffset: 0; }
 }

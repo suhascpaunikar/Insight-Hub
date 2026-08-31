@@ -61,7 +61,7 @@ function deliveryTab(c) {
 
   return html`
     <div class="stack-lg">
-      <section class="card" data-explain="delivery-funnel">
+      <section class="card" data-insight="delivery-funnel">
         <div class="card-head">
           <h3 class="t-h2">Delivery funnel</h3>
           <span class="t-xs fg-lighter">Absolute counts with step-to-step conversion</span>
@@ -94,7 +94,7 @@ function deliveryTab(c) {
         </div>
       </section>
 
-      <section class="card" data-explain="delivery-series">
+      <section class="card" data-insight="delivery-series">
         <div class="card-head">
           <h3 class="t-h2">Delivery over time</h3>
           <span class="row" style="gap:12px">
@@ -132,7 +132,7 @@ function deliveryTab(c) {
         </div>
       </section>
 
-      <section class="card" data-explain="failure-reasons">
+      <section class="card" data-insight="failure-reasons">
         <div class="card-head"><h3 class="t-h2">Failure reasons</h3>
           <span class="mono t-xs fg-lighter">${count(failTotal)} failed sends</span></div>
         <div class="card-body dist">
@@ -171,7 +171,7 @@ function responsesTab(c) {
   return html`
     <div class="stack-lg">
       <!-- FR-99 — one rating block. No secondary or composite rating is displayed. -->
-      <section class="card" data-explain="rating-block">
+      <section class="card" data-insight="rating-block">
         <div class="card-head">
           <div>
             <h3 class="t-h2">${block.question}</h3>
@@ -204,7 +204,7 @@ function responsesTab(c) {
       </section>
 
       <!-- FR-100 — each branch's follow-up is read within its own path, never pooled. -->
-      <section data-explain="branch-blocks">
+      <section data-insight="branch-blocks">
         <div class="row-between" style="margin-bottom:10px">
           <h3 class="t-h2">Q2 · Follow-up by rating band</h3>
           <span class="t-xs fg-lighter">Branching is on — each path is reported separately</span>
@@ -252,7 +252,7 @@ function responsesTab(c) {
       </section>
 
       <!-- FR-101 — a searchable, filterable list of free-text answers. -->
-      <section class="card" data-explain="open-text">
+      <section class="card" data-insight="open-text">
         <div class="card-head">
           <h3 class="t-h2">Q3 · Open text</h3>
           <span class="mono t-xs fg-muted">${count(filtered.length)} of ${count(OPEN_RESPONSES.length)} shown</span>
@@ -354,7 +354,7 @@ function impactTab(c) {
 
   return html`
     <div class="stack-lg">
-      <section class="card" data-explain="score-drivers">
+      <section class="card" data-insight="score-drivers">
         <div class="card-head">
           <div>
             <h3 class="t-h2">Score drivers</h3>
@@ -445,7 +445,7 @@ function impactTab(c) {
       </section>
 
       <!-- FR-108 — variants compared side by side, labelled by variant name. -->
-      <section class="card" data-explain="variant-comparison">
+      <section class="card" data-insight="variant-comparison">
         <div class="card-head">
           <h3 class="t-h2">Variant comparison</h3>
           ${raw(divergent
@@ -489,7 +489,7 @@ function impactTab(c) {
 
       <!-- FR-109 — current AI weights with their history. -->
       ${raw(!isIntelligent ? '' : html`
-        <section class="card" data-explain="weight-history" style="border-color:var(--ai-400)">
+        <section class="card" data-insight="weight-history" style="border-color:var(--ai-400)">
           <div class="card-head" style="border-color:var(--ai-400)">
             <span class="row" style="gap:8px">${raw(icon('sparkles', 'fg-ai'))}
               <h3 class="t-h2 fg-ai">Intelligent A/B weighting</h3></span>

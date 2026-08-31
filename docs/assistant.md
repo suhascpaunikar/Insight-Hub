@@ -32,27 +32,44 @@ changes the answers. No sentence below is a stored string.
 
 ---
 
-## Explain a panel
+## The pointer
 
-Press **`?`**, or hit the `?` button in the card header, and the assistant flips
-into explain mode: every readable panel on the page picks up a violet outline,
-and clicking one explains how to read it — what the numbers are counted
-against, what the colours encode, and the misreading the chart invites.
+Press **`?`**, or the target button in the card header, and a companion drops
+onto the page and starts trailing your cursor. Rest it on any panel for a beat
+and that panel tells you **what its numbers say** — not how the chart is built,
+but what it currently reads.
 
-This is clicky's pointing, inverted. Clicky has the assistant point at the UI;
-here you point and it explains.
+This is clicky's cursor, walking rather than flying. Clicky's cursor goes where
+the model sends it; this one goes where you take it.
 
-`Escape` leaves explain mode; a second `Escape` closes the card. The two
-follow-ups under each explanation bridge back to live figures, so "how do I
-read the funnel" leads straight into "how is delivery doing".
+> 18,422 of 41,200 sent finished — 44.7% end to end. The bleed is Shown →
+> Started, losing 12,120 there alone, 36% of that step. Recovering half of it
+> would be worth about 5,135 more completions. They saw it and did not start,
+> which points at timing and relevance rather than the questions themselves.
 
-**Clicks are intercepted in the capture phase.** The widgets underneath already
-own their clicks — drilling into a theme, opening a response, reassigning an
-owning team — and an explain click must not fire them. Stopping propagation
-before the target sees the event is what keeps the mode safe to leave armed
-while you walk the page.
+Every figure there is computed at the moment the pointer settles, including the
+counterfactual — change the seed numbers and the sentence changes with them.
 
-Nine panels are annotated, across all three insights tabs:
+`Escape` puts the pointer away; a second `Escape` closes the card. The two
+follow-ups under each reading lead back to the intent registry.
+
+### Why a dwell, and why a mode
+
+Sweeping across a dense page passes over several panels, and firing on each one
+would be noise — so a panel only speaks once the pointer has **settled on it for
+600ms**, with a ring closing around the companion so the wait reads as
+deliberate rather than as a hang.
+
+It is a mode for the same reason it is a dwell: the panels underneath already
+own the pointer — routing a driver to a team, opening a response, a select.
+Making hover meaningful is only safe once the user has asked for it. With the
+pointer stowed, every panel behaves exactly as it did before.
+
+A pointer that cannot hover has no dwell, so on touch a tap stands in for it.
+
+### The panels
+
+Nine, across the three insights tabs:
 
 | Tab | Panels |
 |---|---|
@@ -60,10 +77,10 @@ Nine panels are annotated, across all three insights tabs:
 | Responses | the rating question, follow-up by band, open text |
 | Impact | score drivers, variant comparison, intelligent A/B weighting |
 
-To annotate another, add `data-explain="key"` to its container and a matching
-entry in `assistant-explain.js`. Explanations there are static prose, which is
-the one place in this assistant fixed text is right: a panel's grammar does not
-change with the data. The live numbers come from the follow-up intents.
+To add one, put `data-insight="key"` on its container and write a composer in
+`assistant-insights.js`. Composers read `data.js` and return
+`{ title, text, followUps }` — compute the figures, never hardcode them, and use
+`share()` for anything divided by a response base so `LOW_SAMPLE` still holds.
 
 ---
 
@@ -91,7 +108,7 @@ otherwise leave the assistant describing a panel the reader cannot see.
 | Vision model reads pixels | structured objects, no inference |
 | Cloudflare Worker holding keys | nothing — no network call at all |
 | `ctrl + option` global hotkey | `Ctrl + /` |
-| assistant points at the UI | you point, it explains (`?`) |
+| cursor flies where the model sends it | companion walks where you take it (`?`) |
 
 ---
 
@@ -130,7 +147,8 @@ full-screen focus mode and renders its own chrome instead of calling
 | `assets/js/assistant.js` | the card, the state machine, the word-by-word reveal |
 | `assets/js/assistant-context.js` | what the assistant can see — page, campaign, tab, filters, draft |
 | `assets/js/assistant-answers.js` | the intent registry and the answer composers |
-| `assets/js/assistant-explain.js` | how to read each panel — the explain-mode registry |
+| `assets/js/assistant-insights.js` | what each panel's data says — one composer per panel |
+| `assets/js/assistant-pointer.js` | the cursor companion, dwell detection and panel arming |
 
 Styles live at the end of `assets/css/supabase.css` under *Assistant*.
 
