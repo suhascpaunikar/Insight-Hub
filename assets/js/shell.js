@@ -146,10 +146,15 @@ export function renderShell(active) {
   return $('#content', root);
 }
 
-/** FR-61 — collapse state persists across sessions, from whichever screen toggles it. */
-export function wireRailCollapse(root, rerender) {
+/**
+ * FR-61 — collapse state persists across sessions, from whichever screen
+ * toggles it. `key` names which preference is being toggled: the console keeps
+ * `navCollapsed`, the wizard keeps `builderNavCollapsed`, so collapsing the
+ * rail to fill in a campaign does not collapse the console the user left open.
+ */
+export function wireRailCollapse(root, rerender, key = 'navCollapsed') {
   $('[data-act="collapse"]', root)?.addEventListener('click', () => {
-    store.set({ navCollapsed: !store.state.navCollapsed });
+    store.set({ [key]: !store.state[key] });
     rerender();
   });
 }

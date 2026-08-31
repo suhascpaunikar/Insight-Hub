@@ -10,10 +10,10 @@ import {
 } from './core.js';
 import {
   store, createVariant, reconcileVariants, validateStep, furthestReachableStep,
-  audienceReach, templateOf,
+  audienceReach, templateOf, suggestGoalFromObjective,
 } from './store.js';
 import {
-  GOALS, EXCLUSION_LISTS, RULE_FIELDS, RULE_OPERATORS, TEST_ACCOUNTS,
+  GOALS, EXCLUSION_LISTS, RULE_FIELDS, RULE_OPERATORS, TEST_ACCOUNTS, OBJECTIVE_STARTERS,
 } from './data.js';
 import { renderContentStep, wireContentStep, phonePreview } from './content-step.js';
 import { navRail, wireRailCollapse } from './shell.js';
@@ -115,6 +115,99 @@ function step1(draft, issues) {
             ${raw(icon('lock'))}Coming soon
           </span>
         </div>
+      </div>
+
+      ${raw(objectiveSection(draft))}
+    </section>`;
+}
+
+/* --------------------------------------------------------------------------
+   Step 1 — campaign objective.
+
+   The one field in the wizard that configures nothing. A goal id, a trigger and
+   an audience describe what a campaign *does*; between them they cannot say
+   what it is for, or what the reader is supposed to do with the answers. That
+   sentence normally lives in a ticket the console never sees, so the assistant
+   has to infer it and the next person to open the draft has to guess.
+
+   Deliberately not gated. FR-1 blocks on configuration, and a blocked advance
+   on a free-text box is the fastest way to teach people to type "asdf". The
+   cost of leaving it empty is stated instead — here, on step 6, and in what the
+   assistant can answer.
+   -------------------------------------------------------------------------- */
+const OBJECTIVE_MAX = 400;
+
+function objectiveSection(draft) {
+  const value = draft.objective || '';
+  const starters = OBJECTIVE_STARTERS[draft.goal] || OBJECTIVE_STARTERS.default;
+  const current = GOALS.find((g) => g.id === draft.goal) || null;
+  const read = suggestGoalFromObjective(value);
+  const suggested = read && read !== draft.goal ? GOALS.find((g) => g.id === read) : null;
+
+  return html`
+    <!-- Narrower than the goal grid above it on purpose: this is prose, and a
+         field the width of the console would set 200 characters to the line. -->
+    <section class="card" style="max-width:820px" aria-labelledby="s1-obj">
+      <div class="card-head">
+        <span class="row" style="gap:8px">
+          ${raw(icon('target'))}
+          <h3 class="t-h2" id="s1-obj">Campaign objective</h3>
+        </span>
+        <span class="badge">Optional · recommended</span>
+      </div>
+
+      <div class="card-body stack">
+        <div class="field">
+          <label class="label" for="objective">What are you trying to find out, and why now?</label>
+          <textarea class="textarea" id="objective" data-act="objective" rows="4"
+                    maxlength="${OBJECTIVE_MAX}" style="min-height:104px"
+                    placeholder="e.g. Repeat orders in Bandra fell 8% after the March app update. Find out whether users blame the new tracking screen or the delivery time, before the update goes national."
+                    >${value}</textarea>
+          <div class="row-between" style="align-items:flex-start;gap:16px">
+            <span class="hint">
+              Plain English, and nothing here changes what gets sent. It travels with the campaign
+              as the reason it exists — through save, clone and publish.
+            </span>
+            <span class="mono t-xs fg-muted" style="flex:none">${value.length}/${OBJECTIVE_MAX}</span>
+          </div>
+        </div>
+
+        <div class="row wrap" style="gap:6px">
+          <span class="t-xs fg-lighter">Examples:</span>
+          ${starters.map((starter) => html`
+            <button class="btn btn-outline btn-sm" data-act="objective-starter" data-text="${starter.text}">
+              ${starter.label}
+            </button>`)}
+          ${raw(value
+            ? '<button class="btn btn-ghost btn-sm" data-act="objective-clear">Clear</button>' : '')}
+        </div>
+
+        <!-- A keyword read of what was typed, offered and never applied. It is a
+             claim about the text, so FR-91 puts it in the AI accent; it names the
+             goal it read rather than silently re-picking one. -->
+        ${raw(suggested ? html`
+          <div class="notice notice-ai">
+            ${raw(icon('sparkles'))}
+            <span>
+              This reads like a <strong>${suggested.name}</strong> campaign${raw(current
+                ? `, and you are starting from <strong>${esc(current.name)}</strong>` : '')}.
+              <button class="btn btn-link t-xs" style="margin-left:4px"
+                      data-act="pick-goal" data-id="${suggested.id}">Start from ${suggested.name} instead</button>
+            </span>
+          </div>` : '')}
+
+        ${raw(value.trim() ? html`
+          <div class="notice notice-ai">
+            ${raw(icon('bot'))}
+            <span>The assistant reads this verbatim. Ask it <strong>“what is this campaign for”</strong>
+              from any screen and it answers from these words rather than from the goal you picked.</span>
+          </div>` : html`
+          <div class="notice">
+            ${raw(icon('info'))}
+            <span>Left empty, the assistant can only describe how this campaign is
+              <em>configured</em> — its trigger, audience and rating element. Nothing else in the
+              draft records what it is for, so nothing else can stand in for this.</span>
+          </div>`)}
       </div>
     </section>`;
 }
@@ -453,6 +546,21 @@ function step6(draft) {
                   <span class="t-xs fg-lighter">${k}</span>
                   <span class="t-sm" style="text-align:right">${v}</span>
                 </div>`)}
+
+              <!-- The objective is prose, so it gets a block rather than a right-aligned
+                   cell — and it is repeated here because this is the last screen before
+                   the campaign leaves the builder and the reason it exists stops being
+                   editable in one place. -->
+              <div style="padding-top:8px">
+                <span class="t-xs fg-lighter">Objective</span>
+                ${raw(draft.objective && draft.objective.trim() ? html`
+                  <p class="t-sm" style="margin-top:4px">${draft.objective.trim()}</p>`
+                  : html`
+                  <p class="t-sm fg-muted" style="margin-top:4px">
+                    Not set — this campaign publishes without a record of what it is for.
+                    <button class="btn btn-link t-xs" data-act="goto" data-step="1">Add one on step 1</button>
+                  </p>`)}
+              </div>
             </div>
           </div>
 
@@ -638,8 +746,11 @@ export function renderBuilder() {
   root.innerHTML = html`
     <!-- OD-15 revisited — the wizard keeps its own head and footer, but the console
          rail stays mounted beside it so the builder is not an unanchored full-screen
-         surface. It collapses to the icon strip like everywhere else (FR-61). -->
-    ${raw(navRail('campaigns', store.state.navCollapsed))}
+         surface. Here it opens as the icon strip and not the full column: filling a
+         campaign in is the one place where the 152px matters more than the labels,
+         and step 4 spends all of it. Expanding is one click, and the wizard remembers
+         that answer separately from the console's (FR-61). -->
+    ${raw(navRail('campaigns', store.state.builderNavCollapsed))}
     <div class="main">
     <header class="builder-head">
       <div class="row" style="height:var(--bar-h);padding:0 12px;gap:12px">
@@ -696,7 +807,7 @@ export function renderBuilder() {
     </div>`;
 
   wireDropdowns(root);
-  wireRailCollapse(root, renderBuilder);
+  wireRailCollapse(root, renderBuilder, 'builderNavCollapsed');
   wireOnce(root, 'builderWired', wireCommon);
   wireOnce(root, 'contentWired', (node) => wireContentStep(node, renderBuilder));
 
@@ -860,17 +971,47 @@ function wireCommon(root) {
     setTimeout(() => { location.href = 'index.html'; }, 600);
   });
 
+  /* A keystroke re-renders the whole wizard, so the field being typed into has
+     to be handed back its focus, its caret *and* the page's scroll position.
+     The first two were already restored for the name; the third only started
+     to matter with a field that sits below the fold, where losing it throws the
+     reader back to the top of the step on every character. */
+  function typeInto(selector, apply) {
+    return (event) => {
+      const caret = event.target.selectionStart;
+      const top = $('.scroll', $('#app'))?.scrollTop || 0;
+      apply(event.target.value);
+      renderBuilder();
+      const next = $(selector, $('#app'));
+      next?.focus({ preventScroll: true });
+      next?.setSelectionRange(caret, caret);
+      // Last, because focusing a field is itself allowed to scroll to it.
+      const scroller = $('.scroll', $('#app'));
+      if (scroller) scroller.scrollTop = top;
+    };
+  }
+
   /* Step 1 */
   on(root, 'click', '[data-act="pick-goal"]', (e, el) => guardedUpdate({ goal: el.dataset.id }));
 
-  /* Step 2 */
-  on(root, 'input', '[data-act="name"]', (e) => {
-    const caret = e.target.selectionStart;
-    store.updateDraft({ name: e.target.value });
-    renderBuilder();
-    const next = $('[data-act="name"]', $('#app'));
-    next?.focus(); next?.setSelectionRange(caret, caret);
+  // The objective configures nothing, so it needs no guard — it can never
+  // invalidate a later step the way a goal or a campaign type can.
+  on(root, 'input', '[data-act="objective"]',
+    typeInto('[data-act="objective"]', (value) => store.updateDraft({ objective: value })));
+
+  on(root, 'click', '[data-act="objective-starter"]', (e, el) => {
+    set({ objective: el.dataset.text });
+    // A starter is a first draft, not an answer: land the caret at the end of it.
+    const field = $('[data-act="objective"]', $('#app'));
+    field?.focus();
+    field?.setSelectionRange(field.value.length, field.value.length);
   });
+
+  on(root, 'click', '[data-act="objective-clear"]', () => set({ objective: '' }));
+
+  /* Step 2 */
+  on(root, 'input', '[data-act="name"]',
+    typeInto('[data-act="name"]', (value) => store.updateDraft({ name: value })));
   on(root, 'change', '[data-act="app"]', (e, el) => {
     const apps = draft().apps.includes(el.dataset.id)
       ? draft().apps.filter((a) => a !== el.dataset.id)
@@ -916,13 +1057,9 @@ function wireCommon(root) {
   /* Step 6 */
   on(root, 'change', '[data-act="test-account"]', (e) =>
     set({ test: { ...draft().test, account: e.target.value } }));
-  on(root, 'input', '[data-act="test-user"]', (e) => {
-    const caret = e.target.selectionStart;
-    store.updateDraft({ test: { ...draft().test, userId: e.target.value } });
-    renderBuilder();
-    const next = $('[data-act="test-user"]', $('#app'));
-    next?.focus(); next?.setSelectionRange(caret, caret);
-  });
+  on(root, 'input', '[data-act="test-user"]',
+    typeInto('[data-act="test-user"]', (value) =>
+      store.updateDraft({ test: { ...draft().test, userId: value } })));
   on(root, 'click', '[data-act="send-test"]', () => {
     const d = draft();
     const target = d.test.account

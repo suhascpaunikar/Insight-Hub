@@ -108,6 +108,23 @@ is for, and the themes (performance, tracking, onboarding, support) follow from 
 | FR-17 Exclusion after inclusion | Included / Excluded / Estimated reach; empty audience blocks publish |
 | FR-18 Rolling enrolment, per-user lock | Explained on the step |
 
+### Beyond the PRD — the campaign objective and the wizard rail
+
+Two additions on the creation flow that the PRD does not ask for. Both are
+listed here so a reader checking the map against `prd-v5.md` does not go
+looking for the requirement behind them.
+
+| Addition | Where | Why |
+|---|---|---|
+| **Campaign objective** — free text at the foot of step 1, carried through save, clone and publish, shown again on the step 6 summary and as a line on the dashboard row | `objectiveSection()` in `builder.js`; `objective` on the draft and on the campaign row in `store.js` | FR-5 records the goal a campaign starts *from*; nothing records what it is *for*. The assistant quotes it (`objectiveAnswer` in `assistant-answers.js`) instead of inferring intent from a goal id and a trigger, and the next person to open the draft reads it instead of guessing |
+| **A keyword read of the objective**, offering the goal it matches | `suggestGoalFromObjective()` in `store.js`, `OBJECTIVE_SIGNALS` in `data.js` | Written as a word list, not a model, and consistent with the rest of the prototype: it is offered in the AI accent (FR-91), it names the goal it read, and it never changes the draft on its own. A tie between two goals is treated as no reading at all |
+| **The wizard opens with the rail collapsed** to the icon strip, remembering its own state separately from the console's | `builderNavCollapsed` in `store.js`; `wireRailCollapse(root, rerender, key)` in `shell.js` | FR-61 makes the collapse persistent but says nothing about a default. The Content step is the widest surface in the product and the rail's 152px of labels are worth less there than anywhere else, so the builder starts collapsed rather than inheriting the console's answer |
+
+The objective is deliberately **not** validated. FR-1 gates on configuration,
+and a blocked advance on a free-text field is the fastest way to collect the
+word "asdf". The cost of leaving it empty is stated instead — on step 1, on the
+step 6 summary, and in what the assistant is able to answer.
+
 ### Step 4 — Content
 
 | FR | Where |
