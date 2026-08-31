@@ -26,10 +26,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # enablement turns Pages on for the repo, so no manual setup is needed.
+      # Pages must already be enabled with source "GitHub Actions": the
+      # workflow's GITHUB_TOKEN cannot create the Pages site itself, so
+      # configure-pages only reads the existing configuration here.
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
