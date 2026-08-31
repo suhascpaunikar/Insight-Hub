@@ -5,6 +5,7 @@
    ========================================================================== */
 import { html, raw, icon, $, $$, dropdown, wireDropdowns } from './core.js';
 import { store } from './store.js';
+import { mountAssistant, openAssistant } from './assistant.js';
 
 const NAV_GROUPS = [
   [
@@ -19,7 +20,8 @@ const NAV_GROUPS = [
   [
     // FR-60 — a limited-release badge in the AI accent, never mistakable for a metric.
     { href: '#', label: 'AI themes', icon: 'sparkles', key: 'ai-themes', badge: 'BETA' },
-    { href: '#', label: 'Assistant', icon: 'bot', key: 'assistant', badge: 'BETA' },
+    // The one nav entry that does something: it opens the companion card.
+    { href: '#', label: 'Assistant', icon: 'bot', key: 'assistant', badge: 'BETA', act: 'open-assistant' },
     { href: '#', label: 'Settings', icon: 'settings', key: 'settings' },
   ],
 ];
@@ -33,6 +35,7 @@ function navRail(active, collapsed) {
       ${group.map((item) => html`
         <a class="rail-link" href="${item.href}"
            ${raw(item.key === active ? 'aria-current="page"' : '')}
+           ${raw(item.act ? `data-act="${item.act}"` : '')}
            ${raw(collapsed ? `title="${item.label}${item.badge ? ` · ${item.badge}` : ''}"` : '')}>
           ${raw(icon(item.icon))}
           <span class="rail-text truncate grow">${item.label}</span>
@@ -114,6 +117,16 @@ export function renderShell(active) {
     </div>`;
 
   wireDropdowns(root);
+
+  // Lives on document.body, so it survives this function replacing #app.
+  mountAssistant();
+  const assistantLink = $('[data-act="open-assistant"]', root);
+  if (assistantLink) {
+    assistantLink.addEventListener('click', (event) => {
+      event.preventDefault();
+      openAssistant();
+    });
+  }
 
   // FR-61 — collapse state persists across sessions.
   $('[data-act="collapse"]', root).addEventListener('click', () => {
