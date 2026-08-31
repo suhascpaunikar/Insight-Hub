@@ -15,9 +15,10 @@ const EXPLANATIONS = {
   'delivery-funnel': {
     title: 'Delivery funnel',
     text:
-      'Four stages, in absolute counts. The badge on each row is conversion from the step directly ' +
-      'above it — not from Sent — so 85% on Completed means 85% of Started, not 85% of 41,200. ' +
-      'The red bar marks the single worst step, which is the one worth fixing. Read this for where ' +
+      'Four stages, in absolute counts. The line under each figure is conversion from the step ' +
+      'directly before it — not from Sent — so 85% on Completed means 85% of Started, not 85% of ' +
+      '41,200; Completed also carries its share of Sent, the one end-to-end rate here. The step ' +
+      'flagged in red is the single worst one, which is the one worth fixing. Read this for where ' +
       'people fall out, never for one headline rate.',
     followUps: ['delivery', 'variants'],
   },
