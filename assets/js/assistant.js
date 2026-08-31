@@ -13,12 +13,19 @@
 
    It mounts on document.body rather than #app, because renderShell() replaces
    #app.innerHTML on every rerender — the same reason toastHost() lives there.
+
+   The face of it is the orb (assistant-orb.js), and this file is what decides
+   which of its two states it is in. Composing an answer is the whole of the
+   assistant's work, so streaming is exactly when it thinks — the orb wakes on
+   the first word and settles on the last, which makes the card's own latency
+   legible instead of leaving a still icon over moving text.
    ========================================================================== */
 import { html, raw, icon, $, on } from './core.js';
 import { snapshot } from './assistant-context.js';
 import { answer, intentLabel } from './assistant-answers.js';
 import { insight } from './assistant-insights.js';
 import { setPointer, pointerActive } from './assistant-pointer.js';
+import { mountOrb, orbThinking } from './assistant-orb.js';
 
 /* Cadence borrowed from the reference component: slow enough to read along
    with, fast enough that a four-line answer lands in about three seconds. */
@@ -61,10 +68,22 @@ function stopStreaming() {
   wordTimer = null;
 }
 
+/**
+ * Give up on the current answer without finishing it — closing the card, or
+ * switching into pointer mode. The orb settles either way: an abandoned
+ * answer is not still being composed.
+ */
+function abandonStream() {
+  stopStreaming();
+  streamState = null;
+  orbThinking('answer', false);
+}
+
 /** Reveal the remaining words at once, then settle into the finished state. */
 function finishStream() {
   if (!streamState) return;
   stopStreaming();
+  orbThinking('answer', false);
   const { words, caret } = streamState;
   const target = textElement();
   while (streamState.index < words.length) {
@@ -90,6 +109,7 @@ function buildWord(word) {
 
 function streamAnswer({ text, followUps }, title = 'Assistant') {
   stopStreaming();
+  orbThinking('answer', true);
   titleElement().textContent = title;
   const target = textElement();
   target.innerHTML = '';
@@ -168,8 +188,7 @@ export function openAssistant(intentId = 'overview') {
 export function closeAssistant() {
   if (!rootElement) return;
   setPointerMode(false);
-  stopStreaming();
-  streamState = null;
+  abandonStream();
   rootElement.dataset.open = 'false';
 }
 
@@ -186,7 +205,7 @@ export function mountAssistant() {
   rootElement.innerHTML = html`
     <section class="asst-card" role="dialog" aria-label="InsightHub assistant">
       <header class="asst-head">
-        ${raw(icon('sparkles', 'asst-head-icon'))}
+        <span class="asst-head-orb" data-asst-orb></span>
         <span class="asst-head-title grow truncate" data-asst-title>Assistant</span>
         <span class="badge badge-ai badge-mono">BETA</span>
         <button class="asst-icon-btn" data-act="asst-pointer" aria-pressed="false"
@@ -202,10 +221,16 @@ export function mountAssistant() {
       </div>
       <div class="asst-follow" data-asst-follow></div>
     </section>
-    <button class="asst-bubble" data-act="asst-toggle" aria-label="Open assistant">
-      ${raw(icon('bot'))}
-    </button>`;
+    <button class="asst-bubble" data-act="asst-toggle" aria-label="Open assistant"
+            data-asst-orb></button>`;
   document.body.appendChild(rootElement);
+
+  /* Two orbs, one assistant: the launcher and the card's own mark. They share
+     a state through orbThinking(), so they never disagree about what the
+     assistant is doing. Sized to their boxes — 42px inside the bubble's
+     border, 20px in the header, both under the renderer's buffer cap. */
+  mountOrb($('.asst-bubble', rootElement), { size: 42 });
+  mountOrb($('.asst-head-orb', rootElement), { size: 20 });
 
   on(rootElement, 'click', '[data-act="asst-toggle"]', () => {
     if (rootElement.dataset.open === 'true') closeAssistant();
@@ -218,8 +243,7 @@ export function mountAssistant() {
     const next = !pointerActive();
     setPointerMode(next);
     if (!next) return;
-    stopStreaming();
-    streamState = null;
+    abandonStream();
     titleElement().textContent = 'Pointer on';
     followElement().innerHTML = '';
     textElement().innerHTML = html`<span class="asst-word">Move over any panel and hold still for a

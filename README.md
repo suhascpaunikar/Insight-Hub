@@ -77,6 +77,7 @@ assets/
     assistant-answers.js  intent registry + answer composers
     assistant-insights.js what each panel's data says
     assistant-pointer.js  the cursor companion and its dwell
+    assistant-orb.js      the Siri-style orb — idle and thinking
 docs/
   prd-v5.md            the source PRD
   prd-coverage.md      FR-by-FR map, the 21 open decisions, what changed vs Magic Patterns
@@ -93,6 +94,13 @@ A companion card docked bottom-right on every screen, in the shape of
 on screen, streams the answer a word at a time, and offers the next question
 rather than waiting for one. Open it from **Assistant** in the nav rail, the
 buddy button in the corner, or `Ctrl + /`.
+
+Its face is a Siri-style liquid orb with two states: **idle** — slow,
+desaturated, barely breathing — and **thinking**, seven times faster and
+saturated violet-cyan-magenta, which it holds from the first word of an answer
+to the last. The launcher, the card's header mark and the cursor companion all
+wear it and all share one state, so the card's own latency is legible instead
+of being covered by a still icon.
 
 **There is no model behind it.** Answers are composed deterministically from
 `data.js` and the live store at the moment they're asked — nothing leaves the

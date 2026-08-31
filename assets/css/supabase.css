@@ -733,16 +733,23 @@ img { max-width: 100%; }
 .asst-bubble {
   width: 44px; height: 44px; flex: none;
   display: grid; place-items: center;
+  padding: 0; overflow: hidden;
   border-radius: var(--radius-full);
   border: 1px solid var(--ai-400);
-  background: var(--background-100);
-  color: var(--ai-fg);
+  background: transparent;        /* the orb paints its own ground */
   box-shadow: var(--shadow-2);
   cursor: pointer;
-  transition: background 120ms ease, transform 120ms ease, border-color 120ms ease;
+  transition: transform 120ms ease, border-color 120ms ease, box-shadow 400ms ease;
 }
-.asst-bubble:hover { background: var(--ai-200); border-color: var(--ai-fg); transform: translateY(-1px); }
-.asst-bubble svg { width: 20px; height: 20px; }
+.asst-bubble:hover { border-color: var(--ai-fg); transform: translateY(-1px); }
+
+/* The CSS half of the thinking state: the orb brightens from the inside, and
+   the halo says so past its own edge. Slow on the way out, matching the two
+   seconds the orb takes to settle. */
+.asst-bubble[data-orb-state="thinking"] {
+  border-color: var(--ai-fg);
+  box-shadow: var(--shadow-2), 0 0 18px -2px rgba(167, 139, 250, 0.55);
+}
 
 /* The card occupies its 320×240 whether open or not; visibility is what
    changes, so opening never reflows the page behind it. */
@@ -769,7 +776,7 @@ img { max-width: 100%; }
   border-bottom: 1px solid var(--border-default);
   flex: none;
 }
-.asst-head-icon { color: var(--ai-fg); width: 14px; height: 14px; flex: none; }
+.asst-head-orb { width: 20px; height: 20px; flex: none; display: block; }
 .asst-head-title { font-size: 12px; font-weight: 500; color: var(--foreground-default); }
 
 .asst-icon-btn {
@@ -858,6 +865,22 @@ img { max-width: 100%; }
 .asst-body[data-fade-top="true"] { --asst-fade-top: 18px; }
 .asst-body[data-fade-bottom="true"] { --asst-fade-bottom: 22px; }
 
+/* ---------- The orb ----------
+   assistant-orb.js paints a Siri-style liquid sphere into this canvas: slow
+   and desaturated at rest, fast and saturated while an answer is being
+   composed. Three of them — the launcher, the card's mark, and the cursor
+   companion — all driven from one state, because they are one assistant.
+
+   The buffer is capped at 96px and is often smaller than the box it fills, so
+   the browser's own smoothing does the upscale. That is deliberate: the wave
+   is a smooth field, and a nearest-neighbour orb would show its grid. */
+.asst-orb {
+  display: block;
+  width: 100%; height: 100%;
+  border-radius: var(--radius-full);
+  pointer-events: none;
+}
+
 /* ---------- Pointer mode ----------
    The companion trails the real cursor; resting on a panel for a beat asks it
    what its numbers say. Panels outline faintly while the pointer is armed so
@@ -875,14 +898,12 @@ img { max-width: 100%; }
 .asst-pointer-mark {
   position: relative;
   display: grid; place-items: center;
-  width: 22px; height: 22px;
+  width: 22px; height: 22px; overflow: hidden;
   border-radius: var(--radius-full);
   border: 1px solid var(--ai-400);
-  background: var(--background-100);
-  color: var(--ai-fg);
+  background: transparent;
   box-shadow: var(--shadow-2);
 }
-.asst-pointer-mark svg { width: 12px; height: 12px; }
 
 /* The ring closes over the dwell, so the wait reads as deliberate. */
 .asst-pointer-ring {

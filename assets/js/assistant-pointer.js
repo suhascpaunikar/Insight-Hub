@@ -9,8 +9,13 @@
    over several panels, and firing on every one of them would be noise, so a
    panel only speaks once the pointer has settled on it — with a ring closing
    around the buddy to show the wait is deliberate rather than a hang.
+
+   The buddy wears the same orb as the card, and the dwell is the other half
+   of the assistant's thinking: the ring says how long is left, and the orb
+   says the wait is being spent on something. Both end together — the dwell
+   fires into an answer, and the answer holds the orb awake from there.
    ========================================================================== */
-import { icon } from './core.js';
+import { mountOrb, orbThinking } from './assistant-orb.js';
 
 const DWELL_MS = 600;
 /* Fraction of the remaining distance closed each frame. Low enough that the
@@ -40,8 +45,9 @@ function build() {
       <circle class="asst-pointer-track" cx="20" cy="20" r="17" />
       <circle class="asst-pointer-progress" cx="20" cy="20" r="17" />
     </svg>
-    <span class="asst-pointer-mark">${icon('bot')}</span>`;
+    <span class="asst-pointer-mark"></span>`;
   document.body.appendChild(buddy);
+  mountOrb(buddy.querySelector('.asst-pointer-mark'), { size: 22 });
   return buddy;
 }
 
@@ -66,6 +72,7 @@ function trackCursor(event) {
 function clearDwell() {
   if (dwellTimer) clearTimeout(dwellTimer);
   dwellTimer = null;
+  orbThinking('dwell', false);
   if (buddy) buddy.dataset.dwelling = 'false';
 }
 
@@ -86,6 +93,7 @@ function enterPanel(panel) {
   buddy.dataset.dwelling = 'false';
   void buddy.offsetWidth;
   buddy.dataset.dwelling = 'true';
+  orbThinking('dwell', true);
 
   dwellTimer = setTimeout(() => {
     clearDwell();
