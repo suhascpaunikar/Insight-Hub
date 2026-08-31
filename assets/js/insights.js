@@ -11,15 +11,15 @@ import {
 import { store } from './store.js';
 import {
   DELIVERY_FUNNEL, DELIVERY_SERIES, FAILURE_REASONS, RATING_BLOCK, BRANCH_BLOCKS,
-  OPEN_RESPONSES, THEMES, SCORE_DRIVERS, OWNER_TEAMS, VARIANT_RESULTS, WEIGHT_HISTORY,
+  OPEN_RESPONSES, SCORE_DRIVERS, OWNER_TEAMS, VARIANT_RESULTS, WEIGHT_HISTORY,
   AI_SUGGESTIONS, SEGMENTS,
 } from './data.js';
 
-const TABS = ['delivery', 'responses', 'themes', 'impact'];
+const TABS = ['delivery', 'responses', 'impact'];
 
 /* FR-92 — filters apply across all four tabs and persist when switching. */
 const filters = { range: '30d', segment: 'all', app: 'all', variant: 'all', version: 'all' };
-const view = { theme: null, textQuery: '', bandFilter: 'all', owners: {} };
+const view = { textQuery: '', bandFilter: 'all', owners: {} };
 
 const params = () => new URLSearchParams(location.search);
 const currentTab = () => {
@@ -162,9 +162,8 @@ function responsesTab(c) {
     const q = view.textQuery.trim().toLowerCase();
     const matchesQuery = !q || r.text.toLowerCase().includes(q);
     const matchesBand = view.bandFilter === 'all' || r.band === view.bandFilter;
-    const matchesTheme = !view.theme || r.themeId === view.theme;
     const matchesVersion = filters.version === 'all' || String(r.version) === filters.version;
-    return matchesQuery && matchesBand && matchesTheme && matchesVersion;
+    return matchesQuery && matchesBand && matchesVersion;
   });
 
   return html`
@@ -269,11 +268,6 @@ function responsesTab(c) {
               <option value="${b}" ${raw(view.bandFilter === b ? 'selected' : '')}>
                 ${BAND_LABEL[b]} · ${bandRange(b, max)}</option>`)}
           </select>
-          ${raw(view.theme ? html`
-            <span class="chip" style="border-color:var(--ai-400);color:var(--ai-fg)">
-              ${raw(icon('sparkles'))}${THEMES.find((t) => t.id === view.theme)?.name || ''}
-              <button data-act="clear-theme" aria-label="Clear theme filter">${raw(icon('x'))}</button>
-            </span>` : '')}
         </div>
         <ul>
           ${filtered.length === 0 ? html`
@@ -345,114 +339,6 @@ function openResponseDetail(id) {
 }
 
 /* ==========================================================================
-   Themes tab (FR-103 … FR-105)
-   ========================================================================== */
-function themesTab(c) {
-  const max = scaleMax(c);
-  const confident = THEMES.filter((t) => t.confidence !== 'low')
-    .sort((a, b) => b.volume - a.volume);
-  const unclustered = THEMES.filter((t) => t.confidence === 'low');
-  // A theme growing is only bad news when the theme itself rates badly —
-  // rising praise is not a regression, so the colour follows the rating.
-  const midpoint = (max + 1) / 2;
-  const trendTone = (t) =>
-    t.trend === 0 ? 'var(--foreground-lighter)'
-    : (t.avgRating < midpoint) === (t.trend > 0) ? 'var(--destructive-fg)' : 'var(--brand-default)';
-  const volMax = Math.max(...confident.map((t) => t.volume));
-
-  return html`
-    <div class="stack-lg">
-      <!-- FR-91 — AI output carries an accent that appears nowhere in the data palette. -->
-      <section class="card" style="border-color:var(--ai-400)">
-        <div class="card-head" style="border-color:var(--ai-400)">
-          <span class="row" style="gap:8px">
-            ${raw(icon('sparkles', 'fg-ai'))}
-            <h3 class="t-h2 fg-ai">What the model is reading</h3>
-          </span>
-          <span class="badge badge-ai">AI inference · not a measurement</span>
-        </div>
-        <div class="card-body stack-sm">
-          ${AI_SUGGESTIONS.map((s) => html`
-            <p class="row-start t-body fg-light">
-              <span style="width:4px;height:4px;margin-top:8px;border-radius:50%;background:${raw(AI_ACCENT)};flex:none"></span>
-              <span>${s}</span>
-            </p>`)}
-        </div>
-      </section>
-
-      <section class="stack">
-        ${confident.map((t) => html`
-          <div class="card" style="border-left:2px solid ${raw(AI_ACCENT)}">
-            <div class="card-body">
-              <div class="row-between wrap" style="align-items:flex-start">
-                <div style="min-width:0;max-width:64ch">
-                  <div class="row" style="gap:8px">
-                    <h3 class="t-h2">${t.name}</h3>
-                    <span class="badge badge-ai">${t.confidence} confidence</span>
-                  </div>
-                  <p class="t-body fg-lighter" style="margin-top:4px">${t.summary}</p>
-                </div>
-                <div class="row" style="gap:18px">
-                  <span class="col" style="gap:0;align-items:flex-end">
-                    <span class="t-micro fg-muted">Volume</span>
-                    <span class="num t-h1">${count(t.volume)}</span>
-                  </span>
-                  <span class="col" style="gap:0;align-items:flex-end">
-                    <span class="t-micro fg-muted">vs previous</span>
-                    <span class="num t-h1" style="color:${raw(trendTone(t))}">
-                      ${t.trend > 0 ? '+' : ''}${t.trend}%
-                    </span>
-                  </span>
-                  <span class="col" style="gap:0;align-items:flex-end">
-                    <span class="t-micro fg-muted">Avg rating</span>
-                    <span style="font-size:17px">${raw(ratingValue(t.avgRating, max))}</span>
-                  </span>
-                </div>
-              </div>
-
-              <span class="bar-track" style="margin-top:12px">
-                <span class="bar-fill" style="width:${(t.volume / volMax) * 100}%;background:${raw(AI_ACCENT)};opacity:.55"></span>
-              </span>
-
-              <div class="row-between" style="margin-top:12px">
-                <span class="t-xs fg-muted">
-                  Example: “${(OPEN_RESPONSES.find((r) => r.themeId === t.id)?.text || '').slice(0, 96)}…”
-                </span>
-                <!-- FR-104 — every AI claim is traceable to the raw responses behind it. -->
-                <button class="btn btn-outline btn-sm" data-act="drill-theme" data-id="${t.id}">
-                  ${raw(icon('eye'))}See the ${count(t.volume)} responses
-                </button>
-              </div>
-            </div>
-          </div>`)}
-      </section>
-
-      <!-- FR-105 — below the threshold, grouped as unclustered rather than presented as findings. -->
-      <section class="card">
-        <div class="card-head">
-          <h3 class="t-h2 fg-lighter">Unclustered</h3>
-          <span class="badge">Below the volume and confidence threshold</span>
-        </div>
-        <div class="card-body stack-sm">
-          <p class="t-body fg-lighter">
-            These clusters do not carry enough volume or model confidence to read as findings. They
-            are listed so nothing is hidden, but they are deliberately not ranked alongside the
-            themes above.
-          </p>
-          ${unclustered.map((t) => html`
-            <div class="row-between" style="padding:7px 0;border-top:1px solid var(--border-muted)">
-              <span class="t-sm fg-light">${t.name}</span>
-              <span class="row" style="gap:12px">
-                <span class="num t-xs fg-lighter">${count(t.volume)} responses</span>
-                <span class="badge">${t.confidence}</span>
-              </span>
-            </div>`)}
-        </div>
-      </section>
-    </div>`;
-}
-
-/* ==========================================================================
    Impact tab (FR-106 … FR-110)
    FR-106 — score driver breakdown. Attribution keys off theme, and each row is
    ranked by how far it pulls the overall score down.
@@ -471,8 +357,8 @@ function impactTab(c) {
           <div>
             <h3 class="t-h2">Score drivers</h3>
             <span class="t-xs fg-lighter">
-              Every theme from the Themes tab, ranked by how much it pulls the
-              <span class="mono">${ratingText(RATING_BLOCK.average)}</span> average down.
+              Every theme found in the open responses, ranked by how much it pulls
+              the <span class="mono">${ratingText(RATING_BLOCK.average)}</span> average down.
             </span>
           </div>
         </div>
@@ -651,7 +537,6 @@ export function renderInsights(host) {
   const body =
     tab === 'delivery' ? deliveryTab(c)
     : tab === 'responses' ? responsesTab(c)
-    : tab === 'themes' ? themesTab(c)
     : impactTab(c);
 
   host.innerHTML = html`
@@ -727,7 +612,7 @@ export function renderInsights(host) {
             threshold to read as a rate. Percentages are withheld and raw counts shown instead.</span>
         </div>` : '')}
 
-      <!-- FR-88 — four tabs, and tab state lives in the URL so a view is shareable. -->
+      <!-- FR-88 — tab state lives in the URL so a view is shareable. -->
       <div class="tabs" role="tablist" aria-label="Insights sections">
         ${TABS.map((t) => html`
           <button class="tab" role="tab" data-act="tab" data-tab="${t}" aria-selected="${tab === t}">
@@ -837,20 +722,7 @@ function wire(host) {
     next?.focus(); next?.setSelectionRange(caret, caret);
   });
   on(host, 'change', '[data-act="band-filter"]', (e) => { view.bandFilter = e.target.value; rerender(); });
-  on(host, 'click', '[data-act="clear-theme"]', () => { view.theme = null; rerender(); });
   on(host, 'click', '[data-act="open-response"]', (e, el) => openResponseDetail(el.dataset.id));
-
-  /* Themes tab */
-  on(host, 'click', '[data-act="drill-theme"]', (e, el) => {
-    view.theme = el.dataset.id;
-    view.bandFilter = 'all';
-    view.textQuery = '';
-    const p = params();
-    p.set('tab', 'responses');
-    if (!p.get('id')) p.set('id', c().id);
-    history.replaceState(null, '', `?${p}`);
-    rerender();
-  });
 
   /* Impact tab */
   on(host, 'change', '[data-act="set-owner"]', (e, el) => {

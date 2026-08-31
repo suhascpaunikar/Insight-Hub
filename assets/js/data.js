@@ -44,9 +44,12 @@ export const TEMPLATE_CATEGORIES = [
 ];
 
 export const CHANNELS = [
-  { id: 'push', label: 'Push notification', apps: ['android', 'ios'] },
-  { id: 'in-app', label: 'In-app message', apps: ['android', 'ios'] },
-  { id: 'web', label: 'On-site / web', apps: ['web'] },
+  { id: 'push', label: 'Push notification', apps: ['android', 'ios'], icon: 'send',
+    note: 'Reaches users outside the app. Cannot carry rating or text input.' },
+  { id: 'in-app', label: 'In-app message', apps: ['android', 'ios'], icon: 'layout',
+    note: 'Shown during a session. Supports every element in the library.' },
+  { id: 'web', label: 'On-site / web', apps: ['web'], icon: 'external',
+    note: 'Renders on your site or in a web view.' },
 ];
 
 /** `supports` drives FR-29 — elements a component cannot render never appear. */

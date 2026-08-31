@@ -175,11 +175,11 @@ is for, and the themes (performance, tracking, onboarding, support) follow from 
 | FR-98 Per-question breakdown | Rating on the ramp, MCQ ranked with counts and shares |
 | FR-99 One overall rating | One block, one distribution, one mean |
 | FR-100 Branch path visibility | Per-band card with its own path count |
-| FR-101 Open text | Searchable, filterable by band and theme |
+| FR-101 Open text | Searchable, filterable by rating band |
 | FR-102 Response detail | Full answer set in order, with segment and order context |
-| FR-103 AI theme clustering | Volume, trend, avg rating, example, in the AI accent |
-| FR-104 Theme drill-down | Jumps to Responses filtered to that theme |
-| FR-105 Theme reliability | Low-confidence grouped as Unclustered |
+| FR-103 AI theme clustering | **Not surfaced** — the Themes tab was removed from the prototype |
+| FR-104 Theme drill-down | **Not surfaced** — removed with the Themes tab |
+| FR-105 Theme reliability | **Not surfaced** — removed with the Themes tab |
 | FR-106 Score driver breakdown | Low/high band split, ranked by score drag, owner per theme |
 | FR-107 Driver actions | Export, filtered link, or ticket — filter pre-applied |
 | FR-108 Variant comparison | Completion rate and rating, flagged when triggers diverge |
