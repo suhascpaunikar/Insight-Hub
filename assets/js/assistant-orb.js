@@ -491,10 +491,33 @@ export function mountOrb(host, { size = 44 } = {}) {
   return handle;
 }
 
-/* ---------- One assistant, three orbs ----------
-   The bubble, the card header and the cursor companion are the same
-   assistant shown in three places, so they move together — a header that is
-   still idling while the answer streams below it reads as two machines.
+/* The card's border beam is CSS the whole way down, so the only thing it
+   needs from here is the state as an attribute — the same shape the pointer
+   already publishes as body[data-asst-pointer]. `fading` is a real third
+   value, not a nicety: the beam's comet is a spun custom property, and cutting
+   the animation the instant thinking ends would snap the angle back to 0 in
+   full view. Holding it through the fade lets the comet keep travelling while
+   it dims, which is what the React component's data-fading does. */
+const BEAM_FADE_MS = 500;
+let beamFade = null;
+
+function publishThinking(on) {
+  const body = document.body;
+  if (beamFade) { clearTimeout(beamFade); beamFade = null; }
+  if (on) { body.dataset.asstThinking = 'true'; return; }
+  // Nothing to fade from if it was never lit.
+  if (body.dataset.asstThinking !== 'true') { body.dataset.asstThinking = 'false'; return; }
+  body.dataset.asstThinking = 'fading';
+  beamFade = setTimeout(() => {
+    beamFade = null;
+    body.dataset.asstThinking = 'false';
+  }, BEAM_FADE_MS);
+}
+
+/* ---------- One assistant, three orbs and a beam ----------
+   The bubble, the card header, the cursor companion and the card's own edge
+   are the same assistant shown in four places, so they move together — a
+   header still idling while the answer streams below it reads as two machines.
 
    Counted by reason rather than set outright, because the two things that
    make it think overlap: a dwell that is cancelled while the answer it
@@ -504,6 +527,7 @@ export function orbThinking(reason, on) {
   if (on) reasons.add(reason);
   else reasons.delete(reason);
   if ((reasons.size > 0) === had) return;
-  const next = reasons.size ? 'thinking' : 'idle';
-  for (const handle of mounted) handle.setState(next);
+  const thinking = reasons.size > 0;
+  for (const handle of mounted) handle.setState(thinking ? 'thinking' : 'idle');
+  publishThinking(thinking);
 }

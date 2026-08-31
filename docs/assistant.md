@@ -124,6 +124,87 @@ per state, repainted when the state changes. It still says which state it is in
 
 ---
 
+## The border beam
+
+While the assistant thinks, a comet travels the card's edge. It is a port of
+[`border-beam`](https://www.npmjs.com/package/border-beam) `1.3.0` at
+`size="md" colorVariant="colorful" theme="dark"`, in plain CSS.
+
+### Why it is CSS and not the package
+
+The package is React + Tailwind + TypeScript, and it expects a shadcn project
+with a `/components/ui` folder. This prototype is none of those — no
+`package.json`, no bundler, and `netlify.toml` publishes the repo root as-is.
+Adding that toolchain to ship one border animation would rewrite the prototype
+and break the property the whole thing is built around, and GitHub Pages could
+not run the build.
+
+It also was not necessary. The React component's only job is to emit scoped CSS
+with a generated id; every prop it takes is a variable in a stylesheet. So the
+rules in `supabase.css` are the package's own — its conic gradients, its mask
+composite chain, its nine pinned blobs, its 1.96s lap, its ±30° hue drift under
+brightness 1.3 and saturate 1.2 — with the generated id replaced by the
+`.asst-card` selector.
+
+### The part that is not the obvious build
+
+**The colour does not travel.** Nine radial-gradient blobs are pinned at fixed
+points around the border — magenta at the top, blue upper-left, green on the
+left flank, violet along the bottom, orange top-right — and what sweeps is a
+white comet, a conic-gradient mask spun by the registered `--asst-beam-angle`.
+The beam therefore *changes colour as it passes each blob* rather than carrying
+a colour with it, which is why the same highlights land in the same places on
+every lap.
+
+Three composited masks pin it to the edge: the comet, INTERSECTed with the
+border-ring trick (the full box EXCLUDEd against the content box, the ring's
+thickness being the layer's own 1px padding).
+
+### Two deviations, both written down
+
+**The blob field is proportional, not pixel-sized.** The package authors its
+blobs in fixed pixels — `70px`, `180px` — against its own demo card, which is
+348×137. This card is 320×**240**, nearly twice as tall, so the blobs pinned to
+the left and right edges covered a much smaller share of them and the beam
+guttered out along the vertical runs. Each size is now that pixel value as a
+percentage of the package's own card, which restores the intent — every blob
+covers the same fraction of the edge it sits on — and makes the field scale
+with whatever it wraps.
+
+**The layers are brighter.** The package ships stroke at `0.26` and inner glow
+at `0.42`. Its demo sits on near-black `#0d0d0f` at full width; this is a 320px
+card on the console's own `--background-200`. At the shipped values the beam
+was measurably present and visually absent. It runs at `0.88` and `0.60`, which
+is as far as it goes — the ring is still 1px, and the inner glow stays under
+the stroke so the edge reads as an edge and not as a coloured wash.
+
+### `fading` is a real state
+
+`orbThinking()` publishes `body[data-asst-thinking]` with three values, not two.
+The comet's angle is a spun custom property, so cutting the animation the
+instant thinking ends would snap it back to 0° in full view. `fading` holds the
+spin through the 500ms fade-out, so the comet keeps travelling while it dims —
+which is what the React component's `data-fading` is for.
+
+The card's own violet hairline goes transparent while the beam is lit, so the
+beam owns the edge instead of running as a second ring just inside it.
+
+### FR-91
+
+This is the one place in the console where ramp colours appear off-ramp: the
+beam sweeps through amber and green, which the rating ramp owns, and it is not
+in the violet lane FR-91 reserves for machine claims. That was specified
+deliberately after the trade-off was raised. It reads as chrome on the card's
+edge rather than as a value in the data, and it only runs while the assistant
+is composing. Switching to the violet lane means editing the nine blob colours
+in the two `.asst-card::before` / `::after` gradient lists.
+
+Under `prefers-reduced-motion: reduce` the beam does not run at all — an effect
+whose entire content is motion has nothing to show without it, and the orb
+still carries the state.
+
+---
+
 ## The pointer
 
 Press **`?`**, or the target button in the card header, and a companion drops
@@ -244,7 +325,7 @@ full-screen focus mode and renders its own chrome instead of calling
 | `assets/js/assistant-answers.js` | the intent registry and the answer composers |
 | `assets/js/assistant-insights.js` | what each panel's data says — one composer per panel |
 | `assets/js/assistant-pointer.js` | the cursor companion, dwell detection and panel arming |
-| `assets/js/assistant-orb.js` | the Siri-style orb — the two states and the renderer |
+| `assets/js/assistant-orb.js` | the Siri-style orb — the two states, the renderer, and the state broadcast |
 
 Styles live at the end of `assets/css/supabase.css` under *Assistant*.
 
