@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Campaign insights · InsightHub</title>
+  <meta name="description" content="InsightHub campaign insights — delivery, responses, themes and impact." />
+  <link rel="stylesheet" href="assets/css/supabase.css" />
+  <!-- Webfonts load non-blocking: a slow or unreachable CDN must never delay the
+       page, and the stack below it (system-ui / ui-monospace) stands on its own. -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" media="print" onload="this.media='all'"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%233ecf8e'/%3E%3Ctext x='16' y='22' font-family='Inter,sans-serif' font-size='15' font-weight='700' fill='%23121212' text-anchor='middle'%3EIH%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module">
+    import { renderShell } from './assets/js/shell.js';
+    import { renderInsights } from './assets/js/insights.js';
+
+    function boot() { renderInsights(renderShell('campaigns')); }
+    document.addEventListener('shell:rerender', () => renderInsights(document.getElementById('content')));
+    boot();
+  </script>
+</body>
+</html>
