@@ -17,7 +17,8 @@
 import { html, raw, icon, $, on } from './core.js';
 import { snapshot } from './assistant-context.js';
 import { answer, intentLabel } from './assistant-answers.js';
-import { explain } from './assistant-explain.js';
+import { insight } from './assistant-insights.js';
+import { setPointer, pointerActive } from './assistant-pointer.js';
 
 /* Cadence borrowed from the reference component: slow enough to read along
    with, fast enough that a four-line answer lands in about three seconds. */
@@ -32,7 +33,6 @@ const REPLY_ARROW = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none"
 let rootElement = null;
 let wordTimer = null;
 let streamState = null;
-let explainMode = false;
 
 const bodyElement = () => $('[data-asst-body]', rootElement);
 const textElement = () => $('[data-asst-text]', rootElement);
@@ -126,28 +126,29 @@ function renderFollowUps(followUps) {
       </button>`)}`;
 }
 
-/* ---------- Explain mode ---------- */
+/* ---------- Pointer mode ---------- */
 
 /**
- * Clicky points at the UI; here the user points and the assistant explains.
- * A mode rather than a plain click handler because the widgets underneath
- * already own their clicks — drilling into a theme, opening a response,
- * reassigning a team — and silently stealing those would be worse than the
- * feature is worth.
+ * Clicky's cursor flies to whatever the model names; this one walks with you.
+ * Arming it drops a companion that trails the real pointer, and resting on a
+ * panel for a beat asks that panel what its numbers say.
+ *
+ * A mode rather than plain hover, because the panels underneath already own
+ * their pointer: routing a driver, opening a response, a select. Dwelling is
+ * only safe to make meaningful once the user has asked for it.
  */
-function setExplainMode(on) {
-  explainMode = on;
-  document.body.dataset.asstExplain = String(on);
-  const toggle = $('[data-act="asst-explain"]', rootElement);
+function setPointerMode(on) {
+  setPointer(on, readPanel);
+  const toggle = $('[data-act="asst-pointer"]', rootElement);
   if (toggle) toggle.setAttribute('aria-pressed', String(on));
 }
 
-/** Explain one widget by its data-explain key. */
-export function askExplain(key) {
-  const entry = explain(key);
-  if (!entry || !rootElement) return;
+/** Report what one panel's data says. Called when the pointer settles on it. */
+export function readPanel(key) {
+  const found = insight(key);
+  if (!found || !rootElement) return;
   rootElement.dataset.open = 'true';
-  streamAnswer({ text: entry.text, followUps: toFollowUps(entry.followUps) }, entry.title);
+  streamAnswer({ text: found.text, followUps: toFollowUps(found.followUps) }, found.title);
 }
 
 /* ---------- Public API ---------- */
@@ -166,7 +167,7 @@ export function openAssistant(intentId = 'overview') {
 
 export function closeAssistant() {
   if (!rootElement) return;
-  setExplainMode(false);
+  setPointerMode(false);
   stopStreaming();
   streamState = null;
   rootElement.dataset.open = 'false';
@@ -188,9 +189,9 @@ export function mountAssistant() {
         ${raw(icon('sparkles', 'asst-head-icon'))}
         <span class="asst-head-title grow truncate" data-asst-title>Assistant</span>
         <span class="badge badge-ai badge-mono">BETA</span>
-        <button class="asst-icon-btn" data-act="asst-explain" aria-pressed="false"
-                aria-label="Explain a widget">
-          ${raw(icon('help'))}
+        <button class="asst-icon-btn" data-act="asst-pointer" aria-pressed="false"
+                aria-label="Read a panel with the pointer">
+          ${raw(icon('target'))}
         </button>
         <button class="asst-icon-btn" data-act="asst-close" aria-label="Close assistant">
           ${raw(icon('x'))}
@@ -213,32 +214,17 @@ export function mountAssistant() {
   on(rootElement, 'click', '[data-act="asst-close"]', closeAssistant);
   on(rootElement, 'click', '[data-act="asst-ask"]', (event, button) => ask(button.dataset.intent));
 
-  on(rootElement, 'click', '[data-act="asst-explain"]', () => {
-    setExplainMode(!explainMode);
-    if (!explainMode) return;
+  on(rootElement, 'click', '[data-act="asst-pointer"]', () => {
+    const next = !pointerActive();
+    setPointerMode(next);
+    if (!next) return;
     stopStreaming();
     streamState = null;
-    titleElement().textContent = 'Pick a panel';
+    titleElement().textContent = 'Pointer on';
     followElement().innerHTML = '';
-    textElement().innerHTML = html`<span class="asst-word">Click any panel on the page and I'll
-      explain how to read it — what the numbers are counted against, what the colours mean, and the
-      misreading it invites. Escape to stop.</span>`;
+    textElement().innerHTML = html`<span class="asst-word">Move over any panel and hold still for a
+      moment — I'll read what its numbers say. Escape puts the pointer away.</span>`;
   });
-
-  /**
-   * Capture phase, so an explain click never reaches the widget's own handler.
-   * Without this, picking the themes list would also drill into a theme and
-   * picking a driver row would open its owner dropdown.
-   */
-  document.addEventListener('click', (event) => {
-    if (!explainMode || !rootElement) return;
-    if (rootElement.contains(event.target)) return;      // the card's own controls
-    const widget = event.target.closest('[data-explain]');
-    if (!widget) return;
-    event.preventDefault();
-    event.stopPropagation();
-    askExplain(widget.dataset.explain);
-  }, true);
 
   // Clicking the answer while it streams skips to the end, as impatient
   // readers expect of any typewriter reveal.
@@ -249,14 +235,14 @@ export function mountAssistant() {
     // A modal owns Escape outright while it is open: dismissing a dialog must
     // not also close the assistant sitting behind it.
     if (event.key === 'Escape' && document.querySelector('.scrim')) return;
-    // Otherwise Escape steps out of explain mode first, and only then closes.
-    if (event.key === 'Escape' && explainMode) { setExplainMode(false); return; }
+    // Otherwise Escape puts the pointer away first, and only then closes.
+    if (event.key === 'Escape' && pointerActive()) { setPointerMode(false); return; }
     if (event.key === 'Escape' && rootElement.dataset.open === 'true') closeAssistant();
-    // "?" jumps straight into explain mode, unless the user is typing.
+    // "?" arms the pointer straight away, unless the user is typing.
     if (event.key === '?' && !/^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName)) {
       event.preventDefault();
       openAssistant();
-      $('[data-act="asst-explain"]', rootElement).click();
+      $('[data-act="asst-pointer"]', rootElement).click();
     }
     // Ctrl + / — the browser equivalent of clicky's global push-to-talk key.
     if (event.key === '/' && (event.ctrlKey || event.metaKey)) {
