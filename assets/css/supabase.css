@@ -947,10 +947,16 @@ img { max-width: 100%; }
 }
 
 /* z-index 2 — the beam proper: the comet, over the pinned colours, cut to a
-   1px ring. */
+   1px ring, then softened.
+
+   The blur is what turns that ring into something worth looking at. Masking
+   happens before filtering, so the blur spreads the masked 1px line outward
+   into a soft band instead of being clipped back to it — the ring stays the
+   geometry and the blur becomes the light. */
 .asst-card::after {
   z-index: 2;
   padding: 1px;
+  --asst-beam-blur: 4px;
   background:
     conic-gradient(
       from var(--asst-beam-angle),
@@ -1000,10 +1006,13 @@ img { max-width: 100%; }
 }
 
 /* z-index 1 — the inner glow the beam sits on, so the edge has depth rather
-   than being one hard hairline. Not masked to the ring: it bleeds inward. */
+   than being one hard hairline. Not masked to the ring: it bleeds inward, and
+   blurs more than twice as wide as the stroke so the two read as one light
+   falling off rather than as two concentric rings. */
 .asst-card::before {
   z-index: 1;
-  box-shadow: inset 0 0 5px 1px rgba(255, 255, 255, 0.27);
+  --asst-beam-blur: 9px;
+  box-shadow: inset 0 0 5px 1px rgba(255, 255, 255, 0.18);
   background:
     radial-gradient(ellipse 20.1% 29.2% at 33% -7.4%, rgba(255, 50, 100, 0.45), transparent),
     radial-gradient(ellipse 17.2% 25.5% at 12% -5%, rgba(40, 140, 255, 0.45), transparent),
@@ -1044,25 +1053,33 @@ body[data-asst-thinking="fading"] .asst-card::after,
 body[data-asst-thinking="true"] .asst-card::before,
 body[data-asst-thinking="fading"] .asst-card::before {
   animation:
-    asst-beam-spin 1.96s linear infinite,
+    asst-beam-spin 3.4s linear infinite,
     asst-beam-hue 12s ease-in-out infinite;
 }
-/* The package ships these at 0.26 and 0.42. Both are lifted here, and the
-   reason is the surface rather than taste: its demo card sits on near-black
-   #0d0d0f at full width, while this one is a 320px card on the console's own
-   --background-200 with an opaque body behind it. At the shipped values the
-   beam was there but unreadable — measurably present, visually absent. Lifted
-   until the comet is legible against this ground, and no further: the ring is
-   still the package's 1px, and the inner glow deliberately stays under the
-   stroke so the edge stays an edge rather than becoming a coloured wash. */
-body[data-asst-thinking="true"] .asst-card::after  { opacity: 0.88; transition: opacity 600ms ease; }
-body[data-asst-thinking="true"] .asst-card::before { opacity: 0.60; transition: opacity 600ms ease; }
+/* Opacity is paired with the blur above rather than chosen on its own: blur
+   spreads the same light over more pixels, so a blurred beam reads brighter
+   per unit of opacity than a hard one and has to come down to stay quiet. The
+   package's own 0.26 / 0.42 are for an unblurred 1px hairline on near-black at
+   full width; these are for a soft band on a 320px card over the console's
+   --background-200. The inner glow deliberately stays well under the stroke,
+   so the edge still reads as an edge and not as a coloured wash. */
+body[data-asst-thinking="true"] .asst-card::after  { opacity: 0.58; transition: opacity 600ms ease; }
+body[data-asst-thinking="true"] .asst-card::before { opacity: 0.36; transition: opacity 600ms ease; }
 
 @keyframes asst-beam-spin { to { --asst-beam-angle: 360deg; } }
+
+/* The blur has to be repeated in every keyframe, not set once on the element:
+   `filter` is one property, so the hue drift animating it would otherwise
+   animate the blur away on the first frame. Each layer supplies its own radius
+   through --asst-beam-blur, which is why one set of keyframes serves both.
+
+   Brightness comes down from the package's 1.30 with the same reasoning as the
+   opacities — blur concentrates nothing and spreads everything, so the gain
+   that suited a hairline overdrives a band. */
 @keyframes asst-beam-hue {
-  0%   { filter: hue-rotate(-30deg) brightness(1.30) saturate(1.20); }
-  50%  { filter: hue-rotate(30deg)  brightness(1.30) saturate(1.20); }
-  100% { filter: hue-rotate(-30deg) brightness(1.30) saturate(1.20); }
+  0%   { filter: blur(var(--asst-beam-blur, 0)) hue-rotate(-30deg) brightness(1.20) saturate(1.20); }
+  50%  { filter: blur(var(--asst-beam-blur, 0)) hue-rotate(30deg)  brightness(1.20) saturate(1.20); }
+  100% { filter: blur(var(--asst-beam-blur, 0)) hue-rotate(-30deg) brightness(1.20) saturate(1.20); }
 }
 
 /* A beam whose whole content is motion has nothing to show when motion is

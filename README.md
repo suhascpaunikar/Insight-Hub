@@ -102,9 +102,10 @@ to the last. The launcher, the card's header mark and the cursor companion all
 wear it and all share one state, so the card's own latency is legible instead
 of being covered by a still icon.
 
-While it composes, a rainbow comet also travels the card's edge — a plain-CSS
-port of the `border-beam` package's `md`/`colorful` preset, driven off the same
-state.
+While it composes, a soft rainbow comet also drifts around the card's edge — a
+plain-CSS port of the `border-beam` package's `md`/`colorful` preset, blurred
+and slowed to sit under the answer rather than compete with it, driven off the
+same state.
 
 **There is no model behind it.** Answers are composed deterministically from
 `data.js` and the live store at the moment they're asked — nothing leaves the
