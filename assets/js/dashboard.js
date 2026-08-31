@@ -7,6 +7,7 @@ import {
   ratingValue, dropdown, wireDropdowns, toast, dialog, wireOnce,
 } from './core.js';
 import { store } from './store.js';
+import { isFeedback, KIND_LABEL, campaignKind } from './data.js';
 
 const SORTS = {
   updated: 'Most recently updated',
@@ -44,6 +45,9 @@ function campaignCell(c) {
     <div class="col" style="gap:2px">
       <span class="row" style="gap:6px">
         <span class="t-h3 truncate">${c.name}</span>
+        ${raw(isFeedback(c) ? '' :
+          `<span class="badge tip" data-tip="Collects no responses — opens on reach, engagement and conversion">
+             ${KIND_LABEL[campaignKind(c)]}</span>`)}
         ${raw(c.versions > 1
           // FR-83 — the reader knows the aggregate spans a change before opening.
           ? `<span class="badge badge-mono tip" data-tip="Edited after publish — responses span ${c.versions} versions">
@@ -70,7 +74,12 @@ function rowMarkup(c) {
                      data-tip="Variants run different triggers — results are not like-for-like">multiple</span>`
             : '')}
         </td>` : '')}
-      ${raw(cols.responses ? html`<td class="ta-r num t-sm">${count(c.responses)}</td>` : '')}
+      ${raw(cols.responses ? html`
+        <td class="ta-r">${raw(isFeedback(c)
+          ? `<span class="num t-sm">${count(c.responses)}</span>`
+          : `<span class="mono t-sm fg-muted tip"
+                   data-tip="An announcement collects no responses — ${count(c.reach || 0)} people reached">—</span>`)}</td>`
+        : '')}
       ${raw(cols.rating ? html`<td class="ta-r">${raw(ratingValue(c.avgRating, c.ratingScaleMax || 5))}</td>` : '')}
       ${raw(cols.updated ? html`
         <td>
