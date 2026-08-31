@@ -175,6 +175,10 @@ img { max-width: 100%; }
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.clamp-2 {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  overflow: hidden;
+}
 
 /* ---------- Button ---------- */
 .btn {
@@ -271,6 +275,7 @@ img { max-width: 100%; }
 /* Selectable option card — the repeated radio/checkbox tile */
 .opt {
   display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; cursor: pointer;
+  text-align: left;
   background: var(--background-100); border: 1px solid var(--border-default);
   border-radius: var(--radius-md); transition: background-color .12s ease, border-color .12s ease;
 }
@@ -279,6 +284,19 @@ img { max-width: 100%; }
 .opt input { margin-top: 2px; }
 .opt-title { display: block; font-size: 12.5px; font-weight: 500; color: var(--foreground-default); }
 .opt-note { display: block; margin-top: 2px; font-size: 11px; color: var(--foreground-lighter); }
+
+/* Icon tile for .opt cards (step 1 goals, step 4 channels). align-self keeps it
+   28px wide inside a stretched column rather than spanning the card. */
+.opt-icon {
+  display: grid; place-items: center; align-self: flex-start; flex: none;
+  width: 28px; height: 28px;
+  background: var(--surface-100); border: 1px solid var(--border-default);
+  border-radius: var(--radius-md); color: var(--foreground-light);
+}
+.opt-icon svg { width: 15px; height: 15px; }
+.opt.is-on .opt-icon, .opt[data-on] .opt-icon {
+  background: var(--brand-200); border-color: var(--brand-400); color: var(--brand-default);
+}
 
 /* Switch */
 .switch {
@@ -397,6 +415,21 @@ img { max-width: 100%; }
   background: var(--background-100); border-color: var(--border-default); color: var(--foreground-default);
   box-shadow: 0 1px 0 0 var(--background-100);
 }
+
+/* Variant tabs carry a delete affordance. The cross is absolutely positioned so it
+   sits inside the tab's own box, and the tab reserves room for it — revealing it on
+   hover must not reflow the strip. */
+.tab-wrap { position: relative; display: inline-flex; align-items: center; }
+.tab-wrap .tab { padding-right: 28px; }
+.tab-del {
+  position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
+  display: grid; place-items: center; width: 17px; height: 17px;
+  border-radius: var(--radius-sm); color: var(--foreground-lighter); cursor: pointer;
+  opacity: 0; transition: opacity .12s ease, background-color .12s ease, color .12s ease;
+}
+.tab-del svg { width: 11px; height: 11px; }
+.tab-wrap:hover .tab-del, .tab-wrap:focus-within .tab-del { opacity: 1; }
+.tab-del:hover { background: var(--surface-300); color: var(--destructive-fg); }
 
 /* ---------- Dropdown ---------- */
 .dd { position: relative; display: inline-flex; }
@@ -646,7 +679,6 @@ img { max-width: 100%; }
 .stat-value { display: block; margin-top: 3px; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 18px; color: var(--foreground-default); }
 .stat.is-key { background: var(--surface-100); border-color: var(--border-strong); }
 
-.builder { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 /* FR-67 — the rail stays fixed while the form scrolls beneath it. */
 .builder-head { flex: none; background: var(--background-100); border-bottom: 1px solid var(--border-default); }
 .builder-foot {

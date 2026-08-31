@@ -16,7 +16,8 @@ import {
   GOALS, EXCLUSION_LISTS, RULE_FIELDS, RULE_OPERATORS, TEST_ACCOUNTS,
 } from './data.js';
 import { renderContentStep, wireContentStep, phonePreview } from './content-step.js';
-import { mountAssistant } from './assistant.js';
+import { navRail, wireRailCollapse } from './shell.js';
+import { mountAssistant, openAssistant } from './assistant.js';
 
 export const STEPS = [
   { n: 1, label: 'Start from' },
@@ -86,12 +87,13 @@ function step1(draft, issues) {
                   aria-pressed="${draft.goal === goal.id}"
                   ${raw(draft.goal === goal.id ? 'data-on="1"' : '')}>
             <span class="row-between">
-              <span class="t-h2">${goal.name}</span>
+              <span class="opt-icon">${raw(icon(goal.icon))}</span>
               ${raw(draft.goal === goal.id
                 ? `<span class="badge badge-brand">${icon('check')}Selected</span>` : '')}
             </span>
-            <span class="t-sm fg-light" style="margin-top:8px">${goal.summary}</span>
-            <span class="t-xs fg-lighter" style="margin-top:10px">${goal.detail}</span>
+            <span class="t-h2" style="margin-top:12px">${goal.name}</span>
+            <span class="t-sm fg-light" style="margin-top:6px">${goal.summary}</span>
+            <span class="t-xs fg-lighter clamp-2" style="margin-top:8px">${goal.detail}</span>
             <span class="col" style="gap:5px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border-default)">
               ${goal.defaults.map((d) => html`
                 <span class="row" style="gap:6px">
@@ -104,9 +106,10 @@ function step1(draft, issues) {
         <!-- FR-6 — present but non-interactive, cannot be focused, does not count. -->
         <div class="opt col" aria-disabled="true" tabindex="-1"
              style="align-items:stretch;padding:14px;border-style:dashed;opacity:.55;cursor:not-allowed;background:transparent">
-          <span class="row">${raw(icon('sparkles', 'fg-muted'))}<span class="t-h2 fg-lighter">Create Template</span></span>
-          <span class="t-sm fg-lighter" style="margin-top:8px">
-            Author your own starting point with custom defaults and question logic.
+          <span class="opt-icon">${raw(icon('sparkles'))}</span>
+          <span class="t-h2 fg-lighter" style="margin-top:12px">Create Template</span>
+          <span class="t-sm fg-lighter clamp-2" style="margin-top:6px">
+            Author your own starting point with custom defaults.
           </span>
           <span class="badge" style="margin-top:auto;align-self:flex-start">
             ${raw(icon('lock'))}Coming soon
@@ -622,7 +625,7 @@ export function renderBuilder() {
   const step = draft.currentStep;
   const issues = validateStep(draft, step);
   const root = $('#app');
-  root.className = 'builder';
+  root.className = 'app';
 
   const body =
     step === 1 ? step1(draft, issues)
@@ -633,7 +636,11 @@ export function renderBuilder() {
     : step6(draft);
 
   root.innerHTML = html`
-    <!-- OD-15 — full-screen focus mode: no nav rail, only an exit control. -->
+    <!-- OD-15 revisited — the wizard keeps its own head and footer, but the console
+         rail stays mounted beside it so the builder is not an unanchored full-screen
+         surface. It collapses to the icon strip like everywhere else (FR-61). -->
+    ${raw(navRail('campaigns', store.state.navCollapsed))}
+    <div class="main">
     <header class="builder-head">
       <div class="row" style="height:var(--bar-h);padding:0 12px;gap:12px">
         <button class="btn btn-ghost btn-icon btn-sm" data-act="exit" aria-label="Exit builder">
@@ -685,9 +692,11 @@ export function renderBuilder() {
         ? `<button class="btn btn-primary" data-act="next">Next${icon('right')}</button>`
         : `<button class="btn btn-primary" data-act="publish">${icon('rocket')}${
              draft.status === 'Live' ? 'Publish changes' : 'Publish campaign'}</button>`)}
-    </footer>`;
+    </footer>
+    </div>`;
 
   wireDropdowns(root);
+  wireRailCollapse(root, renderBuilder);
   wireOnce(root, 'builderWired', wireCommon);
   wireOnce(root, 'contentWired', (node) => wireContentStep(node, renderBuilder));
 
@@ -784,7 +793,9 @@ function wireCommon(root) {
     setTimeout(() => { location.href = 'index.html'; }, 400);
   });
 
-  on(root, 'click', '[data-act="exit"]', async () => {
+  /* FR-68 — leaving the builder always goes through this, whether by the exit
+     control or by a rail link, so a draft is never dropped on the way out. */
+  const confirmLeave = async (destination) => {
     const d = draft();
     const choice = await dialog({
       title: 'Leave the builder?',
@@ -797,8 +808,26 @@ function wireCommon(root) {
         { label: 'Save & exit', kind: 'primary', value: 'save' },
       ],
     });
-    if (choice === 'save') { store.saveDraft(); location.href = 'index.html'; }
-    if (choice === 'leave') { store.discardDraft(); location.href = 'index.html'; }
+    if (choice === 'save') { store.saveDraft(); location.href = destination; }
+    if (choice === 'leave') { store.discardDraft(); location.href = destination; }
+  };
+
+  on(root, 'click', '[data-act="exit"]', () => confirmLeave('index.html'));
+
+  /* The rail's Assistant entry is wired by renderShell(), which focus mode never
+     calls. Wire it here so the companion opens from the builder rail too. */
+  on(root, 'click', '[data-act="open-assistant"]', (e) => {
+    e.preventDefault();
+    openAssistant();
+  });
+
+  /* The rail is real navigation out of the wizard — same guard as the exit control.
+     Placeholder links (href="#") lead nowhere and are left alone. */
+  on(root, 'click', '.rail-link', (e, el) => {
+    const href = el.getAttribute('href');
+    if (!href || href === '#') return;
+    e.preventDefault();
+    confirmLeave(href);
   });
 
   /* FR-53 / FR-56 — publish, and warn that editing a live campaign versions it. */

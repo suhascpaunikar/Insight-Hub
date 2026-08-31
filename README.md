@@ -22,7 +22,7 @@ open http://localhost:8000
 |---|---|---|
 | `index.html` | Campaign dashboard — the landing screen | FR-71 – FR-85 |
 | `builder.html` | Six-step creation wizard | FR-1 – FR-57 |
-| `insights.html` | Delivery / Responses / Themes / Impact | FR-86 – FR-110 |
+| `insights.html` | Delivery / Responses / Impact | FR-86 – FR-110 |
 
 The prototype is **clickable, with real state**. Validation actually gates the wizard,
 the branching toggle populates the three bands, switching template warns before

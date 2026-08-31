@@ -29,7 +29,8 @@ const NAV_GROUPS = [
 const WORKSPACES = ['QuickEats India', 'QuickEats UAE', 'QuickEats Sandbox'];
 const APPS = ['InsightHub', 'Engage', 'CPaaS', 'CDP'];
 
-function navRail(active, collapsed) {
+/** Exported so the builder can mount the same rail beside its own chrome. */
+export function navRail(active, collapsed) {
   const groups = NAV_GROUPS.map((group) => html`
     <div class="rail-group">
       ${group.map((item) => html`
@@ -128,9 +129,7 @@ export function renderShell(active) {
     });
   }
 
-  // FR-61 — collapse state persists across sessions.
-  $('[data-act="collapse"]', root).addEventListener('click', () => {
-    store.set({ navCollapsed: !store.state.navCollapsed });
+  wireRailCollapse(root, () => {
     renderShell(active);
     document.dispatchEvent(new CustomEvent('shell:rerender'));
   });
@@ -145,4 +144,12 @@ export function renderShell(active) {
   });
 
   return $('#content', root);
+}
+
+/** FR-61 — collapse state persists across sessions, from whichever screen toggles it. */
+export function wireRailCollapse(root, rerender) {
+  $('[data-act="collapse"]', root)?.addEventListener('click', () => {
+    store.set({ navCollapsed: !store.state.navCollapsed });
+    rerender();
+  });
 }

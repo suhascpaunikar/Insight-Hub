@@ -9,6 +9,7 @@
    inferred — and no screenshot, no vision call, no coordinate estimation.
    ========================================================================== */
 import { store } from './store.js';
+import { TABS } from './insights.js';
 
 const param = (key) => new URLSearchParams(location.search).get(key);
 
@@ -51,7 +52,9 @@ export function snapshot() {
   const campaigns = store.state.campaigns || [];
   return {
     page: currentPage(),
-    tab: param('tab') || 'delivery',
+    // A stale ?tab= (the removed Themes tab) renders as Delivery, so the
+    // assistant must not claim to be looking at a tab that is not on screen.
+    tab: TABS.includes(param('tab')) ? param('tab') : 'delivery',
     campaign: currentCampaign(),
     campaigns,
     liveCount: campaigns.filter((c) => c.status === 'Live').length,

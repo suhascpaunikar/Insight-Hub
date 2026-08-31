@@ -84,13 +84,23 @@ function templatePicker(draft, variant) {
 
   return html`
     <div class="stack">
-      <div class="row wrap" role="group" aria-label="Channel">
+      <div class="stack-sm">
         <span class="t-xs fg-lighter">Channel</span>
-        ${channels.map((c) => html`
-          <button class="btn ${variant.channel === c.id ? 'btn-default' : 'btn-ghost'} btn-sm"
-                  data-act="set-channel" data-value="${c.id}"
-                  aria-pressed="${variant.channel === c.id}">${c.label}</button>`)}
-        <span class="t-xs fg-muted push">
+        <!-- OD-1 — channel is a card, not a chip: it decides which elements exist
+             later, so it reads as a choice rather than a filter. -->
+        <div class="grid g3" role="group" aria-label="Channel">
+          ${channels.map((c) => html`
+            <button class="opt ${variant.channel === c.id ? 'is-on' : ''}"
+                    data-act="set-channel" data-value="${c.id}"
+                    aria-pressed="${variant.channel === c.id}">
+              <span class="opt-icon">${raw(icon(c.icon))}</span>
+              <span style="min-width:0">
+                <span class="opt-title">${c.label}</span>
+                <span class="opt-note">${c.note}</span>
+              </span>
+            </button>`)}
+        </div>
+        <span class="t-xs fg-muted">
           Components your apps cannot render are hidden, not disabled.
         </span>
       </div>
@@ -388,6 +398,9 @@ export function renderContentStep(draft, issues) {
       </span>
     </button>`).join('');
 
+  // FR-19 / FR-20 — A/B reconciles back up to two variants, so deleting is only
+  // offered above that floor; Regular never has more than one tab.
+  const canDelete = draft.type !== 'regular' && draft.variants.length > 2;
   const divergent = draft.variants.length > 1 &&
     new Set(draft.variants.map((v) => `${v.trigger.event}|${v.trigger.delayValue}|${v.trigger.delayUnit}`)).size > 1;
 
@@ -403,11 +416,17 @@ export function renderContentStep(draft, issues) {
       <!-- FR-70 — variant tabs sit below the step rail and read a level down. -->
       <div class="tabs tabs-sub" role="tablist" aria-label="Variants">
         ${draft.variants.map((v) => html`
-          <button class="tab" role="tab" data-act="set-variant" data-id="${v.id}"
-                  aria-selected="${v.id === variant.id}">
-            ${v.name || 'Untitled variant'}
-            <span class="badge badge-mono" style="margin-left:6px">${v.weight}%</span>
-          </button>`)}
+          <span class="tab-wrap">
+            <button class="tab" role="tab" data-act="set-variant" data-id="${v.id}"
+                    aria-selected="${v.id === variant.id}">
+              ${v.name || 'Untitled variant'}
+              <span class="badge badge-mono" style="margin-left:6px">${v.weight}%</span>
+            </button>
+            ${raw(canDelete ? html`
+              <button class="tab-del" data-act="del-variant" data-id="${v.id}"
+                      title="Delete ${esc(v.name || 'this variant')}"
+                      aria-label="Delete ${esc(v.name || 'this variant')}">${raw(icon('x'))}</button>` : '')}
+          </span>`)}
         ${raw(draft.type !== 'regular' ? html`
           <button class="btn btn-ghost btn-sm" data-act="add-variant">${raw(icon('plus'))}Add variant</button>` : '')}
       </div>
@@ -564,6 +583,27 @@ export function wireContentStep(host, rerender) {
   };
 
   on(host, 'click', '[data-act="set-variant"]', (e, el) => { ui.activeVariant = el.dataset.id; rerender(); });
+
+  /* Delete a variant. Weights must total 100, so the remainder is re-split the
+     same way add-variant splits them. */
+  on(host, 'click', '[data-act="del-variant"]', async (e, el) => {
+    const d = draft();
+    if (d.variants.length <= 2) return;
+    const victim = d.variants.find((v) => v.id === el.dataset.id);
+    if (!victim) return;
+    const ok = await confirmDestructive({
+      title: `Delete ${victim.name || 'this variant'}?`,
+      description: 'Its template, elements, questions and trigger go with it. '
+        + 'The remaining variants go back to an even split.',
+      confirmLabel: 'Delete variant',
+    });
+    if (!ok) return;
+    const next = evenSplit(d.variants.filter((v) => v.id !== victim.id));
+    store.updateDraft({ variants: next });
+    if (ui.activeVariant === victim.id) ui.activeVariant = next[0].id;
+    rerender();
+    toast('Variant deleted', `${victim.name || 'The variant'} was removed and weights re-split.`);
+  });
 
   on(host, 'click', '[data-act="add-variant"]', () => {
     const d = draft();
