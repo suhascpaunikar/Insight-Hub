@@ -665,3 +665,145 @@ img { max-width: 100%; }
   .g2, .g3 { grid-template-columns: minmax(0, 1fr); }
   .page { padding: var(--sp-lg) var(--sp-md); }
 }
+
+/* ==========================================================================
+   Assistant — the companion card (FR-91).
+
+   Violet throughout: the design system reserves #a78bfa for machine claims,
+   so the whole surface reads as inference and never as measurement. The card
+   is a fixed 320×240 box — the answer scrolls inside it rather than growing
+   it, so the console layout never shifts underneath an answer.
+   ========================================================================== */
+.asst {
+  position: fixed; right: var(--sp-lg); bottom: var(--sp-lg);
+  z-index: 80;                     /* over dropdowns and tooltips, under dialogs and toasts */
+  display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-sm);
+}
+
+.asst-bubble {
+  width: 44px; height: 44px; flex: none;
+  display: grid; place-items: center;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--ai-400);
+  background: var(--background-100);
+  color: var(--ai-fg);
+  box-shadow: var(--shadow-2);
+  cursor: pointer;
+  transition: background 120ms ease, transform 120ms ease, border-color 120ms ease;
+}
+.asst-bubble:hover { background: var(--ai-200); border-color: var(--ai-fg); transform: translateY(-1px); }
+.asst-bubble svg { width: 20px; height: 20px; }
+
+/* The card occupies its 320×240 whether open or not; visibility is what
+   changes, so opening never reflows the page behind it. */
+.asst-card {
+  width: 320px; height: 240px;
+  display: flex; flex-direction: column;
+  border: 1px solid var(--ai-400);
+  border-radius: var(--radius-lg);
+  background: var(--background-100);
+  box-shadow: var(--shadow-3);
+  overflow: hidden;
+  transform-origin: bottom right;
+  transition: opacity 180ms ease, transform 180ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.asst[data-open="false"] .asst-card {
+  opacity: 0; transform: translateY(8px) scale(0.96);
+  pointer-events: none; visibility: hidden;
+}
+.asst[data-open="true"] .asst-card { opacity: 1; transform: none; visibility: visible; }
+
+.asst-head {
+  display: flex; align-items: center; gap: var(--sp-sm);
+  padding: var(--sp-sm) var(--sp-md);
+  border-bottom: 1px solid var(--border-default);
+  flex: none;
+}
+.asst-head-icon { color: var(--ai-fg); width: 14px; height: 14px; flex: none; }
+.asst-head-title { font-size: 12px; font-weight: 500; color: var(--foreground-default); }
+
+.asst-icon-btn {
+  display: grid; place-items: center;
+  width: 22px; height: 22px; flex: none;
+  border: 0; border-radius: var(--radius-sm);
+  background: transparent; color: var(--foreground-muted);
+  cursor: pointer; transition: background 100ms ease, color 100ms ease;
+}
+.asst-icon-btn:hover { background: var(--surface-200); color: var(--foreground-default); }
+.asst-icon-btn svg { width: 13px; height: 13px; }
+
+/* The scrolling answer region — the only part that grows. */
+.asst-body {
+  flex: 1 1 auto; min-height: 0;
+  overflow-y: auto; overscroll-behavior: contain;
+  padding: var(--sp-md);
+  cursor: default;
+}
+.asst-text { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--foreground-default); }
+
+/* Each word resolves out of a blur as it lands, so the reveal reads as
+   composition rather than as a machine printing characters. */
+.asst-word { display: inline; animation: asst-resolve 260ms ease-out both; }
+@keyframes asst-resolve {
+  from { opacity: 0; filter: blur(4px); }
+  to   { opacity: 1; filter: blur(0); }
+}
+
+.asst-caret {
+  display: inline-block; width: 2px; height: 12px;
+  margin-left: 1px; vertical-align: -2px;
+  border-radius: var(--radius-full); background: var(--ai-fg);
+  animation: asst-blink 1s steps(2, start) infinite;
+}
+@keyframes asst-blink { 50% { opacity: 0; } }
+
+/* Pinned to the bottom edge — present only once the answer has landed. */
+.asst-follow { flex: none; padding: 0 var(--sp-md) var(--sp-sm); }
+.asst-follow:empty { display: none; }
+.asst-follow-label {
+  margin: 0 0 var(--sp-xxs); font-size: 11px; font-weight: 500;
+  color: var(--foreground-lighter);
+}
+.asst-follow-btn {
+  display: flex; align-items: center; gap: var(--sp-sm);
+  width: 100%; padding: 5px var(--sp-xs);
+  border: 0; border-top: 1px solid var(--border-muted);
+  background: transparent; color: var(--foreground-light);
+  font: inherit; font-size: 12px; text-align: left; cursor: pointer;
+  animation: asst-rise 350ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  transition: background 100ms ease, color 100ms ease;
+}
+.asst-follow-btn:hover { background: var(--surface-100); color: var(--foreground-default); }
+.asst-follow-btn svg { flex: none; color: var(--ai-fg); }
+@keyframes asst-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Below the console's narrow breakpoint the fixed card would crowd the
+   content it is describing, so it steps aside and only the bubble remains. */
+@media (max-width: 560px) {
+  .asst-card { width: calc(100vw - var(--sp-xl)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .asst-word, .asst-follow-btn { animation: none; }
+  .asst-caret { animation: none; }
+  .asst-card { transition: opacity 120ms ease; }
+}
+
+/* A fixed 240px box will cut a line in half whenever the answer runs past it.
+   Fading only the edge the content actually overflows makes that cut read as
+   "there is more this way" rather than as a clipped render. Both offsets are
+   0 when the answer fits, which collapses the mask to fully opaque. */
+.asst-body {
+  --asst-fade-top: 0px;
+  --asst-fade-bottom: 0px;
+  -webkit-mask-image: linear-gradient(to bottom,
+    transparent 0, #000 var(--asst-fade-top),
+    #000 calc(100% - var(--asst-fade-bottom)), transparent 100%);
+  mask-image: linear-gradient(to bottom,
+    transparent 0, #000 var(--asst-fade-top),
+    #000 calc(100% - var(--asst-fade-bottom)), transparent 100%);
+}
+.asst-body[data-fade-top="true"] { --asst-fade-top: 18px; }
+.asst-body[data-fade-bottom="true"] { --asst-fade-bottom: 22px; }

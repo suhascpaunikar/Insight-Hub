@@ -16,6 +16,7 @@ import {
   GOALS, EXCLUSION_LISTS, RULE_FIELDS, RULE_OPERATORS, TEST_ACCOUNTS,
 } from './data.js';
 import { renderContentStep, wireContentStep, phonePreview } from './content-step.js';
+import { mountAssistant } from './assistant.js';
 
 export const STEPS = [
   { n: 1, label: 'Start from' },
@@ -689,6 +690,10 @@ export function renderBuilder() {
   wireDropdowns(root);
   wireOnce(root, 'builderWired', wireCommon);
   wireOnce(root, 'contentWired', (node) => wireContentStep(node, renderBuilder));
+
+  // Focus mode renders its own chrome rather than calling renderShell(), so
+  // the companion has to be mounted here too. The call is idempotent.
+  mountAssistant();
 }
 
 /** FR-3 — a backward edit that invalidates downstream state must warn first. */
