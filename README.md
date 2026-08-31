@@ -75,6 +75,7 @@ assets/
     assistant.js       companion card — 320×240, streaming answers
     assistant-context.js  what the assistant can see
     assistant-answers.js  intent registry + answer composers
+    assistant-explain.js  how to read each panel (explain mode)
 docs/
   prd-v5.md            the source PRD
   prd-coverage.md      FR-by-FR map, the 21 open decisions, what changed vs Magic Patterns
@@ -96,6 +97,11 @@ buddy button in the corner, or `Ctrl + /`.
 `data.js` and the live store at the moment they're asked — nothing leaves the
 browser, and there is no key, proxy or network call. What it does not fake is
 the data: change the seed numbers and the answers change with them.
+
+Press **`?`** and it flips into explain mode: every panel on the page picks up a
+violet outline, and clicking one explains how to read it — what the numbers are
+counted against, what the colours encode, and the misreading it invites. That is
+clicky's pointing inverted — you point, it explains.
 
 Clicky screenshots the screen because it is a bystander to the app it
 describes. InsightHub *is* the app, so `assistant-context.js` reads the state

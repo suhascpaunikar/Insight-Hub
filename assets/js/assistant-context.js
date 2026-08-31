@@ -13,6 +13,17 @@ import { TABS } from './insights.js';
 
 const param = (key) => new URLSearchParams(location.search).get(key);
 
+/**
+ * The tab the page actually rendered, read from its aria-selected state rather
+ * than from the URL. A stale `?tab=` for a tab that no longer exists falls back
+ * on the page but would still be believed here, and the assistant would then
+ * describe a panel the reader cannot see.
+ */
+function currentTab() {
+  const selected = document.querySelector('[role="tab"][aria-selected="true"][data-tab]');
+  return selected ? selected.dataset.tab : (param('tab') || 'delivery');
+}
+
 /** Which of the three screens is on show. */
 function currentPage() {
   const file = location.pathname.split('/').pop() || 'index.html';

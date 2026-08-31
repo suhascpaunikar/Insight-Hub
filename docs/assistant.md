@@ -32,6 +32,41 @@ changes the answers. No sentence below is a stored string.
 
 ---
 
+## Explain a panel
+
+Press **`?`**, or hit the `?` button in the card header, and the assistant flips
+into explain mode: every readable panel on the page picks up a violet outline,
+and clicking one explains how to read it — what the numbers are counted
+against, what the colours encode, and the misreading the chart invites.
+
+This is clicky's pointing, inverted. Clicky has the assistant point at the UI;
+here you point and it explains.
+
+`Escape` leaves explain mode; a second `Escape` closes the card. The two
+follow-ups under each explanation bridge back to live figures, so "how do I
+read the funnel" leads straight into "how is delivery doing".
+
+**Clicks are intercepted in the capture phase.** The widgets underneath already
+own their clicks — drilling into a theme, opening a response, reassigning an
+owning team — and an explain click must not fire them. Stopping propagation
+before the target sees the event is what keeps the mode safe to leave armed
+while you walk the page.
+
+Nine panels are annotated, across all three insights tabs:
+
+| Tab | Panels |
+|---|---|
+| Delivery | delivery funnel, delivery over time, failure reasons |
+| Responses | the rating question, follow-up by band, open text |
+| Impact | score drivers, variant comparison, intelligent A/B weighting |
+
+To annotate another, add `data-explain="key"` to its container and a matching
+entry in `assistant-explain.js`. Explanations there are static prose, which is
+the one place in this assistant fixed text is right: a panel's grammar does not
+change with the data. The live numbers come from the follow-up intents.
+
+---
+
 ## Why there is no screenshot
 
 Clicky's hardest problem is that it is a bystander to the app it describes: it
@@ -44,12 +79,19 @@ objects one import away, so `assistant-context.js` reads them directly. Same
 position in the pipeline, but exact instead of inferred — and no screenshot,
 no vision call, no coordinate guessing.
 
+Two things it reads from the DOM rather than by importing another module's
+internals: the insights filters, and the active tab (via its `aria-selected`
+state). Both keep the assistant reporting what the page actually rendered — a
+stale `?tab=` for a tab that no longer exists falls back on the page, and would
+otherwise leave the assistant describing a panel the reader cannot see.
+
 | clicky | here |
 |---|---|
 | ScreenCaptureKit screenshot | `assistant-context.js` reads state directly |
 | Vision model reads pixels | structured objects, no inference |
 | Cloudflare Worker holding keys | nothing — no network call at all |
 | `ctrl + option` global hotkey | `Ctrl + /` |
+| assistant points at the UI | you point, it explains (`?`) |
 
 ---
 
@@ -88,6 +130,7 @@ full-screen focus mode and renders its own chrome instead of calling
 | `assets/js/assistant.js` | the card, the state machine, the word-by-word reveal |
 | `assets/js/assistant-context.js` | what the assistant can see — page, campaign, tab, filters, draft |
 | `assets/js/assistant-answers.js` | the intent registry and the answer composers |
+| `assets/js/assistant-explain.js` | how to read each panel — the explain-mode registry |
 
 Styles live at the end of `assets/css/supabase.css` under *Assistant*.
 

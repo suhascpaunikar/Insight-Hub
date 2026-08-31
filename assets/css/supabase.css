@@ -839,3 +839,31 @@ img { max-width: 100%; }
 }
 .asst-body[data-fade-top="true"] { --asst-fade-top: 18px; }
 .asst-body[data-fade-bottom="true"] { --asst-fade-bottom: 22px; }
+
+/* ---------- Explain mode ----------
+   While the mode is on, every explainable panel carries a faint violet outline
+   so what is pickable is visible before you hover it, and the whole panel takes
+   the help cursor — including its buttons and selects, whose clicks the capture
+   handler is intercepting. Violet again, because an explanation is a claim. */
+body[data-asst-explain="true"] [data-explain] {
+  outline: 1px dashed var(--ai-400);
+  outline-offset: 2px;
+  border-radius: var(--radius-lg);
+  transition: outline-color 120ms ease, background 120ms ease;
+}
+body[data-asst-explain="true"] [data-explain],
+body[data-asst-explain="true"] [data-explain] * {
+  cursor: help !important;
+}
+body[data-asst-explain="true"] [data-explain]:hover {
+  outline: 2px solid var(--ai-fg);
+  background: var(--ai-200);
+}
+/* Nested panels: a theme card sits inside no other panel, but keeping the
+   hovered one on top stops an ancestor's tint bleeding over it. */
+body[data-asst-explain="true"] [data-explain]:hover { position: relative; z-index: 1; }
+
+.asst-icon-btn[aria-pressed="true"] {
+  background: var(--ai-200);
+  color: var(--ai-fg);
+}

@@ -147,8 +147,10 @@ function overviewAnswer(context) {
     return { text, followUps: ['themes', 'delivery'] };
   }
 
-  /* Insights — lead with the number the tab in view is actually about. */
-  const byTab = { delivery: deliveryAnswer, responses: ratingAnswer, themes: themesAnswer, impact: driversAnswer };
+  /* Insights — lead with the number the tab in view is actually about. The
+     Themes tab was folded into Score drivers, so `themes` is reachable as a
+     question but is no longer a tab of its own. */
+  const byTab = { delivery: deliveryAnswer, responses: ratingAnswer, impact: driversAnswer };
   const composer = byTab[context.tab] || driversAnswer;
   return composer(context);
 }
