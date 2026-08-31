@@ -1,0 +1,15 @@
+# Static prototype — no build step. Netlify publishes the repo root as-is.
+[build]
+  publish = "."
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# The pages load ES modules; a wrong Content-Type makes the browser refuse them.
+[[headers]]
+  for = "/assets/js/*.js"
+  [headers.values]
+    Content-Type = "text/javascript; charset=utf-8"
