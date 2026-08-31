@@ -85,12 +85,13 @@ function step1(draft, issues) {
                   aria-pressed="${draft.goal === goal.id}"
                   ${raw(draft.goal === goal.id ? 'data-on="1"' : '')}>
             <span class="row-between">
-              <span class="t-h2">${goal.name}</span>
+              <span class="goal-icon">${raw(icon(goal.icon))}</span>
               ${raw(draft.goal === goal.id
                 ? `<span class="badge badge-brand">${icon('check')}Selected</span>` : '')}
             </span>
-            <span class="t-sm fg-light" style="margin-top:8px">${goal.summary}</span>
-            <span class="t-xs fg-lighter" style="margin-top:10px">${goal.detail}</span>
+            <span class="t-h2" style="margin-top:12px">${goal.name}</span>
+            <span class="t-sm fg-light" style="margin-top:6px">${goal.summary}</span>
+            <span class="t-xs fg-lighter clamp-2" style="margin-top:8px">${goal.detail}</span>
             <span class="col" style="gap:5px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border-default)">
               ${goal.defaults.map((d) => html`
                 <span class="row" style="gap:6px">
@@ -103,9 +104,10 @@ function step1(draft, issues) {
         <!-- FR-6 — present but non-interactive, cannot be focused, does not count. -->
         <div class="opt col" aria-disabled="true" tabindex="-1"
              style="align-items:stretch;padding:14px;border-style:dashed;opacity:.55;cursor:not-allowed;background:transparent">
-          <span class="row">${raw(icon('sparkles', 'fg-muted'))}<span class="t-h2 fg-lighter">Create Template</span></span>
-          <span class="t-sm fg-lighter" style="margin-top:8px">
-            Author your own starting point with custom defaults and question logic.
+          <span class="goal-icon">${raw(icon('sparkles'))}</span>
+          <span class="t-h2 fg-lighter" style="margin-top:12px">Create Template</span>
+          <span class="t-sm fg-lighter clamp-2" style="margin-top:6px">
+            Author your own starting point with custom defaults.
           </span>
           <span class="badge" style="margin-top:auto;align-self:flex-start">
             ${raw(icon('lock'))}Coming soon

@@ -175,6 +175,10 @@ img { max-width: 100%; }
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.clamp-2 {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  overflow: hidden;
+}
 
 /* ---------- Button ---------- */
 .btn {
@@ -271,6 +275,7 @@ img { max-width: 100%; }
 /* Selectable option card — the repeated radio/checkbox tile */
 .opt {
   display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; cursor: pointer;
+  text-align: left;
   background: var(--background-100); border: 1px solid var(--border-default);
   border-radius: var(--radius-md); transition: background-color .12s ease, border-color .12s ease;
 }
@@ -279,6 +284,19 @@ img { max-width: 100%; }
 .opt input { margin-top: 2px; }
 .opt-title { display: block; font-size: 12.5px; font-weight: 500; color: var(--foreground-default); }
 .opt-note { display: block; margin-top: 2px; font-size: 11px; color: var(--foreground-lighter); }
+
+/* Step 1 goal cards — icon tile, keyed to the goal. align-self keeps it 28px wide
+   inside the stretched column rather than spanning the card. */
+.goal-icon {
+  display: grid; place-items: center; align-self: flex-start; flex: none;
+  width: 28px; height: 28px;
+  background: var(--surface-100); border: 1px solid var(--border-default);
+  border-radius: var(--radius-md); color: var(--foreground-light);
+}
+.goal-icon svg { width: 15px; height: 15px; }
+.opt.is-on .goal-icon, .opt[data-on] .goal-icon {
+  background: var(--brand-200); border-color: var(--brand-400); color: var(--brand-default);
+}
 
 /* Switch */
 .switch {

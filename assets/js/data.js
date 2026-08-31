@@ -11,25 +11,26 @@ export const GOALS = [
   {
     id: 'user-feedback',
     name: 'User Feedback',
+    icon: 'thumbs',
     summary: 'Ask users what happened after an experience.',
-    detail:
-      'Opens the Content step on Ratings templates with NPS, a follow-up multiple choice and an open text question pre-populated.',
+    // Kept to two lines — the defaults list below carries the specifics.
+    detail: 'Opens the Content step on Ratings templates with NPS pre-selected.',
     defaults: ['Ratings templates active', 'NPS default rating element', 'Q1 · Q2 · Q3 pre-filled'],
   },
   {
     id: 'sale-push',
     name: 'Sale Push Notification',
+    icon: 'megaphone',
     summary: 'Announce an offer to a targeted audience.',
-    detail:
-      'Opens on Basic templates. Rating and text-input elements are hidden — a push payload cannot carry them.',
+    detail: 'Opens on Basic templates. Rating and text-input elements are hidden.',
     defaults: ['Basic templates active', 'Push channel only', 'No question logic'],
   },
   {
     id: 'churn-rate',
     name: 'Churn Rate',
+    icon: 'chart',
     summary: 'Understand why users stopped coming back.',
-    detail:
-      'Opens on Ratings templates scoped to lapsed-user segments, with branching pre-enabled on the detractor band.',
+    detail: 'Opens on Ratings templates scoped to lapsed-user segments.',
     defaults: ['Ratings templates active', 'Lapsed segments suggested', 'Branching pre-enabled'],
   },
 ];
