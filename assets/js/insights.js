@@ -67,24 +67,25 @@ function deliveryTab(c) {
           <span class="t-xs fg-lighter">Absolute counts with step-to-step conversion</span>
         </div>
         <div class="card-body stack">
-          ${DELIVERY_FUNNEL.map((s, i) => {
-            const prev = i === 0 ? null : DELIVERY_FUNNEL[i - 1];
-            const stepPct = prev ? (s.value / prev.value) * 100 : 100;
-            const isWorst = prev && `${prev.label} → ${s.label}` === biggestDrop.label;
-            return html`
-              <div class="funnel-step">
-                <span class="t-sm ${isWorst ? 'fg' : 'fg-light'}">${s.label}</span>
-                <span class="bar-track" style="height:22px;border-radius:4px">
-                  <span class="bar-fill" style="width:${(s.value / top) * 100}%;border-radius:4px;
-                    background:${raw(isWorst ? 'var(--destructive)' : 'var(--brand-default)')};opacity:.75"></span>
-                </span>
-                <span class="row" style="justify-content:flex-end;gap:8px">
-                  <span class="num t-sm">${count(s.value)}</span>
-                  ${raw(prev ? `<span class="badge ${isWorst ? 'badge-danger' : ''} badge-mono">
-                    ${percent(stepPct, 0)}</span>` : '')}
-                </span>
-              </div>`;
-          })}
+          <!-- FR-95 — the count is the headline; conversion is its caption. Bar length
+               only ever restated the count, so the figures carry the step on their own. -->
+          <div class="figures">
+            ${DELIVERY_FUNNEL.map((s, i) => {
+              const prev = i === 0 ? null : DELIVERY_FUNNEL[i - 1];
+              const isWorst = prev && `${prev.label} → ${s.label}` === biggestDrop.label;
+              const endToEnd = i === DELIVERY_FUNNEL.length - 1;
+              const note = !prev
+                ? 'Top of the funnel'
+                : `${percent((s.value / prev.value) * 100, 0)} of ${prev.label}`
+                  + (endToEnd ? ` · ${percent((s.value / top) * 100, 0)} of ${DELIVERY_FUNNEL[0].label}` : '');
+              return html`
+                <div class="figure" ${raw(isWorst ? 'data-flag="worst"' : '')}>
+                  <span class="figure-label">${raw(isWorst ? icon('warn') : '')}${s.label}</span>
+                  <span class="figure-value">${count(s.value)}</span>
+                  <span class="figure-note">${note}</span>
+                </div>`;
+            })}
+          </div>
           <div class="notice ${biggestDrop.pct > 30 ? 'notice-warning' : ''}">
             ${raw(icon('warn'))}
             <span>Largest drop-off: <strong>${biggestDrop.label}</strong>, losing
