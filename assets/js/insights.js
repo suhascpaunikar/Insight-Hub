@@ -15,7 +15,8 @@ import {
   AI_SUGGESTIONS, SEGMENTS,
 } from './data.js';
 
-const TABS = ['delivery', 'responses', 'impact'];
+/** Exported so the assistant reads the same tab list the page renders. */
+export const TABS = ['delivery', 'responses', 'impact'];
 
 /* FR-92 — filters apply across all four tabs and persist when switching. */
 const filters = { range: '30d', segment: 'all', app: 'all', variant: 'all', version: 'all' };

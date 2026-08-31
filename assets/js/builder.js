@@ -17,6 +17,7 @@ import {
 } from './data.js';
 import { renderContentStep, wireContentStep, phonePreview } from './content-step.js';
 import { navRail, wireRailCollapse } from './shell.js';
+import { mountAssistant, openAssistant } from './assistant.js';
 
 export const STEPS = [
   { n: 1, label: 'Start from' },
@@ -698,6 +699,10 @@ export function renderBuilder() {
   wireRailCollapse(root, renderBuilder);
   wireOnce(root, 'builderWired', wireCommon);
   wireOnce(root, 'contentWired', (node) => wireContentStep(node, renderBuilder));
+
+  // Focus mode renders its own chrome rather than calling renderShell(), so
+  // the companion has to be mounted here too. The call is idempotent.
+  mountAssistant();
 }
 
 /** FR-3 — a backward edit that invalidates downstream state must warn first. */
@@ -808,6 +813,13 @@ function wireCommon(root) {
   };
 
   on(root, 'click', '[data-act="exit"]', () => confirmLeave('index.html'));
+
+  /* The rail's Assistant entry is wired by renderShell(), which focus mode never
+     calls. Wire it here so the companion opens from the builder rail too. */
+  on(root, 'click', '[data-act="open-assistant"]', (e) => {
+    e.preventDefault();
+    openAssistant();
+  });
 
   /* The rail is real navigation out of the wizard — same guard as the exit control.
      Placeholder links (href="#") lead nowhere and are left alone. */

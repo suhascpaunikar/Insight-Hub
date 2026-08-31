@@ -72,11 +72,37 @@ assets/
     builder.js         wizard frame, steps 1·2·3·5·6
     content-step.js    step 4 — template picker, question logic, triggers
     insights.js        four insight tabs
+    assistant.js       companion card — 320×240, streaming answers
+    assistant-context.js  what the assistant can see
+    assistant-answers.js  intent registry + answer composers
 docs/
   prd-v5.md            the source PRD
   prd-coverage.md      FR-by-FR map, the 21 open decisions, what changed vs Magic Patterns
+  assistant.md         the companion card — what it is, and what it isn't
 DESIGN.md              Supabase design reference + dark product adaptation
 ```
+
+---
+
+## The assistant
+
+A companion card docked bottom-right on every screen, in the shape of
+[clicky](https://github.com/farzaa/clicky): it speaks first about whatever is
+on screen, streams the answer a word at a time, and offers the next question
+rather than waiting for one. Open it from **Assistant** in the nav rail, the
+buddy button in the corner, or `Ctrl + /`.
+
+**There is no model behind it.** Answers are composed deterministically from
+`data.js` and the live store at the moment they're asked — nothing leaves the
+browser, and there is no key, proxy or network call. What it does not fake is
+the data: change the seed numbers and the answers change with them.
+
+Clicky screenshots the screen because it is a bystander to the app it
+describes. InsightHub *is* the app, so `assistant-context.js` reads the state
+directly — exact instead of inferred, and no vision call in the middle.
+
+Full notes, including how to add an answer and where the seam for a real model
+sits, are in [`docs/assistant.md`](docs/assistant.md).
 
 ---
 
