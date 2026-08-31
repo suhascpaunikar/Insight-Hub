@@ -171,12 +171,33 @@ percentage of the package's own card, which restores the intent — every blob
 covers the same fraction of the edge it sits on — and makes the field scale
 with whatever it wraps.
 
-**The layers are brighter.** The package ships stroke at `0.26` and inner glow
-at `0.42`. Its demo sits on near-black `#0d0d0f` at full width; this is a 320px
-card on the console's own `--background-200`. At the shipped values the beam
-was measurably present and visually absent. It runs at `0.88` and `0.60`, which
-is as far as it goes — the ring is still 1px, and the inner glow stays under
-the stroke so the edge reads as an edge and not as a coloured wash.
+**It is blurred, slower, and re-levelled.** Three changes that travel
+together, because each one moves the others:
+
+| | Package | Here |
+|---|---|---|
+| Lap | 1.96s | **3.4s** |
+| Stroke | 0.26, no blur | **0.58, blur 4px** |
+| Inner glow | 0.42, no blur | **0.36, blur 9px** |
+| Brightness | 1.30 | **1.20** |
+
+The blur is what makes the rest necessary. Masking happens before filtering, so
+`blur()` spreads the masked 1px line *outward* into a soft band rather than
+being clipped back to it — the ring stays the geometry and the blur becomes the
+light. But spreading the same light over more pixels makes it read brighter per
+unit of opacity, so the gain and the opacity both come down or the "subtle"
+version ends up louder than the hard one it replaced.
+
+The stroke still sits above the package's `0.26`, for the reason it always did:
+the package's demo is a hairline on near-black at full width, this is a soft
+band on a 320px card over the console's `--background-200`. The inner glow now
+sits *below* the stroke and blurs more than twice as wide, so the two read as
+one light falling off rather than as two concentric rings.
+
+The blur radius is carried per layer in `--asst-beam-blur` and repeated in
+every hue keyframe. That repetition is load-bearing: `filter` is a single
+property, so the hue drift animating it would otherwise animate the blur away
+on the first frame.
 
 ### `fading` is a real state
 
