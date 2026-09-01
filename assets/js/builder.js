@@ -755,15 +755,16 @@ export function renderBuilder() {
           <span class="mono t-xs fg-muted">${draft.campaignId}${raw(
             draft.status === 'Live' ? ` · live · v${draft.version}` : ` · ${esc(draft.status)}`)}</span>
         </div>
-        <div class="push row" style="gap:12px">
-          <!-- FR-68 — a draft indicator plus save-and-exit from every step. -->
-          <span class="row t-xs fg-lighter" style="gap:6px">
-            <span style="width:7px;height:7px;border-radius:50%;background:${raw(
-              draft.dirty ? 'var(--warning)' : 'var(--brand-default)')}"></span>
-            ${draft.dirty ? 'Unsaved changes'
-              : draft.lastSavedAt ? `Saved ${relativeTime(draft.lastSavedAt)}` : 'Nothing to save yet'}
-          </span>
-          <button class="btn btn-outline btn-sm" data-act="save-exit">${raw(icon('save'))}Save &amp; exit</button>
+        <!-- FR-68 has two halves and both still hold. The draft indicator stays
+             here by the stepper; saving moves to the footer, beside the control
+             that leaves the step. Save-and-exit is now the exit control's primary
+             action, so it is still reachable from every step — as one route out
+             rather than two buttons that both save. -->
+        <div class="push row t-xs fg-lighter" style="gap:6px">
+          <span style="width:7px;height:7px;border-radius:50%;background:${raw(
+            draft.dirty ? 'var(--warning)' : 'var(--brand-default)')}"></span>
+          ${draft.dirty ? 'Unsaved changes'
+            : draft.lastSavedAt ? `Saved ${relativeTime(draft.lastSavedAt)}` : 'Nothing to save yet'}
         </div>
       </div>
       <!-- FR-64 / FR-67 — all six visible at once, and the rail persists on scroll. -->
@@ -792,10 +793,16 @@ export function renderBuilder() {
         ${raw(icon('left'))}Back
       </button>
       <span class="mono t-xs fg-muted">Step ${step} of 6 · ${STEPS[step - 1].label}</span>
-      ${raw(step < 6
-        ? `<button class="btn btn-primary" data-act="next">Next${icon('right')}</button>`
-        : `<button class="btn btn-primary" data-act="publish">${icon('rocket')}${
-             draft.status === 'Live' ? 'Publish changes' : 'Publish campaign'}</button>`)}
+      <!-- Paired in one span so the footer's space-between still reads as three
+           columns rather than four evenly spread ones. Save sits left of the
+           action that moves you on, which is the only place it is ever wanted. -->
+      <span class="row" style="gap:8px">
+        <button class="btn btn-outline" data-act="save-draft">${raw(icon('save'))}Save draft</button>
+        ${raw(step < 6
+          ? `<button class="btn btn-primary" data-act="next">Next${icon('right')}</button>`
+          : `<button class="btn btn-primary" data-act="publish">${icon('rocket')}${
+               draft.status === 'Live' ? 'Publish changes' : 'Publish campaign'}</button>`)}
+      </span>
     </footer>
     </div>`;
 
@@ -890,11 +897,16 @@ function wireCommon(root) {
     renderBuilder();
   }
 
-  /* Exit / save (FR-68, OD-17 — save-and-exit returns to the campaign list) */
-  on(root, 'click', '[data-act="save-exit"]', () => {
+  /* Save (FR-68). Saves and stays: the step you are on is the one you are still
+     working, and a button beside Next that navigated away would be a trap. The
+     re-render is what moves the header dot from unsaved to last-saved — the store
+     has no subscribers, so nothing else would repaint it.
+     Leaving is the exit control's job below, and its dialog still carries
+     save-and-exit (OD-17 — that route returns to the campaign list). */
+  on(root, 'click', '[data-act="save-draft"]', () => {
     store.saveDraft();
-    toast('Draft saved', `Resume “${draft().name || 'Untitled campaign'}” from the campaign list.`);
-    setTimeout(() => { location.href = 'index.html'; }, 400);
+    renderBuilder();
+    toast('Draft saved', `“${draft().name || 'Untitled campaign'}” will resume from this step.`);
   });
 
   /* FR-68 — leaving the builder always goes through this, whether by the exit
