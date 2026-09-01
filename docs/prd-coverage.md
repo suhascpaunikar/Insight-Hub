@@ -86,7 +86,7 @@ is for, and the themes (performance, tracking, onboarding, support) follow from 
 | FR-65 Three states without colour | Fill, weight and glyph (check / lock / number) carry it |
 | FR-66 Completed clickable, locked not | `advance()`; a locked click surfaces the blocking field |
 | FR-67 Stepper persists on scroll | `.builder-head` is fixed, `.scroll` moves beneath it |
-| FR-68 Save-and-exit + draft state | Header dot: unsaved / last-saved / nothing yet |
+| FR-68 Save-and-exit + draft state | Header dot: unsaved / last-saved / nothing yet. `Save draft` in the footer saves and stays; save-and-exit is the exit dialog's primary action |
 | FR-69 Validation summary | Inline list on a failed advance; the step is marked `needs attention` in the rail |
 | FR-70 Variant tabs subordinate | `.tabs-sub`, a visible level below the step rail |
 
