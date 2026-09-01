@@ -24,6 +24,7 @@ import { html, raw, icon, $, on } from './core.js';
 import { snapshot } from './assistant-context.js';
 import { answer, intentLabel } from './assistant-answers.js';
 import { insight } from './assistant-insights.js';
+import { campaignKind } from './data.js';
 import { setPointer, pointerActive } from './assistant-pointer.js';
 import { mountOrb, orbThinking } from './assistant-orb.js';
 
@@ -165,7 +166,9 @@ function setPointerMode(on) {
 
 /** Report what one panel's data says. Called when the pointer settles on it. */
 export function readPanel(key) {
-  const found = insight(key);
+  // Three panel keys appear on both kinds and read different sources, so the
+  // composer is told which campaign it is standing in front of.
+  const found = insight(key, campaignKind(snapshot().campaign));
   if (!found || !rootElement) return;
   rootElement.dataset.open = 'true';
   streamAnswer({ text: found.text, followUps: toFollowUps(found.followUps) }, found.title);

@@ -12,6 +12,7 @@ export const GOALS = [
     id: 'user-feedback',
     name: 'User Feedback',
     icon: 'thumbs',
+    kind: 'feedback',
     summary: 'Ask users what happened after an experience.',
     // Kept to two lines — the defaults list below carries the specifics.
     detail: 'Opens the Content step on Ratings templates with NPS pre-selected.',
@@ -21,6 +22,7 @@ export const GOALS = [
     id: 'sale-push',
     name: 'Sale Push Notification',
     icon: 'megaphone',
+    kind: 'announcement',
     summary: 'Announce an offer to a targeted audience.',
     detail: 'Opens on Basic templates. Rating and text-input elements are hidden.',
     defaults: ['Basic templates active', 'Push channel only', 'No question logic'],
@@ -29,6 +31,7 @@ export const GOALS = [
     id: 'churn-rate',
     name: 'Churn Rate',
     icon: 'chart',
+    kind: 'feedback',
     summary: 'Understand why users stopped coming back.',
     detail: 'Opens on Ratings templates scoped to lapsed-user segments.',
     defaults: ['Ratings templates active', 'Lapsed segments suggested', 'Branching pre-enabled'],
@@ -83,6 +86,22 @@ export const OBJECTIVE_SIGNALS = [
   { goal: 'sale-push', words: ['sale', 'offer', 'discount', 'promo', 'coupon', 'cashback', 'deal', 'announce', 'announcement', 'launch', 'campaign push', 'notification about'] },
   { goal: 'user-feedback', words: ['feedback', 'rating', 'nps', 'csat', 'satisfaction', 'satisfied', 'complaint', 'complain', 'survey', 'sentiment', 'verbatim', 'what users think', 'what users say', 'in their words'] },
 ];
+
+/* ---------- Campaign kind ----------
+   A campaign's kind is *derived* from the goal it was started from, never set
+   as a second field the user has to keep in sync. It decides the tab set, the
+   funnel's terminal step, the headline metric, and whether the rating ramp
+   appears at all — a Sale Push has no rating, so a ramp on that screen would be
+   a legend for nothing.
+   ------------------------------------------------------------------------- */
+export const KINDS = ['feedback', 'announcement'];
+export const KIND_LABEL = { feedback: 'Feedback', announcement: 'Announcement' };
+
+const GOAL_KIND = Object.fromEntries(GOALS.map((g) => [g.id, g.kind]));
+
+/** Feedback is the fallback: it is the goal every pre-kind campaign was. */
+export const campaignKind = (c) => GOAL_KIND[c && c.goal] || 'feedback';
+export const isFeedback = (c) => campaignKind(c) === 'feedback';
 
 /* ---------- Step 4 — template categories and components (FR-26 … FR-29) ---------- */
 export const TEMPLATE_CATEGORIES = [
@@ -163,6 +182,7 @@ export const RULE_OPERATORS = ['is', 'is not', 'is greater than', 'is less than'
 export const SEED_CAMPAIGNS = [
   {
     id: 'c1', campaignId: 'CMP-4821', name: 'Post-delivery feedback · Bandra',
+    goal: 'user-feedback', channel: 'in-app',
     status: 'Live', triggerLabel: 'order_delivered + 20 min', divergentTriggers: false,
     responses: 18422, avgRating: 6.8, ratingElement: 'nps', ratingScaleMax: 10,
     updatedAt: minutesAgo(4), versions: 2, type: 'ab',
@@ -171,6 +191,7 @@ export const SEED_CAMPAIGNS = [
   },
   {
     id: 'c2', campaignId: 'CMP-4770', name: 'Repeat-order drop diagnostic',
+    goal: 'user-feedback', channel: 'in-app',
     status: 'Completed', triggerLabel: 'order_delivered + 2 hour', divergentTriggers: false,
     responses: 9204, avgRating: 4.1, ratingElement: 'star', ratingScaleMax: 5,
     updatedAt: minutesAgo(60 * 26), versions: 1, type: 'regular',
@@ -179,6 +200,7 @@ export const SEED_CAMPAIGNS = [
   },
   {
     id: 'c3', campaignId: 'CMP-4903', name: 'Churn win-back · lapsed 21d',
+    goal: 'churn-rate', channel: 'in-app',
     status: 'Paused', triggerLabel: 'multiple triggers', divergentTriggers: true,
     responses: 1348, avgRating: 3.4, ratingElement: 'nps', ratingScaleMax: 10,
     updatedAt: minutesAgo(60 * 5), versions: 3, type: 'intelligent-ab',
@@ -187,14 +209,17 @@ export const SEED_CAMPAIGNS = [
   },
   {
     id: 'c4', campaignId: 'CMP-4950', name: 'Monsoon offer announcement',
+    goal: 'sale-push', channel: 'push',
     status: 'Scheduled', triggerLabel: 'app_opened + 0 min', divergentTriggers: false,
     responses: 0, avgRating: 0, ratingElement: 'nps', ratingScaleMax: 10,
     updatedAt: minutesAgo(95), versions: 1, type: 'regular',
+    reach: 0,
     audienceLabel: 'New · Repeat', runningDates: 'Starts 04 Sep 2026', resumeStep: 5,
     objective: 'Announce the monsoon offer to users who already order in the rain, and learn which framing moves them without discounting the whole menu.',
   },
   {
     id: 'c5', campaignId: 'CMP-4961', name: 'Rider experience pulse',
+    goal: 'user-feedback', channel: 'in-app',
     status: 'Draft', triggerLabel: 'order_delivered + 45 min', divergentTriggers: false,
     responses: 0, avgRating: 0, ratingElement: 'nps', ratingScaleMax: 10,
     updatedAt: minutesAgo(46), versions: 1, type: 'regular',
@@ -203,11 +228,25 @@ export const SEED_CAMPAIGNS = [
   },
   {
     id: 'c6', campaignId: 'CMP-4612', name: 'Packaging quality check',
+    goal: 'user-feedback', channel: 'in-app',
     status: 'Stopped', triggerLabel: 'order_delivered + 1 hour', divergentTriggers: false,
     responses: 74, avgRating: 2.9, ratingElement: 'star', ratingScaleMax: 5,
     updatedAt: minutesAgo(60 * 24 * 14), versions: 2, type: 'regular',
     audienceLabel: 'Loyal', runningDates: '01 May 2026 — 22 May 2026',
     objective: 'Check whether the new packaging survived the trip, from the users most likely to notice that it did not.',
+  },
+  {
+    id: 'c7', campaignId: 'CMP-4884', name: 'Weekend flash sale · 40% off',
+    goal: 'sale-push', channel: 'push',
+    status: 'Completed', triggerLabel: 'app_opened + 0 min', divergentTriggers: false,
+    // An announcement collects no responses. `responses: 0` would read as a
+    // measured zero; the row renders "—" off the kind instead, and `reach` is
+    // the headline this campaign actually has.
+    responses: 0, reach: 96400, avgRating: 0,
+    updatedAt: minutesAgo(60 * 24 * 6), versions: 1, type: 'ab',
+    audienceLabel: 'Repeat · Loyal · excl. Feedback opt-outs',
+    runningDates: '22 Aug 2026 — 25 Aug 2026',
+    objective: 'Move weekend order volume with a short, deep discount, and find out whether free delivery or a flat percentage brings people back — so the next sale can be cheaper than this one.',
   },
 ];
 
@@ -505,4 +544,147 @@ export const AI_SUGGESTIONS = [
   'App slowness is the single largest driver, pulling 1.4 points off the overall score on its own.',
   'Detractor volume is concentrated on Android 12 and 13 — the same builds named in the tracking cluster.',
   '“Repetitive sign-up steps” is up 22% period-on-period and is almost entirely first-order users.',
+];
+
+/* ==========================================================================
+   Announcement seed — scoped to CMP-4884, a two-variant push sale campaign.
+
+   An announcement collects no answers, so none of the blocks above apply to it.
+   The reader's question is not what people said but whether anybody acted, and
+   whether that was worth what it cost — which is why the cost side (dismissals,
+   opt-outs, discount) is seeded here as first-class rather than as a footnote.
+
+   The figures reconcile: failure reasons sum to Sent − Delivered, the
+   engagement states sum to impressions, every per-cut breakdown sums to the
+   totals, and the variants sum to the campaign.
+   ========================================================================== */
+
+/* FR-95, announcement steps. Delivered is the step a feedback campaign never
+   needed: the OS can accept a push and still never surface it. */
+export const ANNOUNCE_FUNNEL = [
+  { label: 'Sent', value: 128400 },
+  { label: 'Delivered', value: 118960 },
+  { label: 'Shown', value: 104210 },
+  { label: 'Tapped', value: 14380 },
+];
+
+/* FR-96 — granularity appropriate to the range. This campaign ran four days,
+   so a daily point would be four bars and would hide the within-day shape
+   entirely; the three send windows a day are what a reader needs to see.
+   One version, so there is no boundary to mark. */
+export const ANNOUNCE_SERIES = [
+  { date: '22 Aug 10:00', sends: 15600, taps: 1980, version: 1 },
+  { date: '22 Aug 15:00', sends: 14200, taps: 1690, version: 1 },
+  { date: '22 Aug 20:00', sends: 11400, taps: 1310, version: 1 },
+  { date: '23 Aug 10:00', sends: 14300, taps: 1700, version: 1 },
+  { date: '23 Aug 15:00', sends: 13100, taps: 1500, version: 1 },
+  { date: '23 Aug 20:00', sends: 11200, taps: 1210, version: 1 },
+  { date: '24 Aug 10:00', sends: 10600, taps: 1180, version: 1 },
+  { date: '24 Aug 15:00', sends: 9400, taps: 1000, version: 1 },
+  { date: '24 Aug 20:00', sends: 7900, taps: 800, version: 1 },
+  { date: '25 Aug 10:00', sends: 8100, taps: 830, version: 1 },
+  { date: '25 Aug 15:00', sends: 6900, taps: 660, version: 1 },
+  { date: '25 Aug 20:00', sends: 5700, taps: 520, version: 1 },
+];
+
+/* FR-97 — sums to 9,440, the Sent → Delivered gap. */
+export const ANNOUNCE_FAILURE_REASONS = [
+  { reason: 'Push permission opted out', count: 5120 },
+  { reason: 'Device token invalid', count: 2610 },
+  { reason: 'App uninstalled', count: 1180 },
+  { reason: 'Suppressed by exclusion list', count: 530 },
+];
+
+/* Engagement — the three outcomes of an impression are exhaustive:
+   tapped + dismissed + ignored = impressions. */
+export const ENGAGEMENT = {
+  impressions: 104210,
+  uniqueReach: 96400,
+  taps: 14380,
+  dismissals: 21640,
+  ignored: 68190,
+  // The cost of reach. A campaign that converts 4% and mutes 2% is not free.
+  optOuts: 1842,
+};
+
+/** Whether the trigger delay is right, read off when people actually acted. */
+export const TIME_TO_TAP = [
+  { bucket: 'Under 1 min', count: 4910 },
+  { bucket: '1 – 10 min', count: 3720 },
+  { bucket: '10 – 60 min', count: 2840 },
+  { bucket: '1 – 6 hours', count: 1690 },
+  { bucket: '6 – 24 hours', count: 810 },
+  { bucket: 'Over 24 hours', count: 410 },
+];
+
+/** Which part of the creative did the work. */
+export const TAP_DESTINATIONS = [
+  { label: 'Primary CTA · “Shop the sale”', count: 9640 },
+  { label: 'Notification body', count: 3560 },
+  { label: 'Secondary CTA · “See terms”', count: 1180 },
+];
+
+export const ENGAGEMENT_BY_APP = [
+  { label: 'Android', shown: 61480, taps: 7910 },
+  { label: 'iOS', shown: 38220, taps: 6010 },
+  { label: 'Web', shown: 4510, taps: 460 },
+];
+
+export const ENGAGEMENT_BY_SEGMENT = [
+  { label: 'New', shown: 18240, taps: 2010 },
+  { label: 'Repeat', shown: 54910, taps: 7880 },
+  { label: 'Loyal', shown: 31060, taps: 4490 },
+];
+
+/* Impact — what happened after the tap. */
+export const CONVERSION_FUNNEL = [
+  { label: 'Tapped', value: 14380 },
+  { label: 'Landed on offer', value: 13110 },
+  { label: 'Added to cart', value: 6240 },
+  { label: 'Order placed', value: 3912 },
+];
+
+export const CONVERSION = {
+  orders: 3912,
+  revenue: 2902704,
+  aov: 742,
+  currency: '₹',
+  // An attribution number without its window is unreadable, so the window is
+  // part of the data rather than a caption someone might drop.
+  windowHours: 48,
+};
+
+/* The only figure that survives "would they have ordered anyway". */
+export const HOLDOUT = {
+  controlSize: 9640,
+  audienceRate: 4.06,
+  controlRate: 2.41,
+  incrementalOrders: 1591,
+};
+
+export const OFFER = {
+  code: 'FLASH40',
+  redemptions: 3180,
+  discountCost: 756840,
+  netRevenue: 2145864,
+};
+
+/* FR-108 — variants compared on what an announcement is for. Reach, taps and
+   orders each sum to the campaign totals. */
+export const ANNOUNCE_VARIANTS = [
+  {
+    name: 'Flat 40% off', weight: 50, reach: 48140, shown: 52020, taps: 6540,
+    orders: 1704, revenuePerRecipient: 26.3, trigger: 'app_opened + 0 min',
+  },
+  {
+    name: 'Free delivery + 30%', weight: 50, reach: 48260, shown: 52190, taps: 7840,
+    orders: 2208, revenuePerRecipient: 33.9, trigger: 'app_opened + 0 min',
+  },
+];
+
+/* FR-91 — machine inference, in the reserved accent. */
+export const ANNOUNCE_AI_SUGGESTIONS = [
+  'Free delivery out-converts a deeper discount: 29% more taps and 30% more orders at a lower discount cost per order.',
+  'Two in three taps arrived within ten minutes — the send window matters more here than the creative.',
+  '1,842 users muted the channel after this send, against 3,912 orders. One opt-out for every two orders is the real price of the reach.',
 ];

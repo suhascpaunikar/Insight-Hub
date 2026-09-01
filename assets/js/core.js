@@ -216,7 +216,9 @@ export function ratingValue(value, scaleMax = 5) {
 }
 
 /* ---------- Persistence ---------- */
-const KEY = 'insighthub.prototype.v1';
+// v2 — campaigns gained `goal`, `channel` and `reach`. A v1 state restored over
+// this build would read every campaign as feedback, so the key moves with the shape.
+const KEY = 'insighthub.prototype.v2';
 export function loadState() {
   try {
     const stored = localStorage.getItem(KEY);

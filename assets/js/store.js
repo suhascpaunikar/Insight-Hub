@@ -3,7 +3,7 @@
    validation (FR-1), and persistence so a draft survives a reload (FR-4).
    ========================================================================== */
 import { uid, minutesAgo, clamp, triggerLabel, loadState, saveState } from './core.js';
-import { SEED_CAMPAIGNS, SEGMENTS, TEMPLATES, OBJECTIVE_SIGNALS } from './data.js';
+import { SEED_CAMPAIGNS, SEGMENTS, TEMPLATES, OBJECTIVE_SIGNALS, campaignKind } from './data.js';
 
 let seq = 4970;
 const nextCampaignId = () => `CMP-${++seq}`;
@@ -62,6 +62,15 @@ export function createVariant(name, weight, goal) {
     elements: [],
     trigger: { event: 'order_delivered', delayValue: '20', delayUnit: 'min' },
   };
+}
+
+/**
+ * The template a rebuilt draft lands on. A Ratings template cannot render a
+ * push notification and a Basic one cannot carry a rating, so the kind picks it
+ * — cloning or editing a Sale Push must not drop the user on a ratings layout.
+ */
+export function defaultTemplateFor(goal) {
+  return campaignKind({ goal }) === 'announcement' ? 'TPL-1042' : 'TPL-2010';
 }
 
 export function createDraft(goal = null) {
@@ -334,6 +343,11 @@ export const store = {
       name: draft.name || 'Untitled campaign',
       objective: draft.objective || '',
       status,
+      // The kind is derived from the goal, so the goal has to survive publish —
+      // without it every published campaign opened the feedback screen, rating
+      // distributions and all, whatever it had actually asked people to do.
+      goal: draft.goal,
+      channel: draft.variants[0].channel,
       triggerLabel: draftTriggerLabel(draft),
       divergentTriggers: hasDivergentTriggers(draft),
       responses: 0,
@@ -380,7 +394,8 @@ export const store = {
   cloneCampaign(id) {
     const source = this.state.campaigns.find((c) => c.id === id);
     if (!source) return null;
-    const draft = createDraft('user-feedback');
+    const goal = source.goal || 'user-feedback';
+    const draft = createDraft(goal);
     const clone = {
       ...draft,
       name: `${source.name} (copy)`,
@@ -391,7 +406,7 @@ export const store = {
       audience: { mode: 'segmented', segments: ['seg_repeat'], exclusions: [] },
       variants: reconcileVariants({ ...draft, type: source.type }).map((v) => ({
         ...v,
-        templateId: 'TPL-2010',
+        templateId: defaultTemplateFor(goal),
         ratingElement: source.ratingElement || 'nps',
         npsScale: source.ratingScaleMax === 5 ? 5 : 10,
       })),
@@ -409,8 +424,9 @@ export const store = {
   resumeCampaign(id) {
     const source = this.state.campaigns.find((c) => c.id === id);
     if (!source) return null;
+    const goal = source.goal || 'user-feedback';
     const draft = {
-      ...createDraft('user-feedback'),
+      ...createDraft(goal),
       id: source.id,
       campaignId: source.campaignId,
       name: source.name,
@@ -422,7 +438,7 @@ export const store = {
       currentStep: source.resumeStep || 1,
       lastSavedAt: source.updatedAt,
     };
-    draft.variants = reconcileVariants(draft).map((v) => ({ ...v, templateId: 'TPL-2010' }));
+    draft.variants = reconcileVariants(draft).map((v) => ({ ...v, templateId: defaultTemplateFor(goal) }));
     draft.completedSteps = [];
     for (let s = 1; s < draft.currentStep; s += 1) {
       if (validateStep(draft, s).length === 0) draft.completedSteps.push(s);

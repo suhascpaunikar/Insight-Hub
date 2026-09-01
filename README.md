@@ -22,7 +22,7 @@ open http://localhost:8000
 |---|---|---|
 | `index.html` | Campaign dashboard — the landing screen | FR-71 – FR-85 |
 | `builder.html` | Six-step creation wizard | FR-1 – FR-57 |
-| `insights.html` | Delivery / Responses / Impact | FR-86 – FR-110 |
+| `insights.html` | The campaign data screen — Delivery / Responses / Impact for a feedback campaign, Delivery / Engagement / Impact for an announcement | FR-86 – FR-110 |
 
 The prototype is **clickable, with real state**. Validation actually gates the wizard,
 the branching toggle populates the three bands, switching template warns before
@@ -79,7 +79,7 @@ assets/
     dashboard.js       campaign list
     builder.js         wizard frame, steps 1·2·3·5·6
     content-step.js    step 4 — template picker, question logic, triggers
-    insights.js        four insight tabs
+    insights.js        the campaign data screen — tabs branch on campaign kind
     assistant.js       companion card — 320×240, streaming answers
     assistant-context.js  what the assistant can see
     assistant-answers.js  intent registry + answer composers
@@ -89,6 +89,7 @@ assets/
 docs/
   prd-v5.md            the source PRD
   prd-coverage.md      FR-by-FR map, the 21 open decisions, what changed vs Magic Patterns
+  insights-data-plan.md  every data point the campaign data screen can carry, by kind
   assistant.md         the companion card — what it is, and what it isn't
 DESIGN.md              Supabase design reference + dark product adaptation
 ```

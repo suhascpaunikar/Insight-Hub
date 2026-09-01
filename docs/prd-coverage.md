@@ -4,8 +4,9 @@ Prototype: static HTML/CSS/JS, dark, Supabase design system (`DESIGN.md`).
 PRD: `docs/prd-v5.md` — 110 requirements, 21 open decisions.
 
 Files: `index.html` (dashboard) · `builder.html` (six-step wizard) · `insights.html`
-(four-tab insights). Logic in `assets/js/`, tokens and primitives in
-`assets/css/supabase.css`.
+(the campaign data screen). Logic in `assets/js/`, tokens and primitives in
+`assets/css/supabase.css`. What the data screen can show, by campaign kind:
+`docs/insights-data-plan.md`.
 
 ---
 
@@ -177,17 +178,17 @@ step 6 summary, and in what the assistant is able to answer.
 
 | FR | Where |
 |---|---|
-| FR-86 Header | Name, ID, status, trigger, audience, dates + Pause/Resume, Stop, Edit, Export |
+| FR-86 Header | Name, ID, status, kind, channel, trigger, audience, dates + Pause/Resume, Stop, Edit, Export |
 | FR-87 Edit warns about versioning | Names the version it would create |
-| FR-88 Four tabs, state in the URL | `?id=…&tab=…` |
-| FR-89 Persistent rating legend | Scaled to the campaign's element, on every tab |
+| FR-88 Tabs, state in the URL | `?id=…&tab=…`. **Three, and the set is the campaign kind's**: Delivery / Responses / Impact for feedback, Delivery / Engagement / Impact for an announcement. A tab the kind does not have falls back to Delivery |
+| FR-89 Persistent rating legend | Scaled to the campaign's element, on every tab. Absent on an announcement, which has no rating for it to legend |
 | FR-90 Monospaced numerals | `.num` / `.mono`, tabular figures |
 | FR-91 AI visually separated | `--ai` violet, absent from ramp and status palettes |
 | FR-92 Global filters | Date, segment, app, variant, version — persist across tabs |
 | FR-93 Version boundaries | Dashed rule on the chart, banner while unfiltered |
-| FR-94 Low-sample suppression | Under 100 responses, counts replace percentages |
-| FR-95 Delivery funnel | Sent → Shown → Started → Completed, largest drop called out |
-| FR-96 Delivery over time | Stacked sends/completions with the version boundary |
+| FR-94 Low-sample suppression | Under 100 responses — or, on an announcement, 100 reached — counts replace percentages |
+| FR-95 Delivery funnel | Sent → Shown → Started → Completed (feedback); Sent → Delivered → Shown → Tapped (announcement). Largest drop called out |
+| FR-96 Delivery over time | Stacked sends against the kind's terminal step, with the version boundary |
 | FR-97 Failure reasons | Broken out by reason |
 | FR-98 Per-question breakdown | Rating on the ramp, MCQ ranked with counts and shares |
 | FR-99 One overall rating | One block, one distribution, one mean |
@@ -199,9 +200,9 @@ step 6 summary, and in what the assistant is able to answer.
 | FR-105 Theme reliability | **Not surfaced** — removed with the Themes tab |
 | FR-106 Score driver breakdown | Low/high band split, ranked by score drag, owner per theme |
 | FR-107 Driver actions | Export, filtered link, or ticket — filter pre-applied |
-| FR-108 Variant comparison | Completion rate and rating, flagged when triggers diverge |
+| FR-108 Variant comparison | Completion rate and rating (feedback); tap-through, orders and revenue per recipient (announcement). Flagged when triggers diverge |
 | FR-109 Intelligent A/B weighting | Current weights with history |
-| FR-110 Export | Carries filter state, version boundaries and question wording |
+| FR-110 Export | Carries filter state, version boundaries, and question wording — or creative and attribution window on an announcement |
 
 ---
 
