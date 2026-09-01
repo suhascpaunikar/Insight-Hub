@@ -876,9 +876,11 @@ a.metric:hover, button.metric:hover { border-color: var(--border-strong); backgr
   position: absolute; left: 0; top: 0; transform: translateY(-50%);
   font-family: var(--font-mono); font-size: 9.5px; color: var(--foreground-muted);
 }
-/* The baseline's own label would hang half below the plot; it sits above the
-   rule instead, where there is room for it. */
+/* The outer two labels would each hang half outside the plot. They sit inside
+   their own rule instead — the baseline's above it, the top rule's below it —
+   so no label is clipped and neither needs headroom reserved for it. */
 .chart-rule[data-base] span { transform: translateY(-100%); }
+.chart-rule[data-top] span { transform: none; }
 .chart-plot { position: relative; display: flex; align-items: flex-end; gap: 3px; height: 100%; }
 
 /* The bar column is the hover target, and it spans the full plot height so

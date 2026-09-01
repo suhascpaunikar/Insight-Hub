@@ -3,7 +3,7 @@
    validation (FR-1), and persistence so a draft survives a reload (FR-4).
    ========================================================================== */
 import { uid, minutesAgo, clamp, triggerLabel, loadState, saveState } from './core.js';
-import { SEED_CAMPAIGNS, SEGMENTS, TEMPLATES } from './data.js';
+import { SEED_CAMPAIGNS, SEGMENTS, TEMPLATES, OBJECTIVE_SIGNALS, campaignKind } from './data.js';
 
 let seq = 4970;
 const nextCampaignId = () => `CMP-${++seq}`;
@@ -64,12 +64,24 @@ export function createVariant(name, weight, goal) {
   };
 }
 
+/**
+ * The template a rebuilt draft lands on. A Ratings template cannot render a
+ * push notification and a Basic one cannot carry a rating, so the kind picks it
+ * — cloning or editing a Sale Push must not drop the user on a ratings layout.
+ */
+export function defaultTemplateFor(goal) {
+  return campaignKind({ goal }) === 'announcement' ? 'TPL-1042' : 'TPL-2010';
+}
+
 export function createDraft(goal = null) {
   return {
     id: uid('d'),
     campaignId: nextCampaignId(),
     goal,
     name: '',
+    // The campaign's own words for why it exists. Configures nothing; it is the
+    // context the assistant answers from, and it travels with the row on save.
+    objective: '',
     apps: ['android', 'ios'],
     type: 'regular',
     audience: { mode: 'all', segments: [], exclusions: [] },
@@ -183,6 +195,25 @@ export function furthestReachableStep(draft) {
 }
 
 /* ---------- Derived ---------- */
+
+/**
+ * A keyword reading of the objective, offered under the field on step 1.
+ * There is no model behind it: `OBJECTIVE_SIGNALS` is the whole of it, and the
+ * suggestion is never applied on its own — the user clicks to take it. Two
+ * goals matching equally often is not a reading, so it says nothing.
+ */
+export function suggestGoalFromObjective(text) {
+  const q = String(text || '').toLowerCase();
+  if (q.trim().length < 15) return null;
+  const ranked = OBJECTIVE_SIGNALS
+    .map((signal) => ({ goal: signal.goal, hits: signal.words.filter((w) => q.includes(w)).length }))
+    .filter((signal) => signal.hits > 0)
+    .sort((a, b) => b.hits - a.hits);
+  if (ranked.length === 0) return null;
+  if (ranked[1] && ranked[1].hits === ranked[0].hits) return null;
+  return ranked[0].goal;
+}
+
 export function audienceReach(draft) {
   const { audience } = draft;
   const included =
@@ -253,6 +284,10 @@ const DEFAULT_STATE = {
   segments: SEGMENTS,
   draft: null,
   navCollapsed: false,
+  // FR-61, scoped: the wizard opens with the rail collapsed to the icon strip
+  // so the Content step keeps its width, and remembers its own answer rather
+  // than collapsing the console the user left expanded.
+  builderNavCollapsed: true,
   emptyDashboard: false,
   settings: { ...DEFAULT_SETTINGS },
 };
@@ -346,7 +381,13 @@ export const store = {
       id: draft.id,
       campaignId: draft.campaignId,
       name: draft.name || 'Untitled campaign',
+      objective: draft.objective || '',
       status,
+      // The kind is derived from the goal, so the goal has to survive publish —
+      // without it every published campaign opened the feedback screen, rating
+      // distributions and all, whatever it had actually asked people to do.
+      goal: draft.goal,
+      channel: draft.variants[0].channel,
       triggerLabel: draftTriggerLabel(draft),
       divergentTriggers: hasDivergentTriggers(draft),
       responses: 0,
@@ -393,15 +434,19 @@ export const store = {
   cloneCampaign(id) {
     const source = this.state.campaigns.find((c) => c.id === id);
     if (!source) return null;
-    const draft = createDraft('user-feedback');
+    const goal = source.goal || 'user-feedback';
+    const draft = createDraft(goal);
     const clone = {
       ...draft,
       name: `${source.name} (copy)`,
+      // FR-81 copies configuration; the objective travels with it because a
+      // clone is almost always the same question asked of a different audience.
+      objective: source.objective || '',
       type: source.type,
       audience: { mode: 'segmented', segments: ['seg_repeat'], exclusions: [] },
       variants: reconcileVariants({ ...draft, type: source.type }).map((v) => ({
         ...v,
-        templateId: 'TPL-2010',
+        templateId: defaultTemplateFor(goal),
         ratingElement: source.ratingElement || 'nps',
         npsScale: source.ratingScaleMax === 5 ? 5 : 10,
       })),
@@ -419,11 +464,13 @@ export const store = {
   resumeCampaign(id) {
     const source = this.state.campaigns.find((c) => c.id === id);
     if (!source) return null;
+    const goal = source.goal || 'user-feedback';
     const draft = {
-      ...createDraft('user-feedback'),
+      ...createDraft(goal),
       id: source.id,
       campaignId: source.campaignId,
       name: source.name,
+      objective: source.objective || '',
       type: source.type,
       status: source.status,
       version: source.versions,
@@ -431,7 +478,7 @@ export const store = {
       currentStep: source.resumeStep || 1,
       lastSavedAt: source.updatedAt,
     };
-    draft.variants = reconcileVariants(draft).map((v) => ({ ...v, templateId: 'TPL-2010' }));
+    draft.variants = reconcileVariants(draft).map((v) => ({ ...v, templateId: defaultTemplateFor(goal) }));
     draft.completedSteps = [];
     for (let s = 1; s < draft.currentStep; s += 1) {
       if (validateStep(draft, s).length === 0) draft.completedSteps.push(s);

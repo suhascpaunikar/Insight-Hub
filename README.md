@@ -22,7 +22,7 @@ open http://localhost:8000
 |---|---|---|
 | `index.html` | Campaign dashboard — activity strip + campaign list | FR-71 – FR-85 |
 | `builder.html` | Six-step creation wizard | FR-1 – FR-57 |
-| `insights.html` | Delivery / Responses / Impact | FR-86 – FR-110 |
+| `insights.html` | The campaign data screen — Delivery / Responses / Impact for a feedback campaign, Delivery / Engagement / Impact for an announcement | FR-86 – FR-110 |
 | `settings.html` | Workspace settings — General / Delivery / Alerts | FR-63 |
 
 The prototype is **clickable, with real state**. Validation actually gates the wizard,
@@ -31,6 +31,14 @@ discarding content, the mobile preview walks the branch you tap, and publishing 
 live row to the dashboard. Settings save per panel and the rename reaches the workspace
 switcher. Progress persists in `localStorage` — reset from the link in the dashboard footer,
 or from **Settings → General**.
+
+Step 1 also asks for a **campaign objective** — a plain-English sentence saying what
+the campaign is for, which nothing else in the wizard records. It configures nothing:
+it travels with the campaign through save, clone and publish, shows on the dashboard
+row and the publish summary, and is what the assistant answers *"what is this campaign
+for"* from. The wizard opens with the nav rail collapsed to its icon strip, since the
+Content step wants the width; expanding it is one click and the wizard remembers that
+separately from the console.
 
 **Start here:** open `index.html` → *New Campaign* → walk the six steps → publish → open
 the resulting row.
@@ -80,7 +88,7 @@ assets/
     dashboard.js       campaign list
     builder.js         wizard frame, steps 1·2·3·5·6
     content-step.js    step 4 — template picker, question logic, triggers
-    insights.js        four insight tabs
+    insights.js        the campaign data screen — tabs branch on campaign kind
     settings.js        workspace settings — the console settings patterns
     assistant.js       companion card — 320×240, streaming answers
     assistant-context.js  what the assistant can see
@@ -91,6 +99,7 @@ assets/
 docs/
   prd-v5.md            the source PRD
   prd-coverage.md      FR-by-FR map, the 21 open decisions, what changed vs Magic Patterns
+  insights-data-plan.md  every data point the campaign data screen can carry, by kind
   assistant.md         the companion card — what it is, and what it isn't
 DESIGN.md              Supabase design reference + dark product adaptation
 ```
