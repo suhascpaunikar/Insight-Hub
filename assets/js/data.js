@@ -6,35 +6,37 @@
    ========================================================================== */
 import { minutesAgo } from './core.js';
 
-/* ---------- Step 1 — "start from" a campaign goal (FR-5, FR-7) ---------- */
+/* ---------- Step 1 — "start from" a campaign goal (FR-5, FR-7) ----------
+   A card carries a name and one line saying what the goal is for, and nothing
+   else. It used to also spell out which defaults the goal sets — the templates
+   it activates, the rating element, the channel — which is an accurate list and
+   the wrong thing to read while choosing. Nobody picks between three goals by
+   comparing nine settings they have not met yet, and every one of those
+   settings is shown, in context and editable, on the step that owns it. So the
+   card answers the only question being asked here: which of these is my
+   campaign? The defaults still happen; they are just no longer a wall of
+   configuration in front of a one-click choice. */
 export const GOALS = [
   {
     id: 'user-feedback',
     name: 'User Feedback',
     icon: 'thumbs',
     kind: 'feedback',
-    summary: 'Ask users what happened after an experience.',
-    // Kept to two lines — the defaults list below carries the specifics.
-    detail: 'Opens the Content step on Ratings templates with NPS pre-selected.',
-    defaults: ['Ratings templates active', 'NPS default rating element', 'Q1 · Q2 · Q3 pre-filled'],
+    summary: 'Ask users how a recent experience went.',
   },
   {
     id: 'sale-push',
     name: 'Sale Push Notification',
     icon: 'megaphone',
     kind: 'announcement',
-    summary: 'Announce an offer to a targeted audience.',
-    detail: 'Opens on Basic templates. Rating and text-input elements are hidden.',
-    defaults: ['Basic templates active', 'Push channel only', 'No question logic'],
+    summary: 'Announce an offer to a chosen group of users.',
   },
   {
     id: 'churn-rate',
     name: 'Churn Rate',
     icon: 'chart',
     kind: 'feedback',
-    summary: 'Understand why users stopped coming back.',
-    detail: 'Opens on Ratings templates scoped to lapsed-user segments.',
-    defaults: ['Ratings templates active', 'Lapsed segments suggested', 'Branching pre-enabled'],
+    summary: 'Find out why users stopped coming back.',
   },
 ];
 
@@ -46,31 +48,33 @@ export const GOALS = [
    next person to open the draft.
 
    The starters are one-click first drafts, keyed to the goal already picked —
-   a blank essay box on step 1 is the fastest way to collect "asdf". */
+   a blank essay box on step 1 is the fastest way to collect "asdf". Keep them
+   to two plain sentences: they are read at a glance and then typed over, and a
+   starter longer than the box is one nobody reads before overwriting it. */
 export const OBJECTIVE_STARTERS = {
   'user-feedback': [
     { label: 'Diagnose a drop',
-      text: 'Repeat orders in Bandra fell 8% after the March app update. Find out whether the new tracking screen or the delivery time is what users blame, before the update goes national.' },
+      text: 'Repeat orders in Bandra dropped 8% after the March update. Find out whether users blame the new tracking screen or the delivery time.' },
     { label: 'Validate a change',
-      text: 'Check whether the redesigned order-tracking screen made the wait feel shorter for users who order at least twice a week, and whether it changed anything for first-time users.' },
+      text: 'Check whether the new order-tracking screen made the wait feel shorter for weekly users, and whether first-time users noticed at all.' },
   ],
   'sale-push': [
     { label: 'Drive a sale',
-      text: 'Bring lapsed users in Delhi NCR back during the monsoon sale, and learn which framing moves them — free delivery or a flat discount — so the next sale does not have to discount the whole menu.' },
+      text: 'Bring lapsed users in Delhi NCR back during the monsoon sale, and find out what moves them — free delivery or a flat discount.' },
     { label: 'Announce a launch',
-      text: 'Tell repeat users that scheduled ordering has launched, and find out within a week whether the announcement is what got them to try it.' },
+      text: 'Tell repeat users that scheduled ordering is live, and find out within a week whether the announcement is what got them to try it.' },
   ],
   'churn-rate': [
     { label: 'Understand churn',
-      text: 'Understand why users who ordered weekly stop after the 21-day mark, and which of price, reliability or the app experience they name first when asked.' },
+      text: 'Find out why weekly users stop ordering after about three weeks, and whether they blame price, reliability or the app.' },
     { label: 'Test a win-back',
-      text: 'Find out whether lapsed users would come back for faster delivery rather than a discount, before we build a win-back offer around either one.' },
+      text: 'Find out whether lapsed users would come back for faster delivery or for a discount, before we build an offer around either one.' },
   ],
   default: [
     { label: 'Diagnose a drop',
-      text: 'A number moved and we do not know why. Find out what changed for the users behind it, in their words, before we decide what to fix.' },
+      text: 'A number dropped and we do not know why. Find out what changed for the users behind it, in their words.' },
     { label: 'Understand a segment',
-      text: 'Understand what a specific group of users expects from the app, so the next release is built on what they said rather than on what we assumed.' },
+      text: 'Find out what one group of users expects from the app, so the next release is built on what they said.' },
   ],
 };
 
@@ -187,7 +191,7 @@ export const SEED_CAMPAIGNS = [
     responses: 18422, avgRating: 6.8, ratingElement: 'nps', ratingScaleMax: 10,
     updatedAt: minutesAgo(4), versions: 2, type: 'ab',
     audienceLabel: 'Repeat · excl. Surveyed in last 14 days', runningDates: '12 Jul 2026 — running',
-    objective: 'Repeat orders in Bandra fell 8% after the March app update. Find out whether the new tracking screen or the delivery time is what users blame, before the update goes national.',
+    objective: 'Repeat orders in Bandra dropped 8% after the March update. Find out whether users blame the new tracking screen or the delivery time.',
   },
   {
     id: 'c2', campaignId: 'CMP-4770', name: 'Repeat-order drop diagnostic',
