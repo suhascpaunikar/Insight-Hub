@@ -543,3 +543,52 @@ The display sizes step down for console density: the console's largest heading i
 - **Table density** — 36px rows, `--surface-100` sticky header, `--border-default` row rules.
 - **Dialogs** — `--background-100` fill, `--border-overlay` edge, `{rounded.md}` 8px, Level 3
   shadow over a `rgba(0,0,0,0.6)` scrim.
+
+## Console settings and observability patterns
+
+The Supabase dashboard's own settings and reporting screens — Auth → Emails, Sessions, Rate
+Limits, Reports, Logs — carry a handful of compositions the marketing brand has no equivalent
+for. They are documented here because a console needs them and because they only work when
+every screen uses the same one. Tokens and primitives: `assets/css/supabase.css`.
+
+**Page header** (`.page-head`) — a 22px title, a one-line description, and the page's actions
+on the right. The description says what the screen is for, never what an individual control
+does; that belongs to the control's own row. Page-level tabs sit under it on the full content
+width, so the rule reads as the header's baseline rather than a card's edge.
+
+**Settings panel** (`.spanel` / `.srow`) — one bordered container, hairline-divided rows. Every
+row is a label and its explanation on the left, and one control on the right. The uniform shape
+is the point: a screen of thirty settings stays scannable because the eye only has to learn one
+row. Three variants —
+
+- `.srow-link` — the whole row is the target, and a chevron says so. Use it when the row opens
+  something rather than setting it.
+- `.srow-notice` — a condition that qualifies the rows around it, stated between them with the
+  action that resolves it. It is not an error and not a toast; it stays until the condition does.
+- `.spanel-foot` — the panel's own Save, which commits that panel and nothing else. It stays
+  **neutral** (`.btn-default`) while there is nothing to save and turns `.btn-primary` when
+  there is: a dimmed green button reads as "nearly enabled" rather than "nothing to do".
+
+**Input with a unit** (`.unit` / `.unit-suffix`) — the suffix names what the number counts,
+inside the field's own border so it reads as part of the value. Beneath it, `.unit-note` states
+what the entered number works out to — `72 hours` → *3 days*, `30 requests/5 min` → *360
+requests per hour*. The note is derived from the live edit, never typed into, so the reader sees
+the consequence of a value before saving it rather than after. `.unit-note-warn` when the value
+implies something the reader probably did not intend.
+
+**Callout** (`.callout`) — an icon tile, a titled explanation, and the button that resolves it.
+Used for a standing condition at the top of a screen, one per screen at most.
+
+**Metric card** (`.metric`) — what it counts, the series that qualifies it, the shape over the
+window, and the window's own bounds underneath. A sparkline without its time base is a
+decoration, so the axis is not optional.
+
+Counts are drawn from zero. **Rates are not**: completion moving 44% → 54% is the whole story,
+and drawing it from zero flattens a month into a wall of equal bars. A rate card scales against
+the window's own low and high and prints that low and high where the dates would go — the zoom
+is stated, never hidden.
+
+**Chart** (`.chart`) — dashed rules at rounded values behind the marks, with their labels in a
+left gutter rather than on top of the first bar, and a floating readout (`.chart-tip`) opened by
+hovering a column: a dot per series, the series name with its share, the value, and the point's
+date under a rule. Bars alone leave the reader estimating heights against nothing.

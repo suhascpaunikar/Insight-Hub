@@ -46,6 +46,76 @@ const share = (n, total) =>
 /* ==========================================================================
    Delivery tab (FR-95 … FR-97)
    ========================================================================== */
+/* ==========================================================================
+   The delivery plot (FR-93 … FR-96).
+
+   Bars alone leave the reader estimating heights against nothing, so the plot
+   carries dashed rules at rounded values, and hovering a column opens a
+   readout with the numbers themselves. The rules sit behind the marks; the
+   readout floats over them.
+   ========================================================================== */
+const CHART_H = 150;
+
+/** A rounded ceiling above `max`, so the top rule reads as a whole number. */
+function niceCeiling(max) {
+  const step = 10 ** Math.floor(Math.log10(max));
+  return Math.ceil(max / (step / 2)) * (step / 2);
+}
+
+/** Four dashed rules — 0 and three divisions up to the rounded ceiling. */
+function gridlines(max) {
+  const top = niceCeiling(max);
+  return html`
+    <div class="chart-grid" aria-hidden="true">
+      ${[3, 2, 1, 0].map((i) => {
+        const value = (top / 3) * i;
+        return html`
+          <span class="chart-rule" ${raw(i === 0 ? 'data-base' : '')}
+                style="bottom:${((value / max) * CHART_H).toFixed(1)}px">
+            <span>${count(Math.round(value))}</span>
+          </span>`;
+      })}
+    </div>`;
+}
+
+/**
+ * Opens the readout against the hovered column. The tip is measured after it
+ * is filled, then flipped to the left of the cursor when it would otherwise
+ * run past the plot's right edge.
+ */
+function wireChart(host) {
+  const chart = $('[data-chart]', host);
+  const tip = $('[data-chart-tip]', host);
+  if (!chart || !tip) return;
+
+  chart.addEventListener('mousemove', (event) => {
+    const col = event.target.closest('.chart-col');
+    if (!col) { tip.dataset.open = 'false'; return; }
+    const point = DELIVERY_SERIES[Number(col.dataset.point)];
+    const rate = (point.completions / point.sends) * 100;
+
+    tip.innerHTML = html`
+      <div class="chart-tip-row">
+        <i style="background:var(--brand-default);opacity:.28"></i>
+        <span>Sent</span><b>${count(point.sends)}</b>
+      </div>
+      <div class="chart-tip-row">
+        <i style="background:var(--brand-default)"></i>
+        <span>Completed (${percent(rate, 1)})</span><b>${count(point.completions)}</b>
+      </div>
+      <div class="chart-tip-foot">${point.date} · version ${point.version}</div>`;
+
+    const box = chart.getBoundingClientRect();
+    const x = event.clientX - box.left;
+    const width = tip.offsetWidth;
+    tip.style.left = `${Math.min(Math.max(0, x + 14), box.width - width)}px`;
+    tip.style.top = `${Math.max(0, event.clientY - box.top - tip.offsetHeight - 12)}px`;
+    tip.dataset.open = 'true';
+  });
+
+  chart.addEventListener('mouseleave', () => { tip.dataset.open = 'false'; });
+}
+
 function deliveryTab(c) {
   const top = DELIVERY_FUNNEL[0].value;
   let biggestDrop = { label: '', pct: 0 };
@@ -105,18 +175,25 @@ function deliveryTab(c) {
           </span>
         </div>
         <div class="card-body">
-          <div class="spark">
-            ${DELIVERY_SERIES.map((p, i) => {
-              const prevVersion = i === 0 ? p.version : DELIVERY_SERIES[i - 1].version;
-              const boundary = p.version !== prevVersion;
-              return html`
-                ${raw(boundary ? '<span class="spark-boundary" title="Version boundary"></span>' : '')}
-                <span class="spark-col tip" data-tip="${p.date} · ${count(p.sends)} sent · ${count(p.completions)} completed · v${p.version}">
-                  <!-- Uncompleted sends sit above the completions they contain. -->
-                  <span class="spark-seg" style="height:${((p.sends - p.completions) / maxSend) * 88}px;background:var(--brand-default);opacity:.28"></span>
-                  <span class="spark-seg" style="height:${(p.completions / maxSend) * 88}px;background:var(--brand-default)"></span>
-                </span>`;
-            })}
+          <!-- The plot: dashed rules behind the marks, a column per point, and
+               one floating readout positioned against whichever column is
+               hovered (see wireChart). -->
+          <div class="chart" style="height:${CHART_H}px" data-chart>
+            ${raw(gridlines(maxSend))}
+            <div class="chart-plot">
+              ${DELIVERY_SERIES.map((p, i) => {
+                const prevVersion = i === 0 ? p.version : DELIVERY_SERIES[i - 1].version;
+                const boundary = p.version !== prevVersion;
+                return html`
+                  ${raw(boundary ? '<span class="spark-boundary" title="Version boundary"></span>' : '')}
+                  <span class="chart-col" data-point="${i}">
+                    <!-- Uncompleted sends sit above the completions they contain. -->
+                    <span class="chart-seg" style="height:${((p.sends - p.completions) / maxSend) * CHART_H}px;background:var(--brand-default);opacity:.28"></span>
+                    <span class="chart-seg" style="height:${(p.completions / maxSend) * CHART_H}px;background:var(--brand-default)"></span>
+                  </span>`;
+              })}
+            </div>
+            <div class="chart-tip" data-chart-tip></div>
           </div>
           <div class="row-between" style="margin-top:8px">
             <span class="mono t-xs fg-muted">${DELIVERY_SERIES[0].date}</span>
@@ -626,6 +703,9 @@ export function renderInsights(host) {
     </div>`;
 
   wireDropdowns(host);
+  // Bound to the chart node itself, which this render just replaced — so it
+  // is re-bound every time, unlike the delegated listeners in wire().
+  wireChart(host);
   wireOnce(host, 'insightsWired', wire);
 }
 

@@ -22,7 +22,7 @@ const NAV_GROUPS = [
     { href: '#', label: 'AI themes', icon: 'sparkles', key: 'ai-themes', badge: 'BETA' },
     // The one nav entry that does something: it opens the companion card.
     { href: '#', label: 'Assistant', icon: 'bot', key: 'assistant', badge: 'BETA', act: 'open-assistant' },
-    { href: '#', label: 'Settings', icon: 'settings', key: 'settings' },
+    { href: 'settings.html', label: 'Settings', icon: 'settings', key: 'settings' },
   ],
 ];
 
