@@ -252,6 +252,33 @@ export function hasDivergentTriggers(draft) {
 }
 
 /* ---------- Store ---------- */
+/* FR-63 — workspace configuration, the values every campaign inherits when it
+   does not override them. Grouped by the panel that owns them so a Save commits
+   one panel's worth of change and nothing else's. */
+export const DEFAULT_SETTINGS = {
+  /* General */
+  workspaceName: 'QuickEats India',
+  defaultRating: 'nps',
+  region: 'ap-south-1',
+  /* Response handling */
+  onePerUser: true,
+  responseWindow: 72,
+  cooldown: 14,
+  /* Send rate limits */
+  inAppRate: 4,
+  pushRate: 2,
+  perUserRate: 30,
+  /* Alerts and digests */
+  channelConnected: false,
+  alertRating: true,
+  alertStall: false,
+  alertComplete: true,
+  alertTheme: false,
+  digestWeekly: true,
+  digestDaily: false,
+  ratingFloor: 3.5,
+};
+
 const DEFAULT_STATE = {
   campaigns: SEED_CAMPAIGNS,
   segments: SEGMENTS,
@@ -262,10 +289,16 @@ const DEFAULT_STATE = {
   // than collapsing the console the user left expanded.
   builderNavCollapsed: true,
   emptyDashboard: false,
+  settings: { ...DEFAULT_SETTINGS },
 };
 
 export const store = {
-  state: { ...DEFAULT_STATE, ...(loadState() || {}) },
+  state: (() => {
+    const stored = loadState() || {};
+    // A state saved before a setting existed must still get that setting's
+    // default rather than `undefined`, so the merge is per-group, not shallow.
+    return { ...DEFAULT_STATE, ...stored, settings: { ...DEFAULT_SETTINGS, ...(stored.settings || {}) } };
+  })(),
 
   save() {
     this.state.campaigns = this.state.campaigns.map((c) => ({ ...c }));
@@ -275,6 +308,13 @@ export const store = {
   set(patch) {
     Object.assign(this.state, patch);
     this.save();
+  },
+
+  /** Commits one settings panel. Untouched fields keep their stored value. */
+  saveSettings(patch) {
+    this.state.settings = { ...this.state.settings, ...patch };
+    this.save();
+    return this.state.settings;
   },
 
   /* --- draft lifecycle --- */

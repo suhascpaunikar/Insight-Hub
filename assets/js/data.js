@@ -547,6 +547,53 @@ export const AI_SUGGESTIONS = [
 ];
 
 /* ==========================================================================
+   Workspace activity (FR-71) — the 24-point series behind the dashboard
+   summary strip. Distinct from DELIVERY_SERIES, which belongs to one
+   campaign: this is every campaign in the workspace added together.
+
+   Generated from a fixed seed rather than typed out, so the shape is organic
+   without being random — the same numbers on every load, and one place to
+   change if the seed campaigns change.
+   ========================================================================== */
+export const WORKSPACE_SERIES = (() => {
+  // Deterministic PRNG: the prototype must not draw a different chart on a
+  // reload, and hand-writing 24 plausible points is worse than seeding one.
+  let s = 20260814;
+  const rand = () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; };
+
+  const days = 24;
+  const end = Date.UTC(2026, 7, 24); // 24 Aug 2026 — the seed campaigns' last update
+  return Array.from({ length: days }, (_, i) => {
+    const at = new Date(end - (days - 1 - i) * 86400000);
+    const weekday = at.getUTCDay();
+    // Order volume dips at the weekend, so prompt volume dips with it.
+    const weekend = weekday === 0 || weekday === 6 ? 0.72 : 1;
+    const ramp = 0.7 + (i / days) * 0.5;
+    const sent = Math.round((1650 + rand() * 520) * weekend * ramp);
+    const failed = Math.round(sent * (0.14 + rand() * 0.05));
+    const shown = sent - failed;
+    const completed = Math.round(shown * (0.44 + rand() * 0.1));
+    const abandoned = Math.round(shown * (0.19 + rand() * 0.06));
+    return {
+      date: at.toISOString().slice(0, 10),
+      label: at.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', timeZone: 'UTC' }),
+      sent,
+      failed,
+      completed,
+      abandoned,
+      // Normalised 0–10, so it can be read against the ramp without rescaling.
+      rating: Number((5.6 + rand() * 1.9).toFixed(2)),
+    };
+  });
+})();
+
+/** The dashboard's range picker. Each option is a slice off the tail. */
+export const RANGES = {
+  '7d': { label: 'Last 7 days', points: 7 },
+  '30d': { label: 'Last 30 days', points: 24 },
+};
+
+/* ==========================================================================
    Announcement seed — scoped to CMP-4884, a two-variant push sale campaign.
 
    An announcement collects no answers, so none of the blocks above apply to it.

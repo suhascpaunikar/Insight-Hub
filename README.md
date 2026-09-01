@@ -20,15 +20,17 @@ open http://localhost:8000
 
 | File | Screen | Requirements |
 |---|---|---|
-| `index.html` | Campaign dashboard — the landing screen | FR-71 – FR-85 |
+| `index.html` | Campaign dashboard — activity strip + campaign list | FR-71 – FR-85 |
 | `builder.html` | Six-step creation wizard | FR-1 – FR-57 |
 | `insights.html` | The campaign data screen — Delivery / Responses / Impact for a feedback campaign, Delivery / Engagement / Impact for an announcement | FR-86 – FR-110 |
+| `settings.html` | Workspace settings — General / Delivery / Alerts | FR-63 |
 
 The prototype is **clickable, with real state**. Validation actually gates the wizard,
 the branching toggle populates the three bands, switching template warns before
 discarding content, the mobile preview walks the branch you tap, and publishing adds a
-live row to the dashboard. Progress persists in `localStorage` — reset from the link in
-the dashboard footer.
+live row to the dashboard. Settings save per panel and the rename reaches the workspace
+switcher. Progress persists in `localStorage` — reset from the link in the dashboard footer,
+or from **Settings → General**.
 
 Step 1 also asks for a **campaign objective** — a plain-English sentence saying what
 the campaign is for, which nothing else in the wizard records. It configures nothing:
@@ -61,6 +63,13 @@ Two additions the marketing brand has no answer for, both documented there:
   the ramp and nowhere in the status palette, so a violet element is always a claim and
   never a measurement (FR-91).
 
+A third section, **Console settings and observability patterns**, documents the compositions
+taken from the Supabase dashboard's own settings and reporting screens — the settings panel and
+its row variants, inputs that carry their unit and derive what it works out to, the callout, the
+metric card, and the charts' dashed rules and hover readout. The rule that matters most there:
+counts are drawn from zero and rates are not, and a rate card prints the band it is scaled
+against rather than hiding the zoom.
+
 Tokens and primitives: `assets/css/supabase.css`.
 
 ---
@@ -80,6 +89,7 @@ assets/
     builder.js         wizard frame, steps 1·2·3·5·6
     content-step.js    step 4 — template picker, question logic, triggers
     insights.js        the campaign data screen — tabs branch on campaign kind
+    settings.js        workspace settings — the console settings patterns
     assistant.js       companion card — 320×240, streaming answers
     assistant-context.js  what the assistant can see
     assistant-answers.js  intent registry + answer composers

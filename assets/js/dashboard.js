@@ -3,11 +3,13 @@
    (FR-71 … FR-85, list conventions per FR-63).
    ========================================================================== */
 import {
-  html, raw, esc, icon, $, on, count, relativeTime, absoluteTime,
-  ratingValue, dropdown, wireDropdowns, toast, dialog, wireOnce,
+  html, raw, esc, icon, $, on, count, percent, relativeTime, absoluteTime,
+  ratingValue, ratingColor, dropdown, wireDropdowns, toast, dialog, wireOnce,
 } from './core.js';
 import { store } from './store.js';
-import { isFeedback, KIND_LABEL, campaignKind } from './data.js';
+import {
+  WORKSPACE_SERIES, RANGES, isFeedback, KIND_LABEL, campaignKind,
+} from './data.js';
 
 const SORTS = {
   updated: 'Most recently updated',
@@ -27,6 +29,7 @@ const view = {
   query: '',
   field: 'name',
   sort: 'updated',
+  range: '30d',
   columns: { trigger: true, responses: true, rating: true, updated: true },
 };
 
@@ -108,6 +111,167 @@ function rowMarkup(c) {
     </tr>`;
 }
 
+/* ==========================================================================
+   Activity strip (FR-71) — what the workspace did over the selected window,
+   above the list of what produced it.
+
+   Every figure is a sum over the same slice the sparkline draws, so the
+   number and the shape can never disagree. The range picker re-slices both.
+   ========================================================================== */
+
+const sum = (rows, key) => rows.reduce((total, row) => total + row[key], 0);
+
+/** The share of shown prompts that were finished, for one day. */
+const dayRate = (row) => (row.completed / (row.completed + row.abandoned)) * 100;
+
+/** A banded card's axis states its low and high instead of its dates. */
+const bandAxis = (values, fmt) => [`${fmt(Math.min(...values))} low`, `${fmt(Math.max(...values))} high`];
+
+/**
+ * One card: what it counts, the series that qualifies it, and the shape over
+ * the window with the window's own bounds underneath — a sparkline without
+ * its time base is a decoration.
+ */
+function metricCard({ name, legend = [], value, subs = [], rows, series, axis, band }) {
+  const total = (row) => series.reduce((t, s) => t + s.of(row), 0);
+  // A count is read against zero. A rate is not: completion moving 44% → 54%
+  // is the whole story, and drawing it from zero flattens it into a wall of
+  // equal bars. `band` scales those against the window's own low and high,
+  // and the axis prints that low and high so the zoom is stated, not hidden.
+  const values = rows.map(total);
+  const floor = band ? Math.min(...values) * 0.985 : 0;
+  const peak = Math.max(...values);
+  const span = peak - floor || 1;
+
+  const bars = rows.map((row) => {
+    const segs = series.map((s, i) => {
+      // Only the base segment carries the floor; the ones stacked on it are
+      // already measured from where it ends.
+      const raised = i === 0 ? s.of(row) - floor : s.of(row);
+      const height = Math.max(0, (raised / span) * 40);
+      const fill = typeof s.fill === 'function' ? s.fill(row) : s.fill;
+      return `<span class="chart-seg" style="height:${height.toFixed(1)}px;background:${fill}${s.opacity ? `;opacity:${s.opacity}` : ''}"></span>`;
+    });
+    // Stacked top-down, so the qualifying series sits above the base it came out of.
+    return `<span class="chart-col" title="${esc(row.label)}">${segs.reverse().join('')}</span>`;
+  });
+
+  return html`
+    <div class="metric">
+      <div class="metric-head">
+        <span class="metric-name">${name}</span>
+        <span class="metric-legend">
+          ${raw(legend.map((l) => `<span class="metric-key" data-tone="${l.tone}"><i></i>${esc(l.label)}</span>`).join(''))}
+        </span>
+      </div>
+      <div class="metric-figures">
+        <span class="metric-value" style="${raw(value.color ? `color:${value.color}` : '')}">${value.text}</span>
+        <span class="metric-sub">
+          ${raw(subs.map((sub) => `<b>${esc(sub)}</b>`).join(''))}
+        </span>
+      </div>
+      <div class="metric-plot">
+        <div class="chart-plot" style="height:40px" aria-hidden="true">${raw(bars.join(''))}</div>
+        <div class="metric-axis"><span>${axis[0]}</span><span>${axis[1]}</span></div>
+      </div>
+    </div>`;
+}
+
+function activityStrip(campaigns) {
+  const rows = WORKSPACE_SERIES.slice(-RANGES[view.range].points);
+  const sent = sum(rows, 'sent');
+  const failed = sum(rows, 'failed');
+  const completed = sum(rows, 'completed');
+  const abandoned = sum(rows, 'abandoned');
+  const started = completed + abandoned;
+  // Completion is measured against what was actually shown, not what was sent:
+  // a delivery failure never reached a person and cannot be abandoned.
+  const completionRate = started ? (completed / started) * 100 : 0;
+  const rating = rows.reduce((t, r) => t + r.rating, 0) / rows.length;
+  const live = campaigns.filter((c) => c.status === 'Live').length;
+  const paused = campaigns.filter((c) => c.status === 'Paused' || c.status === 'Stopped').length;
+  const axis = [rows[0].label, rows[rows.length - 1].label];
+
+  const rangeItems = Object.entries(RANGES).map(([key, r]) => `
+    <button class="dd-item" role="menuitemradio" data-act="set-range" data-key="${key}"
+            aria-checked="${view.range === key}">
+      ${view.range === key ? icon('check') : '<span style="width:14px"></span>'}${r.label}
+    </button>`).join('');
+
+  return html`
+    <section style="margin-bottom:20px">
+      <!-- The headline pair: the volume, and the one rate that qualifies it. -->
+      <div class="row-between wrap" style="margin-bottom:10px">
+        <div class="row wrap" style="gap:20px">
+          <span class="row" style="gap:7px">
+            <span class="num t-h1">${count(completed)}</span>
+            <span class="t-body fg-lighter">Responses collected</span>
+          </span>
+          <span class="row" style="gap:7px">
+            <span class="num t-h1">${percent(completionRate)}</span>
+            <span class="t-body fg-lighter">Completion rate</span>
+          </span>
+        </div>
+        ${raw(dropdown({
+          triggerClass: 'btn btn-default btn-sm',
+          trigger: `${icon('clock')}${esc(RANGES[view.range].label)}${icon('down')}`,
+          label: 'Range', items: rangeItems,
+        }))}
+      </div>
+
+      <div class="metric-grid">
+        ${raw(metricCard({
+          name: 'Prompts sent',
+          legend: [{ label: 'Failed', tone: 'danger' }],
+          value: { text: count(sent) },
+          subs: [count(failed)],
+          rows,
+          axis,
+          series: [
+            { of: (r) => r.sent - r.failed, fill: 'var(--brand-default)', opacity: '.32' },
+            { of: (r) => r.failed, fill: 'var(--destructive)' },
+          ],
+        }))}
+
+        ${raw(metricCard({
+          name: 'Responses',
+          legend: [{ label: 'Abandoned', tone: 'warning' }],
+          value: { text: count(completed) },
+          subs: [count(abandoned)],
+          rows,
+          axis,
+          series: [
+            { of: (r) => r.completed, fill: 'var(--brand-default)' },
+            { of: (r) => r.abandoned, fill: 'var(--warning)' },
+          ],
+        }))}
+
+        ${raw(metricCard({
+          name: 'Completion rate',
+          value: { text: percent(completionRate, 0) },
+          subs: [`${count(live)} live`],
+          rows,
+          band: true,
+          axis: bandAxis(rows.map(dayRate), (v) => percent(v, 0)),
+          series: [{ of: dayRate, fill: 'var(--brand-default)', opacity: '.75' }],
+        }))}
+
+        ${raw(metricCard({
+          name: 'Average rating',
+          // On the shared ramp, so this number means what it means everywhere else.
+          value: { text: rating.toFixed(1), color: ratingColor(rating, 10) },
+          subs: [`${count(paused)} held`],
+          rows,
+          band: true,
+          axis: bandAxis(rows.map((r) => r.rating), (v) => v.toFixed(1)),
+          // Each bar takes its own point's ramp colour: the trend is readable
+          // as colour before the heights are read as a shape.
+          series: [{ of: (r) => r.rating, fill: (r) => ratingColor(r.rating, 10) }],
+        }))}
+      </div>
+    </section>`;
+}
+
 /* ---------- Filtering ---------- */
 function rows() {
   const source = store.state.emptyDashboard ? [] : store.state.campaigns;
@@ -146,18 +310,22 @@ export function renderDashboard(host) {
 
   host.innerHTML = html`
     <div class="page">
-      <div class="row-between wrap" style="margin-bottom:20px;align-items:flex-start">
+      <header class="page-head" style="margin-bottom:24px">
         <div>
-          <h1 class="t-display">Campaigns</h1>
+          <h1 class="page-head-title">Campaigns</h1>
           <!-- FR-73 — what the two campaign states are actually for. -->
-          <p class="t-body fg-lighter" style="max-width:62ch;margin-top:4px">
+          <p class="page-head-desc" style="max-width:74ch">
             Open a live campaign to watch delivery and responses arrive, or a completed one to read
             its insights. Drafts and scheduled campaigns reopen in the builder at the step you left.
           </p>
         </div>
-        <!-- FR-72 — the only route into campaign creation. -->
-        <button class="btn btn-primary" data-act="new">${raw(icon('plus'))}New Campaign</button>
-      </div>
+        <div class="page-head-actions">
+          <!-- FR-72 — the only route into campaign creation. -->
+          <button class="btn btn-primary" data-act="new">${raw(icon('plus'))}New Campaign</button>
+        </div>
+      </header>
+
+      ${raw(source.length === 0 ? '' : activityStrip(source))}
 
       ${raw(source.length === 0 ? emptyState() : html`
         <section class="card" style="overflow:visible">
@@ -298,6 +466,8 @@ function wire(host) {
   on(host, 'change', '[data-act="set-field"]', (event) => { view.field = event.target.value; rerender(); });
   on(host, 'click', '[data-act="clear"]', () => { view.query = ''; rerender(); });
   on(host, 'click', '[data-act="set-sort"]', (event, btn) => { view.sort = btn.dataset.key; rerender(); });
+  // Re-slices the figures and the sparklines together — they read the same rows.
+  on(host, 'click', '[data-act="set-range"]', (event, btn) => { view.range = btn.dataset.key; rerender(); });
   on(host, 'click', '[data-act="toggle-col"]', (event, btn) => {
     view.columns[btn.dataset.key] = !view.columns[btn.dataset.key];
     rerender();
