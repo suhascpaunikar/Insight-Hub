@@ -40,8 +40,11 @@ const statusPill = (status) => html`
   </span>`;
 
 function campaignCell(c) {
+  // The min-height is the three-line cell: name, ID, objective. A campaign
+  // without an objective keeps the row the same height as the ones that have
+  // one, so the list does not comb up and down as rows gain the third line.
   return html`
-    <div class="col" style="gap:2px">
+    <div class="col" style="gap:2px;min-height:54px">
       <span class="row" style="gap:6px">
         <span class="t-h3 truncate">${c.name}</span>
         ${raw(c.versions > 1
@@ -52,6 +55,13 @@ function campaignCell(c) {
       </span>
       <!-- FR-75 — the ID is selectable for support and debugging. -->
       <span class="mono t-xs fg-muted" style="user-select:all">${c.campaignId}</span>
+      <!-- The objective, one line of it. A campaign name says what a campaign is
+           called and the trigger says when it fires; this is the only column that
+           says what it was for. Full text on hover, since it can run to 400
+           characters and the tooltip primitive is a single nowrap line. -->
+      ${raw(c.objective && c.objective.trim() ? html`
+        <span class="t-xs fg-lighter truncate" style="max-width:44ch"
+              title="${c.objective.trim()}">${c.objective.trim()}</span>` : '')}
     </div>`;
 }
 

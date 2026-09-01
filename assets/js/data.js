@@ -35,6 +35,55 @@ export const GOALS = [
   },
 ];
 
+/* ---------- Step 1 — the campaign objective ----------
+   Free text, and the only field in the wizard that configures nothing. Every
+   other answer changes what gets sent; this one records *why* the campaign
+   exists, which a goal id, a trigger and an audience cannot say between them.
+   The assistant reads it verbatim (`assistant-answers.js`), and so does the
+   next person to open the draft.
+
+   The starters are one-click first drafts, keyed to the goal already picked —
+   a blank essay box on step 1 is the fastest way to collect "asdf". */
+export const OBJECTIVE_STARTERS = {
+  'user-feedback': [
+    { label: 'Diagnose a drop',
+      text: 'Repeat orders in Bandra fell 8% after the March app update. Find out whether the new tracking screen or the delivery time is what users blame, before the update goes national.' },
+    { label: 'Validate a change',
+      text: 'Check whether the redesigned order-tracking screen made the wait feel shorter for users who order at least twice a week, and whether it changed anything for first-time users.' },
+  ],
+  'sale-push': [
+    { label: 'Drive a sale',
+      text: 'Bring lapsed users in Delhi NCR back during the monsoon sale, and learn which framing moves them — free delivery or a flat discount — so the next sale does not have to discount the whole menu.' },
+    { label: 'Announce a launch',
+      text: 'Tell repeat users that scheduled ordering has launched, and find out within a week whether the announcement is what got them to try it.' },
+  ],
+  'churn-rate': [
+    { label: 'Understand churn',
+      text: 'Understand why users who ordered weekly stop after the 21-day mark, and which of price, reliability or the app experience they name first when asked.' },
+    { label: 'Test a win-back',
+      text: 'Find out whether lapsed users would come back for faster delivery rather than a discount, before we build a win-back offer around either one.' },
+  ],
+  default: [
+    { label: 'Diagnose a drop',
+      text: 'A number moved and we do not know why. Find out what changed for the users behind it, in their words, before we decide what to fix.' },
+    { label: 'Understand a segment',
+      text: 'Understand what a specific group of users expects from the app, so the next release is built on what they said rather than on what we assumed.' },
+  ],
+};
+
+/** Signals behind the goal suggestion under the objective field
+    (`suggestGoalFromObjective()` in store.js). A word list, not a model:
+    it is offered as a reading and never applied on its own. */
+export const OBJECTIVE_SIGNALS = [
+  // Each entry is matched as a substring, so 'lapse' covers lapsed and lapsing
+  // and 'stop' covers stopped. Words general enough to appear in any objective
+  // are left out on purpose — 'experience' matched everything and read every
+  // campaign as User Feedback, which is a suggestion that says nothing.
+  { goal: 'churn-rate', words: ['churn', 'lapse', 'stop', 'no longer', 'drop off', 'win back', 'win-back', 'winback', 'come back', 'came back', 'inactive', 'dormant', 'uninstall', 'retention', 'retain'] },
+  { goal: 'sale-push', words: ['sale', 'offer', 'discount', 'promo', 'coupon', 'cashback', 'deal', 'announce', 'announcement', 'launch', 'campaign push', 'notification about'] },
+  { goal: 'user-feedback', words: ['feedback', 'rating', 'nps', 'csat', 'satisfaction', 'satisfied', 'complaint', 'complain', 'survey', 'sentiment', 'verbatim', 'what users think', 'what users say', 'in their words'] },
+];
+
 /* ---------- Step 4 — template categories and components (FR-26 … FR-29) ---------- */
 export const TEMPLATE_CATEGORIES = [
   { id: 'basic', label: 'Basic Templates' },
@@ -118,6 +167,7 @@ export const SEED_CAMPAIGNS = [
     responses: 18422, avgRating: 6.8, ratingElement: 'nps', ratingScaleMax: 10,
     updatedAt: minutesAgo(4), versions: 2, type: 'ab',
     audienceLabel: 'Repeat · excl. Surveyed in last 14 days', runningDates: '12 Jul 2026 — running',
+    objective: 'Repeat orders in Bandra fell 8% after the March app update. Find out whether the new tracking screen or the delivery time is what users blame, before the update goes national.',
   },
   {
     id: 'c2', campaignId: 'CMP-4770', name: 'Repeat-order drop diagnostic',
@@ -125,6 +175,7 @@ export const SEED_CAMPAIGNS = [
     responses: 9204, avgRating: 4.1, ratingElement: 'star', ratingScaleMax: 5,
     updatedAt: minutesAgo(60 * 26), versions: 1, type: 'regular',
     audienceLabel: 'All users', runningDates: '02 Jun 2026 — 30 Jun 2026',
+    objective: 'Understand why second orders dropped off across every city at once, and whether the cause is the app, the price or the wait.',
   },
   {
     id: 'c3', campaignId: 'CMP-4903', name: 'Churn win-back · lapsed 21d',
@@ -132,6 +183,7 @@ export const SEED_CAMPAIGNS = [
     responses: 1348, avgRating: 3.4, ratingElement: 'nps', ratingScaleMax: 10,
     updatedAt: minutesAgo(60 * 5), versions: 3, type: 'intelligent-ab',
     audienceLabel: 'Bandra · lapsed 21d', runningDates: '18 Aug 2026 — running',
+    objective: 'Find out whether users who lapsed at 21 days would return for faster delivery rather than a discount, before we build a win-back offer around either one.',
   },
   {
     id: 'c4', campaignId: 'CMP-4950', name: 'Monsoon offer announcement',
@@ -139,6 +191,7 @@ export const SEED_CAMPAIGNS = [
     responses: 0, avgRating: 0, ratingElement: 'nps', ratingScaleMax: 10,
     updatedAt: minutesAgo(95), versions: 1, type: 'regular',
     audienceLabel: 'New · Repeat', runningDates: 'Starts 04 Sep 2026', resumeStep: 5,
+    objective: 'Announce the monsoon offer to users who already order in the rain, and learn which framing moves them without discounting the whole menu.',
   },
   {
     id: 'c5', campaignId: 'CMP-4961', name: 'Rider experience pulse',
@@ -146,6 +199,7 @@ export const SEED_CAMPAIGNS = [
     responses: 0, avgRating: 0, ratingElement: 'nps', ratingScaleMax: 10,
     updatedAt: minutesAgo(46), versions: 1, type: 'regular',
     audienceLabel: 'Repeat', runningDates: 'Not scheduled', resumeStep: 4,
+    objective: '',
   },
   {
     id: 'c6', campaignId: 'CMP-4612', name: 'Packaging quality check',
@@ -153,6 +207,7 @@ export const SEED_CAMPAIGNS = [
     responses: 74, avgRating: 2.9, ratingElement: 'star', ratingScaleMax: 5,
     updatedAt: minutesAgo(60 * 24 * 14), versions: 2, type: 'regular',
     audienceLabel: 'Loyal', runningDates: '01 May 2026 — 22 May 2026',
+    objective: 'Check whether the new packaging survived the trip, from the users most likely to notice that it did not.',
   },
 ];
 

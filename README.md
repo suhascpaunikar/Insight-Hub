@@ -30,6 +30,14 @@ discarding content, the mobile preview walks the branch you tap, and publishing 
 live row to the dashboard. Progress persists in `localStorage` — reset from the link in
 the dashboard footer.
 
+Step 1 also asks for a **campaign objective** — a plain-English sentence saying what
+the campaign is for, which nothing else in the wizard records. It configures nothing:
+it travels with the campaign through save, clone and publish, shows on the dashboard
+row and the publish summary, and is what the assistant answers *"what is this campaign
+for"* from. The wizard opens with the nav rail collapsed to its icon strip, since the
+Content step wants the width; expanding it is one click and the wizard remembers that
+separately from the console.
+
 **Start here:** open `index.html` → *New Campaign* → walk the six steps → publish → open
 the resulting row.
 

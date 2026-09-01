@@ -17,7 +17,7 @@
 import { count, percent, ratingText, LOW_SAMPLE } from './core.js';
 import {
   THEMES, SCORE_DRIVERS, DELIVERY_FUNNEL, FAILURE_REASONS,
-  VARIANT_RESULTS, OPEN_RESPONSES, RATING_BLOCK,
+  VARIANT_RESULTS, OPEN_RESPONSES, RATING_BLOCK, GOALS,
 } from './data.js';
 
 /* FR-89 — a share is only meaningful above the low-sample threshold. */
@@ -118,11 +118,68 @@ function campaignAnswer(context) {
     return { text: 'There is no campaign in view yet. Publish one from the builder and I can read it.', followUps: ['themes', 'delivery'] };
   }
   const element = campaign.ratingElement === 'star' ? 'a 5-point star rating' : `NPS 1–${campaign.ratingScaleMax}`;
-  const text =
+  let text =
     `${campaign.name} (${campaign.campaignId}) is ${campaign.status.toLowerCase()}, running on ${element}. ` +
     `It has collected ${count(campaign.responses)} responses at an average of ${ratingText(campaign.avgRating)}, ` +
     `triggered on ${campaign.triggerLabel}. Audience: ${campaign.audienceLabel}.`;
-  return { text, followUps: ['drivers', 'delivery'] };
+  // The stated objective is the campaign's own words, so it is quoted, not summarised.
+  const objective = (campaign.objective || '').trim();
+  if (objective) text += ` It was set up to: “${objective}”`;
+  return { text, followUps: objective ? ['objective', 'drivers'] : ['drivers', 'delivery'] };
+}
+
+/**
+ * The one answer whose material is not computed. Everything else in this file
+ * is derived from the seed data; this reads back what was typed on step 1,
+ * because a goal id, a trigger and an audience cannot say between them what a
+ * campaign is *for*. It quotes rather than paraphrases: the words are evidence
+ * of intent, and a summary of them would be a claim about intent.
+ */
+function objectiveAnswer(context) {
+  const draft = context.draft;
+  const campaign = context.campaign;
+  const fromDraft = draft && {
+    name: draft.name || 'the open draft',
+    objective: draft.objective,
+    goal: GOALS.find((g) => g.id === draft.goal) || null,
+    where: 'the draft in the builder',
+  };
+  const fromCampaign = campaign && {
+    name: campaign.name,
+    objective: campaign.objective,
+    goal: null,
+    where: 'the campaign in view',
+  };
+  // In the builder the open draft is the subject. Everywhere else the campaign
+  // on screen is, and an unrelated draft left in the store must not answer for it.
+  const source = context.page === 'builder'
+    ? (fromDraft || fromCampaign || null)
+    : (fromCampaign || fromDraft || null);
+
+  if (!source) {
+    return {
+      text: 'Nothing is open for me to read an objective from. Start a campaign and step 1 asks for one.',
+      followUps: ['overview', 'campaign'],
+    };
+  }
+
+  if (!source.objective || !source.objective.trim()) {
+    return {
+      text:
+        `${source.name} has no objective written on it. I can tell you how it is configured — ` +
+        'its trigger, its audience, its rating element — but not what it is for, because nothing ' +
+        'else in a campaign records that. The field is on step 1 of the builder, and whatever ' +
+        'goes there is what I answer this question with.',
+      followUps: ['campaign', 'overview'],
+    };
+  }
+
+  const text =
+    `In your own words, from ${source.where}: “${source.objective.trim()}” ` +
+    `That is what I read ${source.name} as being for` +
+    `${source.goal ? `, and it is starting from ${source.goal.name}` : ''}. ` +
+    'Ask me about the campaign itself and I will describe how it is configured to serve it.';
+  return { text, followUps: ['campaign', 'overview'] };
 }
 
 /** The context-aware opening line — the assistant speaks first, about this screen. */
@@ -139,12 +196,20 @@ function overviewAnswer(context) {
 
   if (context.page === 'builder') {
     const draft = context.draft;
-    const text = draft
-      ? `You're on step ${draft.currentStep} of 6 of “${draft.name || 'an untitled campaign'}”, ` +
-        `with ${count(draft.variants ? draft.variants.length : 0)} variant(s) configured. ` +
-        `I can read results once it's published — ask me about an existing campaign in the meantime.`
-      : 'No draft open. Start a campaign and I can follow along as you build it.';
-    return { text, followUps: ['themes', 'delivery'] };
+    if (!draft) {
+      return {
+        text: 'No draft open. Start a campaign and I can follow along as you build it.',
+        followUps: ['themes', 'delivery'],
+      };
+    }
+    const objective = (draft.objective || '').trim();
+    const text =
+      `You're on step ${draft.currentStep} of 6 of “${draft.name || 'an untitled campaign'}”, ` +
+      `with ${count(draft.variants ? draft.variants.length : 0)} variant(s) configured. ` +
+      (objective
+        ? `Its objective reads: “${objective}” That is the context I answer from — I cannot read results until it publishes.`
+        : 'No objective is written on it yet, so all I know is how it is configured. Step 1 has the field.');
+    return { text, followUps: ['objective', 'campaign'] };
   }
 
   /* Insights — lead with the number the tab in view is actually about. The
@@ -166,6 +231,7 @@ const INTENTS = {
   detractors: { label: 'Show me detractors',          keywords: ['detractor', 'complaint', 'negative', 'unhappy', 'verbatim', 'response'],   run: detractorsAnswer },
   rating:     { label: 'How is the rating question',  keywords: ['rating', 'nps', 'star', 'question', 'distribution', 'average'],            run: ratingAnswer },
   campaign:   { label: 'Tell me about this campaign', keywords: ['campaign', 'this one', 'status', 'audience', 'trigger'],                   run: campaignAnswer },
+  objective:  { label: 'What is this campaign for',   keywords: ['objective', 'purpose', 'what is it for', 'context', 'intent'],             run: objectiveAnswer },
 };
 
 export const intentLabel = (id) => (INTENTS[id] ? INTENTS[id].label : id);

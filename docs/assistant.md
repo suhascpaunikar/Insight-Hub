@@ -32,6 +32,27 @@ changes the answers. No sentence below is a stored string.
 
 ---
 
+## The one thing it is told rather than reads
+
+Every composer in `assistant-answers.js` derives its answer from the seed data
+— except `objectiveAnswer`, whose material is the **campaign objective** typed
+on step 1 of the builder. The configuration a campaign carries says what it
+does: a trigger, an audience, a rating element, a set of questions. None of it
+says what the campaign is *for*, or what the reader is meant to do with the
+answers, and that sentence usually lives in a ticket the console never sees.
+
+So the wizard asks for it, and the assistant quotes it back verbatim rather
+than paraphrasing it: the words are evidence of intent, and a summary of them
+would be a claim about intent. Where a campaign has no objective the answer
+says so and names what it can offer instead — never a guess assembled from the
+goal id.
+
+The field is optional. An assistant that can say *"nothing here records that"*
+is more useful than a wizard that blocks on an essay box, which mostly
+collects the word "asdf".
+
+---
+
 ## The orb
 
 The assistant's face is a Siri-style liquid orb, and it has two states:
