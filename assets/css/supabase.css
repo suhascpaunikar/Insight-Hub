@@ -91,6 +91,7 @@
   --rail-w: 212px;
   --rail-w-collapsed: 60px;
   --bar-h: 48px;
+  --foot-h: 51px;                  /* wizard footer: 10 + 30 (control) + 10 + 1 border */
   --content-max: 1400px;
 }
 
@@ -699,6 +700,9 @@ img { max-width: 100%; }
 .builder-head { flex: none; background: var(--background-100); border-bottom: 1px solid var(--border-default); }
 .builder-foot {
   display: flex; align-items: center; justify-content: space-between; flex: none;
+  /* Height is a token because the assistant launcher has to clear this bar, and
+     a second hard-coded 51 over there would go stale the moment this changes. */
+  min-height: var(--foot-h);
   padding: 10px var(--sp-lg); background: var(--background-100); border-top: 1px solid var(--border-default);
 }
 
@@ -937,6 +941,16 @@ a.metric:hover, button.metric:hover { border-color: var(--border-strong); backgr
   position: fixed; right: var(--sp-lg); bottom: var(--sp-lg);
   z-index: 80;                     /* over dropdowns and tooltips, under dialogs and toasts */
   display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-sm);
+}
+
+/* The wizard is the one screen carrying a bar of its own along the bottom edge,
+   and at the default 16px the 44px launcher lands on top of Next — the primary
+   action of the whole screen, half-covered by a floating orb. Lift it clear of
+   the bar there and leave every other screen where it is: nothing sits under
+   the orb on the dashboard, insights or settings, so raising it everywhere
+   would only buy dead space. */
+body:has(.builder-foot) .asst {
+  bottom: calc(var(--foot-h) + var(--sp-md));
 }
 
 .asst-bubble {

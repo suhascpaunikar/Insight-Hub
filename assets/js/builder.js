@@ -72,8 +72,8 @@ function step1(draft, issues) {
         <!-- FR-7 — step 1 reads as "start from"; "template" is reserved for step 4. -->
         <h2 class="t-h1" id="s1">What do you want to find out?</h2>
         <p class="t-body fg-lighter" style="margin-top:2px;max-width:70ch">
-          Pick the goal you are starting from. It sets the defaults and the available options for
-          every later step — you never pick a channel here.
+          Pick a goal. It sets the defaults for every step after this, and you can change
+          them as you go.
         </p>
       </header>
 
@@ -91,16 +91,10 @@ function step1(draft, issues) {
               ${raw(draft.goal === goal.id
                 ? `<span class="badge badge-brand">${icon('check')}Selected</span>` : '')}
             </span>
+            <!-- Name and one line, and nothing under it: see the note above GOALS
+                 in data.js for why the defaults list came off. -->
             <span class="t-h2" style="margin-top:12px">${goal.name}</span>
             <span class="t-sm fg-light" style="margin-top:6px">${goal.summary}</span>
-            <span class="t-xs fg-lighter clamp-2" style="margin-top:8px">${goal.detail}</span>
-            <span class="col" style="gap:5px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border-default)">
-              ${goal.defaults.map((d) => html`
-                <span class="row" style="gap:6px">
-                  <span style="width:3px;height:3px;border-radius:50%;background:var(--foreground-muted)"></span>
-                  <span class="mono t-xs fg-muted">${d}</span>
-                </span>`)}
-            </span>
           </button>`)}
 
         <!-- FR-6 — present but non-interactive, cannot be focused, does not count. -->
@@ -109,9 +103,9 @@ function step1(draft, issues) {
           <span class="opt-icon">${raw(icon('sparkles'))}</span>
           <span class="t-h2 fg-lighter" style="margin-top:12px">Create Template</span>
           <span class="t-sm fg-lighter clamp-2" style="margin-top:6px">
-            Author your own starting point with custom defaults.
+            Build your own starting point from scratch.
           </span>
-          <span class="badge" style="margin-top:auto;align-self:flex-start">
+          <span class="badge" style="margin-top:12px;align-self:flex-start">
             ${raw(icon('lock'))}Coming soon
           </span>
         </div>
@@ -153,20 +147,20 @@ function objectiveSection(draft) {
           ${raw(icon('target'))}
           <h3 class="t-h2" id="s1-obj">Campaign objective</h3>
         </span>
-        <span class="badge">Optional · recommended</span>
+        <span class="badge">Optional</span>
       </div>
 
       <div class="card-body stack">
         <div class="field">
-          <label class="label" for="objective">What are you trying to find out, and why now?</label>
+          <label class="label" for="objective">Why are you running this campaign?</label>
           <textarea class="textarea" id="objective" data-act="objective" rows="4"
                     maxlength="${OBJECTIVE_MAX}" style="min-height:104px"
-                    placeholder="e.g. Repeat orders in Bandra fell 8% after the March app update. Find out whether users blame the new tracking screen or the delivery time, before the update goes national."
+                    placeholder="e.g. Repeat orders in Bandra dropped 8% after the March update. Find out if it is the new tracking screen or the delivery time."
                     >${value}</textarea>
           <div class="row-between" style="align-items:flex-start;gap:16px">
             <span class="hint">
-              Plain English, and nothing here changes what gets sent. It travels with the campaign
-              as the reason it exists — through save, clone and publish.
+              Plain English. This changes nothing about what gets sent — it stays with the
+              campaign so the next person knows why you built it.
             </span>
             <span class="mono t-xs fg-muted" style="flex:none">${value.length}/${OBJECTIVE_MAX}</span>
           </div>
@@ -189,24 +183,23 @@ function objectiveSection(draft) {
           <div class="notice notice-ai">
             ${raw(icon('sparkles'))}
             <span>
-              This reads like a <strong>${suggested.name}</strong> campaign${raw(current
-                ? `, and you are starting from <strong>${esc(current.name)}</strong>` : '')}.
+              This sounds like a <strong>${suggested.name}</strong> campaign${raw(current
+                ? `, not <strong>${esc(current.name)}</strong>` : '')}.
               <button class="btn btn-link t-xs" style="margin-left:4px"
-                      data-act="pick-goal" data-id="${suggested.id}">Start from ${suggested.name} instead</button>
+                      data-act="pick-goal" data-id="${suggested.id}">Switch to ${suggested.name}</button>
             </span>
           </div>` : '')}
 
         ${raw(value.trim() ? html`
           <div class="notice notice-ai">
             ${raw(icon('bot'))}
-            <span>The assistant reads this verbatim. Ask it <strong>“what is this campaign for”</strong>
-              from any screen and it answers from these words rather than from the goal you picked.</span>
+            <span>Ask the assistant <strong>“what is this campaign for”</strong> from any screen,
+              and it answers in your words.</span>
           </div>` : html`
           <div class="notice">
             ${raw(icon('info'))}
-            <span>Left empty, the assistant can only describe how this campaign is
-              <em>configured</em> — its trigger, audience and rating element. Nothing else in the
-              draft records what it is for, so nothing else can stand in for this.</span>
+            <span>Left empty, the assistant can only tell you how this campaign is
+              <em>set up</em> — not why you built it. Nothing else in the draft records that.</span>
           </div>`)}
       </div>
     </section>`;
