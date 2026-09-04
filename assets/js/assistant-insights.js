@@ -14,7 +14,7 @@
 import { count, percent, ratingText, LOW_SAMPLE } from './core.js';
 import {
   DELIVERY_FUNNEL, DELIVERY_SERIES, FAILURE_REASONS, RATING_BLOCK,
-  BRANCH_BLOCKS, OPEN_RESPONSES, SCORE_DRIVERS, VARIANT_RESULTS,
+  BRANCH_BLOCKS, OPEN_RESPONSES, TERM_CLOUD, SCORE_DRIVERS, VARIANT_RESULTS,
   WEIGHT_HISTORY, THEMES,
   ANNOUNCE_FUNNEL, ANNOUNCE_SERIES, ANNOUNCE_FAILURE_REASONS, ENGAGEMENT,
   TIME_TO_TAP, TAP_DESTINATIONS, ENGAGEMENT_BY_APP, ENGAGEMENT_BY_SEGMENT,
@@ -226,6 +226,37 @@ function openText() {
       `This list is a sample rather than the full ${count(RATING_BLOCK.responses)} responses, so read it for ` +
       `language and specifics and take the weights from the drivers.`,
     followUps: ['detractors', 'themes'],
+  };
+}
+
+/**
+ * The word cloud. The panel draws two variables at once and the eye reads size
+ * before colour, so the reading it most often gets wrong is the big word that
+ * is merely common — `map` is written about 590 times and the people writing
+ * it are happy. Lead with the damaging one, and name the harmless big word so
+ * the reader knows the size alone is not the finding.
+ */
+function termCloud() {
+  const max = RATING_BLOCK.scaleMax || 10;
+  const mentions = TERM_CLOUD.reduce((total, t) => total + t.count, 0);
+  const damage = (t) => t.count * (max - t.rating);
+  const worst = [...TERM_CLOUD].sort((a, b) => damage(b) - damage(a))[0];
+  const loudest = [...TERM_CLOUD].sort((a, b) => b.count - a.count)[0];
+  const kind = [...TERM_CLOUD].sort((a, b) => b.rating - a.rating)[0];
+
+  return {
+    title: 'What people wrote about',
+    text:
+      `${count(TERM_CLOUD.length)} terms across ${count(mentions)} mentions. ` +
+      `"${worst.term}" carries the most damage — ${count(worst.count)} mentions at ` +
+      `${ratingText(worst.rating)} out of ${max} — because it is both frequent and low-rated. ` +
+      (loudest.term === worst.term
+        ? ''
+        : `"${loudest.term}" is the most written word at ${count(loudest.count)} mentions, but it averages ` +
+          `${ratingText(loudest.rating)}, so size alone is not the finding here. `) +
+      `The warmest term is "${kind.term}" at ${ratingText(kind.rating)} — that is the part to leave alone. ` +
+      'Clicking a term filters the verbatims below it.',
+    followUps: ['themes', 'detractors'],
   };
 }
 
@@ -491,6 +522,7 @@ const PANELS = {
   /* Feedback */
   'rating-block': ratingBlock,
   'branch-blocks': branchBlocks,
+  'term-cloud': termCloud,
   'open-text': openText,
   'score-drivers': scoreDrivers,
   /* Announcement */

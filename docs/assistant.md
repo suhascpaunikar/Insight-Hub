@@ -3,7 +3,8 @@
 A companion card docked bottom-right on every screen. It reads the campaign
 data already in the prototype and answers questions about it, streaming the
 reply a word at a time. Open it from the **Assistant** entry in the nav rail,
-the buddy button in the corner, or `Ctrl + /`.
+the buddy button in the corner, or `Ctrl + /`. Ask by clicking a follow-up, or
+by typing into the box at the foot of the card.
 
 The shape of the interaction is borrowed from
 [clicky](https://github.com/farzaa/clicky) — a small buddy that speaks first
@@ -287,12 +288,12 @@ A pointer that cannot hover has no dwell, so on touch a tap stands in for it.
 
 ### The panels
 
-Nine, across the three insights tabs:
+Ten, across the three insights tabs:
 
 | Tab | Panels |
 |---|---|
 | Delivery | delivery funnel, delivery over time, failure reasons |
-| Responses | the rating question, follow-up by band, open text |
+| Responses | the rating question, follow-up by band, the word cloud, open text |
 | Impact | score drivers, variant comparison, intelligent A/B weighting |
 
 To add one, put `data-insight="key"` on its container and write a composer in
@@ -332,9 +333,9 @@ otherwise leave the assistant describing a panel the reader cannot see.
 
 ## Layout
 
-The card is a fixed **320 × 240**. The answer region scrolls inside it and the
-follow-ups stay pinned to the bottom edge, so an answer never changes the
-card's footprint or shifts the console behind it. While text streams, the view
+The card is a fixed **320 × 288**. The answer region scrolls inside it, and the
+follow-ups and the composer stay pinned to the bottom edge, so an answer never
+changes the card's footprint or shifts the console behind it. While text streams, the view
 follows the caret; when the answer lands it settles back to the top so it reads
 from the first line. Whichever edge the content overflows is faded, so a cut
 line reads as "more this way" rather than as a clipped render.
@@ -344,6 +345,30 @@ It mounts on `document.body`, not `#app` — `renderShell()` replaces
 lives there. `renderBuilder()` mounts it separately, because the wizard is
 full-screen focus mode and renders its own chrome instead of calling
 `renderShell()`.
+
+---
+
+## The typed question
+
+The composer at the foot of the card routes through `route()` in
+`assistant-answers.js`, which matches the typed text against each intent's
+`keywords` and returns the first hit — falling back to `overview`, so it never
+dead-ends. The reply is then composed by the same function a follow-up button
+would have called, which is the point: **the box is a second way in, not a
+second answer engine.** It cannot print a figure the buttons would not also
+print, and it cannot answer a question no composer covers.
+
+That is a real ceiling, and the placeholder is deliberately narrow about it
+("Ask about this screen…") rather than inviting anything. The header takes the
+question verbatim once it is sent — with the box cleared, it is the only thing
+left saying what the answer below it answers.
+
+Two interactions the box shares a keyboard with:
+
+- **Escape** clears a half-typed question first, and only closes the card on a
+  second press. A modal still owns Escape outright while one is open.
+- **Arming the pointer** blurs the box, because the mouse has become the input
+  device; sending a typed question disarms the pointer for the same reason.
 
 ---
 

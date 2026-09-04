@@ -193,8 +193,8 @@ step 6 summary, and in what the assistant is able to answer.
 | FR-98 Per-question breakdown | Rating on the ramp, MCQ ranked with counts and shares |
 | FR-99 One overall rating | One block, one distribution, one mean |
 | FR-100 Branch path visibility | Per-band card with its own path count |
-| FR-101 Open text | Searchable, filterable by rating band |
-| FR-102 Response detail | Full answer set in order, with segment and order context |
+| FR-101 Open text | A word cloud over the whole response base — size is mention count, colour is the mean rating on the shared ramp — above a list searchable and filterable by rating band. Clicking a term filters the list |
+| FR-102 Response detail | Full answer set in order, with response ID, user ID, segment and order context. A repeat respondent's other verbatims are listed with it |
 | FR-103 AI theme clustering | **Not surfaced** — the Themes tab was removed from the prototype |
 | FR-104 Theme drill-down | **Not surfaced** — removed with the Themes tab |
 | FR-105 Theme reliability | **Not surfaced** — removed with the Themes tab |

@@ -4,7 +4,7 @@
    ========================================================================== */
 import {
   html, raw, esc, icon, $, on, count, percent, relativeTime, absoluteTime,
-  ratingValue, ratingColor, dropdown, wireDropdowns, toast, dialog, wireOnce, keepScroll,
+  ratingValue, dropdown, wireDropdowns, toast, dialog, wireOnce, keepScroll,
 } from './core.js';
 import { store } from './store.js';
 import {
@@ -121,29 +121,28 @@ function rowMarkup(c) {
 
 const sum = (rows, key) => rows.reduce((total, row) => total + row[key], 0);
 
-/** The share of shown prompts that were finished, for one day. */
-const dayRate = (row) => (row.completed / (row.completed + row.abandoned)) * 100;
-
-/** A banded card's axis states its low and high instead of its dates. */
-const bandAxis = (values, fmt) => [`${fmt(Math.min(...values))} low`, `${fmt(Math.max(...values))} high`];
-
 /**
  * One card: what it counts, the series that qualifies it, and the shape over
  * the window with the window's own bounds underneath — a sparkline without
  * its time base is a decoration.
+ *
+ * `scope` is the line that says what population the figure covers. It is not
+ * decoration: this strip reports a workspace running two kinds of campaign,
+ * and a number drawn from only one of them has to say so on its own card,
+ * next to the number, or it will be read as covering both.
  */
-function metricCard({ name, legend = [], value, subs = [], rows, series, axis, band }) {
-  const total = (row) => series.reduce((t, s) => t + s.of(row), 0);
+function metricCard({ name, scope, legend = [], value, subs = [], rows, series, axis, band, plot }) {
+  const total = (row) => (series ? series.reduce((t, s) => t + s.of(row), 0) : 0);
   // A count is read against zero. A rate is not: completion moving 44% → 54%
   // is the whole story, and drawing it from zero flattens it into a wall of
   // equal bars. `band` scales those against the window's own low and high,
   // and the axis prints that low and high so the zoom is stated, not hidden.
-  const values = rows.map(total);
+  const values = series ? rows.map(total) : [];
   const floor = band ? Math.min(...values) * 0.985 : 0;
   const peak = Math.max(...values);
   const span = peak - floor || 1;
 
-  const bars = rows.map((row) => {
+  const bars = (series ? rows : []).map((row) => {
     const segs = series.map((s, i) => {
       // Only the base segment carries the floor; the ones stacked on it are
       // already measured from where it ends.
@@ -164,6 +163,10 @@ function metricCard({ name, legend = [], value, subs = [], rows, series, axis, b
           ${raw(legend.map((l) => `<span class="metric-key" data-tone="${l.tone}"><i></i>${esc(l.label)}</span>`).join(''))}
         </span>
       </div>
+      <!-- Its own row rather than a second line under the name: the legend
+           sits beside the name and would squeeze the scope into an ellipsis
+           exactly on the cards whose scope is the thing worth reading. -->
+      ${raw(scope ? `<span class="metric-scope${scope.tip ? ' tip' : ''}"${scope.tip ? ` data-tip="${esc(scope.tip)}"` : ''}>${esc(scope.text)}</span>` : '')}
       <div class="metric-figures">
         <span class="metric-value" style="${raw(value.color ? `color:${value.color}` : '')}">${value.text}</span>
         <span class="metric-sub">
@@ -171,9 +174,46 @@ function metricCard({ name, legend = [], value, subs = [], rows, series, axis, b
         </span>
       </div>
       <div class="metric-plot">
-        <div class="chart-plot" style="height:40px" aria-hidden="true">${raw(bars.join(''))}</div>
+        ${raw(plot || `<div class="chart-plot" style="height:40px" aria-hidden="true">${bars.join('')}</div>`)}
         <div class="metric-axis"><span>${axis[0]}</span><span>${axis[1]}</span></div>
       </div>
+    </div>`;
+}
+
+/**
+ * The portfolio, drawn as one stacked bar in the plot slot the other three
+ * cards give to a sparkline.
+ *
+ * A sparkline was the obvious thing here and the wrong one: nothing in this
+ * prototype records what was live on the 3rd of August, so a daily line would
+ * have been invented, and an invented line next to three measured ones is the
+ * kind of chart that gets believed. A composition needs no history — it is the
+ * list underneath, counted — and it shows the thing the value alone hides:
+ * how much of the workspace is switched off.
+ */
+function portfolioBar(campaigns) {
+  const states = [
+    { label: 'Live', match: ['Live'], fill: 'var(--brand-default)' },
+    { label: 'Scheduled', match: ['Scheduled'], fill: 'var(--brand-default)', opacity: '.45' },
+    { label: 'Draft', match: ['Draft'], fill: 'var(--foreground-muted)' },
+    // Paused, Stopped and Completed are one segment: all three are campaigns
+    // that are not going to send anything today, which is the only distinction
+    // a portfolio bar is making.
+    { label: 'Not running', match: ['Paused', 'Stopped', 'Completed'], fill: 'var(--border-overlay)' },
+  ];
+  const counted = states
+    .map((state) => ({ ...state, count: campaigns.filter((c) => state.match.includes(c.status)).length }))
+    .filter((state) => state.count > 0);
+  const total = counted.reduce((sum, state) => sum + state.count, 0) || 1;
+
+  return html`
+    <div class="row" style="gap:0;height:40px;align-items:flex-end" aria-hidden="true">
+      <span class="row" style="gap:2px;width:100%;height:22px">
+        ${counted.map((state) => html`
+          <span class="tip" data-tip="${state.count} ${state.label.toLowerCase()}"
+                style="width:${((state.count / total) * 100).toFixed(1)}%;height:100%;border-radius:2px;
+                       background:${raw(state.fill)}${raw(state.opacity ? `;opacity:${state.opacity}` : '')}"></span>`)}
+      </span>
     </div>`;
 }
 
@@ -181,15 +221,29 @@ function activityStrip(campaigns) {
   const rows = WORKSPACE_SERIES.slice(-RANGES[view.range].points);
   const sent = sum(rows, 'sent');
   const failed = sum(rows, 'failed');
+  const reached = sum(rows, 'reach');
+  const optOuts = sum(rows, 'optOuts');
   const completed = sum(rows, 'completed');
   const abandoned = sum(rows, 'abandoned');
   const started = completed + abandoned;
   // Completion is measured against what was actually shown, not what was sent:
   // a delivery failure never reached a person and cannot be abandoned.
   const completionRate = started ? (completed / started) * 100 : 0;
-  const rating = rows.reduce((t, r) => t + r.rating, 0) / rows.length;
-  const live = campaigns.filter((c) => c.status === 'Live').length;
-  const paused = campaigns.filter((c) => c.status === 'Paused' || c.status === 'Stopped').length;
+
+  const byStatus = (...states) => campaigns.filter((c) => states.includes(c.status)).length;
+  const live = byStatus('Live');
+  const scheduled = byStatus('Scheduled');
+  const drafts = byStatus('Draft');
+  const feedbackCount = campaigns.filter(isFeedback).length;
+
+  // The workspace runs two kinds of campaign and only one of them collects an
+  // answer, so a card built on responses covers part of the list, not the list.
+  // Say which part, on the card, rather than letting the reader assume.
+  const feedbackScope = {
+    text: `${count(feedbackCount)} feedback campaign${feedbackCount === 1 ? '' : 's'} · ${percent(completionRate, 0)} completed`,
+    tip: 'Announcements collect no answers, so they are outside this figure — they appear in prompts sent and people reached',
+  };
+
   const axis = [rows[0].label, rows[rows.length - 1].label];
 
   const rangeItems = Object.entries(RANGES).map(([key, r]) => `
@@ -200,16 +254,21 @@ function activityStrip(campaigns) {
 
   return html`
     <section style="margin-bottom:20px">
-      <!-- The headline pair: the volume, and the one rate that qualifies it. -->
+      <!-- The headline pair. Both figures hold for every campaign in the
+           workspace: one says how much of it is switched on, the other how
+           many people that actually touched. Neither depends on anybody
+           answering anything. -->
       <div class="row-between wrap" style="margin-bottom:10px">
         <div class="row wrap" style="gap:20px">
           <span class="row" style="gap:7px">
-            <span class="num t-h1">${count(completed)}</span>
-            <span class="t-body fg-lighter">Responses collected</span>
+            <span class="num t-h1">${count(live)}</span>
+            <span class="t-body fg-lighter">Campaigns live</span>
           </span>
           <span class="row" style="gap:7px">
-            <span class="num t-h1">${percent(completionRate)}</span>
-            <span class="t-body fg-lighter">Completion rate</span>
+            <span class="num t-h1">${count(reached)}</span>
+            <span class="t-body fg-lighter tip"
+                  data-tip="Unique people per day, summed across the window — one person reached on two days counts twice">
+              People reached</span>
           </span>
         </div>
         ${raw(dropdown({
@@ -222,6 +281,7 @@ function activityStrip(campaigns) {
       <div class="metric-grid">
         ${raw(metricCard({
           name: 'Prompts sent',
+          scope: { text: 'All campaigns' },
           legend: [{ label: 'Failed', tone: 'danger' }],
           value: { text: count(sent) },
           subs: [count(failed)],
@@ -234,7 +294,25 @@ function activityStrip(campaigns) {
         }))}
 
         ${raw(metricCard({
+          name: 'People reached',
+          scope: {
+            text: 'Unique people',
+            tip: 'A prompt is a send; a person can be sent several. Reach counts people, and always trails prompts sent',
+          },
+          legend: [{ label: 'Opted out', tone: 'warning' }],
+          value: { text: count(reached) },
+          subs: [count(optOuts)],
+          rows,
+          axis,
+          series: [
+            { of: (r) => r.reach - r.optOuts, fill: 'var(--brand-default)', opacity: '.55' },
+            { of: (r) => r.optOuts, fill: 'var(--warning)' },
+          ],
+        }))}
+
+        ${raw(metricCard({
           name: 'Responses',
+          scope: feedbackScope,
           legend: [{ label: 'Abandoned', tone: 'warning' }],
           value: { text: count(completed) },
           subs: [count(abandoned)],
@@ -247,26 +325,17 @@ function activityStrip(campaigns) {
         }))}
 
         ${raw(metricCard({
-          name: 'Completion rate',
-          value: { text: percent(completionRate, 0) },
-          subs: [`${count(live)} live`],
+          name: 'Campaigns running',
+          scope: {
+            text: `Live now, of ${count(campaigns.length)} in the workspace`,
+            tip: 'The other three cards sum the window. This one is a state, so it reports right now',
+          },
+          legend: [{ label: 'Not running', tone: 'muted' }],
+          value: { text: count(live) },
+          subs: [`${count(scheduled)} sched`, `${count(drafts)} draft`],
           rows,
-          band: true,
-          axis: bandAxis(rows.map(dayRate), (v) => percent(v, 0)),
-          series: [{ of: dayRate, fill: 'var(--brand-default)', opacity: '.75' }],
-        }))}
-
-        ${raw(metricCard({
-          name: 'Average rating',
-          // On the shared ramp, so this number means what it means everywhere else.
-          value: { text: rating.toFixed(1), color: ratingColor(rating, 10) },
-          subs: [`${count(paused)} held`],
-          rows,
-          band: true,
-          axis: bandAxis(rows.map((r) => r.rating), (v) => v.toFixed(1)),
-          // Each bar takes its own point's ramp colour: the trend is readable
-          // as colour before the heights are read as a shape.
-          series: [{ of: (r) => r.rating, fill: (r) => ratingColor(r.rating, 10) }],
+          axis: ['Live · scheduled · draft', 'Not running'],
+          plot: portfolioBar(campaigns),
         }))}
       </div>
     </section>`;

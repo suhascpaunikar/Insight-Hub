@@ -11,7 +11,7 @@ import {
 import { store } from './store.js';
 import {
   DELIVERY_FUNNEL, DELIVERY_SERIES, FAILURE_REASONS, RATING_BLOCK, BRANCH_BLOCKS,
-  OPEN_RESPONSES, SCORE_DRIVERS, OWNER_TEAMS, VARIANT_RESULTS, WEIGHT_HISTORY,
+  OPEN_RESPONSES, TERM_CLOUD, SCORE_DRIVERS, OWNER_TEAMS, VARIANT_RESULTS, WEIGHT_HISTORY,
   AI_SUGGESTIONS, SEGMENTS,
   campaignKind, isFeedback, KIND_LABEL,
   ANNOUNCE_FUNNEL, ANNOUNCE_SERIES, ANNOUNCE_FAILURE_REASONS, ENGAGEMENT,
@@ -300,14 +300,116 @@ function deliveryTab(c) {
 /* ==========================================================================
    Responses tab (FR-98 … FR-102)
    ========================================================================== */
+/**
+ * FR-101 — the open-text vocabulary, drawn as a cloud above the verbatims.
+ *
+ * Two variables, two channels, and the pairing is the whole point: size is how
+ * often a term was written, colour is the mean rating of the people who wrote
+ * it, on the same ramp every other rating on this console uses. A big red word
+ * is common AND damaging; a big green one is what not to break. Neither
+ * reading is available from a frequency list, which is why this is a cloud and
+ * not the bar chart of the same thirty numbers.
+ *
+ * Sizing is on the square root of the count rather than the count itself.
+ * Area is what the eye compares, so scaling the font linearly makes a term
+ * mentioned six times as often look thirty-six times as loud.
+ *
+ * Terms are ordered by count but laid out as flowing text, so the heavy ones
+ * cluster top-left where reading starts. Alphabetical or random placement is
+ * prettier and says nothing.
+ */
+function termCloud(c) {
+  const max = scaleMax(c);
+  const counts = TERM_CLOUD.map((t) => t.count);
+  const lo = Math.min(...counts);
+  const hi = Math.max(...counts);
+  const MIN_PX = 11;
+  const MAX_PX = 30;
+  const size = (n) => {
+    const t = (Math.sqrt(n) - Math.sqrt(lo)) / (Math.sqrt(hi) - Math.sqrt(lo) || 1);
+    return MIN_PX + t * (MAX_PX - MIN_PX);
+  };
+
+  const ranked = [...TERM_CLOUD].sort((a, b) => b.count - a.count);
+  const mentions = ranked.reduce((total, t) => total + t.count, 0);
+  // Damage is volume × severity, the same shape as SCORE_DRIVERS' `drag`. The
+  // lowest-rated term on its own is usually a rare one, and calling that the
+  // most damaging word in 18,000 responses would be wrong in the direction
+  // that costs someone a sprint.
+  const damage = (t) => t.count * (max - t.rating);
+  const worst = [...ranked].sort((a, b) => damage(b) - damage(a))[0];
+
+  return html`
+    <section class="card" data-insight="term-cloud">
+      <div class="card-head">
+        <div>
+          <h3 class="t-h2">What people wrote about</h3>
+          <span class="t-xs fg-lighter">
+            ${count(ranked.length)} terms across ${count(mentions)} mentions ·
+            size is how often, colour is the rating that came with it</span>
+        </div>
+        <span class="row" style="gap:14px">
+          <span class="col tip" style="gap:0;align-items:flex-end"
+                data-tip="Mentions × how far below ${max} the rating came in — ${count(worst.count)} mentions at ${ratingText(worst.rating)}">
+            <span class="t-micro fg-muted">Most damaging</span>
+            <span class="t-h3" style="color:${raw(ratingColor(worst.rating, max))}">${worst.term}</span>
+          </span>
+        </span>
+      </div>
+      <div class="cloud">
+        ${ranked.map((t) => html`
+          <button class="cloud-term tip" data-act="cloud-term" data-term="${t.term}"
+                  aria-pressed="${view.textQuery.trim().toLowerCase() === t.term}"
+                  data-tip="${count(t.count)} mentions · ${ratingText(t.rating)} / ${max} average · click to filter the verbatims"
+                  style="font-size:${size(t.count).toFixed(1)}px;color:${raw(ratingColor(t.rating, max))}">
+            ${t.term}
+          </button>`)}
+      </div>
+      <div class="card-foot row-between wrap">
+        <span class="t-xs fg-lighter">
+          Counts run across all ${count(RATING_BLOCK.responses)} responses, not the ten shown below.</span>
+        ${raw(ratingLegend(max, elementLabel(c)))}
+      </div>
+    </section>`;
+}
+
+/**
+ * The empty state of the verbatim list, which the cloud made reachable in one
+ * click: the cloud counts every response, the list holds ten of them, so a term
+ * with 1,180 mentions can easily have none in the sample. "No responses match"
+ * would read as a broken filter. Naming the gap turns it back into the point
+ * the card's footer is already making.
+ */
+function emptyText(c) {
+  const term = view.textQuery.trim().toLowerCase();
+  const inCloud = TERM_CLOUD.find((t) => t.term === term);
+  return html`
+    <li class="zero">
+      <p class="t-body fg-lighter">
+        ${inCloud
+          ? `None of the ten verbatims loaded here use "${inCloud.term}" — though ${count(inCloud.count)} responses did, at ${ratingText(inCloud.rating)} out of ${scaleMax(c)} on average. This list is a sample, not the full set.`
+          : 'No responses match these filters.'}</p>
+      <button class="btn btn-default btn-sm" data-act="clear-text" style="margin-top:10px">
+        ${raw(icon('x'))}Clear the filter
+      </button>
+    </li>`;
+}
+
 function responsesTab(c) {
   const max = scaleMax(c);
   const block = RATING_BLOCK;
   const distMax = Math.max(...block.distribution.map((d) => d.count));
 
+  // A cloud term matches the surface forms it is actually written in, not just
+  // itself — "freeze" has to find "froze" — while a hand-typed query stays a
+  // plain substring search, which is what a search box promises.
+  const q = view.textQuery.trim().toLowerCase();
+  const term = TERM_CLOUD.find((t) => t.term === q);
+  const needles = term ? [term.term, ...(term.also || [])] : [q];
+
   const filtered = OPEN_RESPONSES.filter((r) => {
-    const q = view.textQuery.trim().toLowerCase();
-    const matchesQuery = !q || r.text.toLowerCase().includes(q);
+    const text = r.text.toLowerCase();
+    const matchesQuery = !q || needles.some((n) => text.includes(n));
     const matchesBand = view.bandFilter === 'all' || r.band === view.bandFilter;
     const matchesVersion = filters.version === 'all' || String(r.version) === filters.version;
     return matchesQuery && matchesBand && matchesVersion;
@@ -396,6 +498,8 @@ function responsesTab(c) {
         </div>
       </section>
 
+      ${raw(termCloud(c))}
+
       <!-- FR-101 — a searchable, filterable list of free-text answers. -->
       <section class="card" data-insight="open-text">
         <div class="card-head">
@@ -417,8 +521,7 @@ function responsesTab(c) {
           </select>
         </div>
         <ul>
-          ${filtered.length === 0 ? html`
-            <li class="zero"><p class="t-body fg-lighter">No responses match these filters.</p></li>` : ''}
+          ${raw(filtered.length === 0 ? emptyText(c) : '')}
           ${filtered.map((r) => html`
             <li style="border-bottom:1px solid var(--border-muted)">
               <button class="row-start" style="width:100%;padding:12px 16px;text-align:left"
@@ -445,17 +548,29 @@ function responsesTab(c) {
     </div>`;
 }
 
+/** How many of this campaign's verbatims came from one person. */
+const repeatCount = (userId) => OPEN_RESPONSES.filter((x) => x.userId === userId).length;
+
 /* FR-102 — one respondent's full answer set, in order, with their context. */
 function openResponseDetail(id) {
   const r = OPEN_RESPONSES.find((x) => x.id === id);
   if (!r) return;
+  const max = scaleMax(campaign());
+  const alsoFrom = OPEN_RESPONSES.filter((x) => x.userId === r.userId && x.id !== r.id);
   dialog({
     title: 'Response detail',
     size: 'dialog-lg',
     body: html`
       <div class="stack">
         <div class="row wrap" style="gap:8px">
-          <span class="badge badge-mono">${r.id}</span>
+          <span class="badge badge-mono tip" data-tip="Response ID — this answer set">${r.id}</span>
+          <!-- The person, not the answer. Selectable because the reason to show
+               it at all is to paste it into the user data table and see what
+               else this account did. -->
+          <span class="badge badge-mono tip" style="user-select:all"
+                data-tip="User ID — the person who left it, ${repeatCount(r.userId) > 1
+                  ? `${repeatCount(r.userId)} responses in this campaign`
+                  : 'one response in this campaign'}">${r.userId}</span>
           <span class="badge">${r.segment}</span>
           <span class="badge">${r.variant}</span>
           <span class="badge badge-mono">v${r.version}</span>
@@ -473,12 +588,35 @@ function openResponseDetail(id) {
               <p class="t-body fg-light" style="margin-top:4px">${a.answer}</p>
             </li>`)}
         </ol>
+        <!-- The point of carrying a user ID rather than only a response ID: the
+             same person answering twice is one account's story, and reading the
+             two verbatims apart loses that they got worse. -->
+        ${raw(alsoFrom.length ? html`
+          <div class="well">
+            <span class="row" style="gap:6px">
+              <!-- The label uppercases; the ID must not, or it stops matching
+                   the badge above it and reads as a different identifier. -->
+              <span class="t-micro fg-muted">Also from</span>
+              <span class="mono t-xs fg-light">${r.userId}</span>
+            </span>
+            <ul class="stack-sm" style="margin-top:6px">
+              ${alsoFrom.map((o) => html`
+                <li class="row-start" style="gap:10px">
+                  <span class="rating-val" style="color:${raw(ratingColor(o.rating, max))};font-size:14px;flex:none">${o.rating}</span>
+                  <span class="col" style="gap:1px;min-width:0">
+                    <span class="t-sm fg-light">${o.text}</span>
+                    <span class="mono t-xs fg-muted">${o.at}</span>
+                  </span>
+                </li>`)}
+            </ul>
+          </div>` : '')}
         <!-- OD-22 — the respondent is pseudonymous in this prototype. -->
         <div class="notice">
           ${raw(icon('info'))}
           <span>Open decision <span class="mono">OD-22</span> — the respondent is shown here as a
-            pseudonymous response ID with segment and order context, never a name or contact detail.
-            Export inherits the same posture.</span>
+            pseudonymous response ID and user ID, with segment and order context, never a name or
+            contact detail. The user ID joins to the user data table and to nothing outside this
+            workspace. Export inherits the same posture.</span>
         </div>
       </div>`,
     actions: [{ label: 'Close', kind: 'default', value: true }],
@@ -1325,6 +1463,16 @@ function wire(host) {
     const next = $('[data-act="text-search"]', host);
     next?.focus(); next?.setSelectionRange(caret, caret);
   });
+  /* The cloud is the filter's other face: a term is a search you can see the
+     shape of. Clicking the term already filtering toggles it back off, so the
+     cloud can undo itself without a reach for the search box. */
+  on(host, 'click', '[data-act="cloud-term"]', (e, el) => {
+    const term = el.dataset.term;
+    view.textQuery = view.textQuery.trim().toLowerCase() === term ? '' : term;
+    rerender();
+    $('[data-insight="open-text"]', host)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+  on(host, 'click', '[data-act="clear-text"]', () => { view.textQuery = ''; rerender(); });
   on(host, 'change', '[data-act="band-filter"]', (e) => { view.bandFilter = e.target.value; rerender(); });
   on(host, 'click', '[data-act="open-response"]', (e, el) => openResponseDetail(el.dataset.id));
 

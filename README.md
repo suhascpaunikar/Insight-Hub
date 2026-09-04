@@ -20,7 +20,7 @@ open http://localhost:8000
 
 | File | Screen | Requirements |
 |---|---|---|
-| `index.html` | Campaign dashboard — activity strip + campaign list | FR-71 – FR-85 |
+| `index.html` | Campaign dashboard — workspace activity strip + campaign list | FR-71 – FR-85 |
 | `builder.html` | Six-step creation wizard | FR-1 – FR-57 |
 | `insights.html` | The campaign data screen — Delivery / Responses / Impact for a feedback campaign, Delivery / Engagement / Impact for an announcement | FR-86 – FR-110 |
 | `settings.html` | Workspace settings — General / Delivery / Alerts | FR-63 |
@@ -39,6 +39,14 @@ row and the publish summary, and is what the assistant answers *"what is this ca
 for"* from. The wizard opens with the nav rail collapsed to its icon strip, since the
 Content step wants the width; expanding it is one click and the wizard remembers that
 separately from the console.
+
+The dashboard's **activity strip** reports the workspace, not one kind of campaign in it.
+Prompts sent and people reached hold for everything that sends; *Campaigns running* is the
+portfolio at its real proportions; and the one card built on answers says on its own face that
+announcements are outside it, because a workspace running both kinds will otherwise read a
+feedback-only figure as covering both. The rating and completion-rate cards that used to sit
+there were exactly that mistake, and completion now rides on the Responses card's scope line
+where its base is stated.
 
 **Start here:** open `index.html` → *New Campaign* → walk the six steps → publish → open
 the resulting row.
@@ -90,7 +98,7 @@ assets/
     content-step.js    step 4 — template picker, question logic, triggers
     insights.js        the campaign data screen — tabs branch on campaign kind
     settings.js        workspace settings — the console settings patterns
-    assistant.js       companion card — 320×240, streaming answers
+    assistant.js       companion card — 320×288, streaming answers + the ask box
     assistant-context.js  what the assistant can see
     assistant-answers.js  intent registry + answer composers
     assistant-insights.js what each panel's data says
@@ -112,7 +120,11 @@ A companion card docked bottom-right on every screen, in the shape of
 [clicky](https://github.com/farzaa/clicky): it speaks first about whatever is
 on screen, streams the answer a word at a time, and offers the next question
 rather than waiting for one. Open it from **Assistant** in the nav rail, the
-buddy button in the corner, or `Ctrl + /`.
+buddy button in the corner, or `Ctrl + /`. Ask by clicking a follow-up, or by
+typing into the box at the foot of the card — a typed question routes through
+the same keyword matcher the follow-ups use, so the box is a second way in
+rather than a second answer engine, and it cannot print a figure the buttons
+would not also print.
 
 Its face is a Siri-style liquid orb with two states: **idle** — slow,
 desaturated, barely breathing — and **thinking**, seven times faster and
