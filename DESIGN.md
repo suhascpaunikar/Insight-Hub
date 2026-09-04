@@ -588,7 +588,37 @@ and drawing it from zero flattens a month into a wall of equal bars. A rate card
 the window's own low and high and prints that low and high where the dates would go — the zoom
 is stated, never hidden.
 
+A card whose figure covers only part of the list beneath it carries a **scope line**
+(`.metric-scope`) under the label saying which part — "5 feedback campaigns · 69% completed" over
+a workspace that also runs announcements. It is a full-width row rather than a second line beside
+the label, because the legend sits there and would ellipsis away exactly the cards whose scope is
+worth reading. Where a number covers everything, the line says so rather than going blank: a
+missing qualifier and an absent one look identical, and only one of them is a claim.
+
+The plot slot takes a **composition** in place of a sparkline where a card reports a state rather
+than a window — the portfolio bar on *Campaigns running* is the four statuses at their real
+proportions. That is not a style choice: nothing records what was live three weeks ago, and an
+invented line beside three measured ones is the kind of chart that gets believed.
+
 **Chart** (`.chart`) — dashed rules at rounded values behind the marks, with their labels in a
 left gutter rather than on top of the first bar, and a floating readout (`.chart-tip`) opened by
 hovering a column: a dot per series, the series name with its share, the value, and the point's
 date under a rule. Bars alone leave the reader estimating heights against nothing.
+
+**Word cloud** (`.cloud`) — two variables, two channels: **size is frequency, colour is the
+rating ramp**. A big red word is common *and* damaging; a big green one is what not to break.
+That pairing is the only reason to draw a cloud instead of a bar chart of the same numbers, and
+it is why the ramp is reused here rather than a decorative palette — a coloured word on this
+console means the same thing a coloured number does.
+
+Three rules the form needs to stay honest:
+
+- **Size is on √count, not count.** Area is what the eye compares, so a linear font scale makes a
+  term mentioned six times as often look thirty-six times as loud.
+- **Terms flow in count order**, so the heavy ones land top-left where reading starts and a term
+  keeps its place between renders. Packing algorithms buy density and cost both.
+- **Selection is a ring, never a colour** (`[aria-pressed="true"]`). The term's colour is its
+  rating; overriding it to say "selected" would print a rating the term does not have.
+
+A cloud is a filter with a shape — clicking a term drives the search box under it, and clicking
+it again clears it — so it is never the one panel on a screen you cannot act on.

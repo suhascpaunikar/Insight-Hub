@@ -325,6 +325,37 @@ img { max-width: 100%; }
 }
 .card-body { padding: var(--sp-lg); }
 .card-foot { padding: 8px var(--sp-lg); border-top: 1px solid var(--border-default); }
+
+/* ---------- Word cloud ----------
+   Flowing text rather than a packed layout: terms arrive in count order, so
+   the heaviest land top-left where reading starts, and a term keeps its place
+   between renders. A packing algorithm buys density and costs that. */
+.cloud {
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  gap: 4px 14px;
+  padding: var(--sp-lg);
+}
+.cloud-term {
+  padding: 1px 3px;
+  border: 0; border-radius: var(--radius-sm);
+  background: transparent;
+  font-family: inherit; font-weight: 500; line-height: 1.25;
+  cursor: pointer;
+  /* Colour is the datum here, so the term carries it at full strength and the
+     resting state dims the whole word rather than shifting its hue. */
+  opacity: .82;
+  transition: opacity .12s ease, background-color .12s ease;
+}
+.cloud-term:hover { opacity: 1; background: var(--surface-200); }
+.cloud-term:focus-visible { outline: 2px solid var(--ai-400); outline-offset: 1px; }
+/* The term currently filtering the list below. Marked with a ring rather than
+   a colour change: its colour is the rating, and overriding that to say
+   "selected" would print a rating the term does not have. */
+.cloud-term[aria-pressed="true"] {
+  opacity: 1;
+  background: var(--surface-200);
+  box-shadow: inset 0 0 0 1px currentColor;
+}
 .well {
   background: var(--background-200); border: 1px solid var(--border-default);
   border-radius: var(--radius-md); padding: var(--sp-md);
@@ -855,9 +886,17 @@ img { max-width: 100%; }
 a.metric:hover, button.metric:hover { border-color: var(--border-strong); background: var(--surface-100); }
 .metric-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-sm); }
 .metric-name { font-size: 10px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--foreground-lighter); }
-.metric-legend { display: flex; align-items: center; gap: 10px; }
+/* The population line. Deliberately quieter and in sentence case, so it reads
+   as a qualifier on the label above it rather than as a second label. */
+.metric-scope {
+  display: block; margin-top: 3px;
+  font-size: 10.5px; line-height: 1.3; color: var(--foreground-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.metric-legend { display: flex; align-items: center; gap: 10px; flex: none; }
 .metric-key { display: inline-flex; align-items: center; gap: 4px; font-size: 9.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--foreground-muted); }
 .metric-key i { width: 5px; height: 5px; border-radius: var(--radius-full); background: currentColor; }
+.metric-key[data-tone="muted"] { color: var(--foreground-muted); }
 .metric-key[data-tone="warning"] { color: var(--warning); }
 .metric-key[data-tone="danger"] { color: var(--destructive); }
 .metric-figures { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-md); margin-top: 6px; }
@@ -977,7 +1016,7 @@ body:has(.builder-foot) .asst {
 /* The card occupies its 320×240 whether open or not; visibility is what
    changes, so opening never reflows the page behind it. */
 .asst-card {
-  width: 320px; height: 240px;
+  width: 320px; height: 288px;
   display: flex; flex-direction: column;
   position: relative;              /* containing block for the border beam */
   border: 1px solid var(--ai-400);
@@ -1061,6 +1100,43 @@ body:has(.builder-foot) .asst {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* ---------- The composer ----------
+   The one control on the card that takes input, so it is the one thing on it
+   drawn as a field: a bordered well against the card's own ground, lit in the
+   AI accent on focus because what it produces is a machine claim. */
+.asst-ask {
+  flex: none;
+  display: flex; align-items: center; gap: var(--sp-xs);
+  margin: var(--sp-xs) var(--sp-md) var(--sp-md);
+  padding: var(--sp-xxs) var(--sp-xxs) var(--sp-xxs) var(--sp-sm);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-100);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.asst-ask:focus-within {
+  border-color: var(--ai-400);
+  box-shadow: 0 0 0 2px var(--ai-200);
+}
+.asst-ask-input {
+  flex: 1 1 auto; min-width: 0; height: 24px;
+  border: 0; background: transparent; outline: none;
+  font: inherit; font-size: 12px; color: var(--foreground-default);
+}
+.asst-ask-input::placeholder { color: var(--foreground-muted); }
+.asst-ask-send {
+  display: grid; place-items: center;
+  width: 24px; height: 24px; flex: none;
+  border: 0; border-radius: var(--radius-sm);
+  background: transparent; color: var(--foreground-muted);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.asst-ask-send:hover { background: var(--ai-200); color: var(--ai-fg); }
+/* Once there is something to send, the button says so — an always-lit send on
+   an empty box promises an answer the card has no question for. */
+.asst-ask-input:not(:placeholder-shown) ~ .asst-ask-send { color: var(--ai-fg); }
 
 /* Below the console's narrow breakpoint the fixed card would crowd the
    content it is describing, so it steps aside and only the bubble remains. */

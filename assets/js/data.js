@@ -336,10 +336,19 @@ export const BRANCH_BLOCKS = [
   },
 ];
 
-/* FR-101 / FR-102 — open text, each traceable to one respondent's answer set. */
+/* FR-101 / FR-102 — open text, each traceable to one respondent's answer set.
+
+   `id` identifies the response; `userId` identifies the person who left it,
+   and the two are not the same thing. The response ID answers "which answer
+   is this"; the user ID answers "have we heard from them before" — r_9001 and
+   r_9009 carry the same `usr_7f3c91a4`, which is one repeat customer
+   complaining twice, three days apart, and is invisible without it.
+
+   OD-22 is unchanged by adding it: the user ID is an opaque workspace handle
+   that the console can join on, never a name, an email or a phone number. */
 export const OPEN_RESPONSES = [
   {
-    id: 'r_9001', rating: 3, band: 'detractor', segment: 'Repeat', variant: 'Coupon-led ask',
+    id: 'r_9001', userId: 'usr_7f3c91a4', rating: 3, band: 'detractor', segment: 'Repeat', variant: 'Coupon-led ask',
     version: 2, at: '14 Aug 2026, 20:42', themeId: 'th_tracking',
     text: 'Tracking said the rider was two minutes away for twenty minutes. I refreshed the app six times.',
     context: 'Order #QE-882401 · ₹640 · Bandra West · Android 14',
@@ -350,7 +359,7 @@ export const OPEN_RESPONSES = [
     ],
   },
   {
-    id: 'r_9002', rating: 2, band: 'detractor', segment: 'Loyal', variant: 'Plain ask',
+    id: 'r_9002', userId: 'usr_2b8e40d7', rating: 2, band: 'detractor', segment: 'Loyal', variant: 'Plain ask',
     version: 2, at: '14 Aug 2026, 19:10', themeId: 'th_performance',
     text: 'App froze on the payment screen and I had to force close it twice before the order went through.',
     context: 'Order #QE-882119 · ₹1,120 · Khar · iOS 18',
@@ -361,7 +370,7 @@ export const OPEN_RESPONSES = [
     ],
   },
   {
-    id: 'r_9003', rating: 8, band: 'promoter', segment: 'Repeat', variant: 'Coupon-led ask',
+    id: 'r_9003', userId: 'usr_c15a9e02', rating: 8, band: 'promoter', segment: 'Repeat', variant: 'Coupon-led ask',
     version: 2, at: '13 Aug 2026, 21:05', themeId: 'th_reorder',
     text: 'Reordering is quick once you find it, but it is buried three taps deep under the account tab.',
     context: 'Order #QE-880932 · ₹430 · Santacruz · Android 13',
@@ -372,7 +381,7 @@ export const OPEN_RESPONSES = [
     ],
   },
   {
-    id: 'r_9004', rating: 1, band: 'detractor', segment: 'New', variant: 'Plain ask',
+    id: 'r_9004', userId: 'usr_9d47b613', rating: 1, band: 'detractor', segment: 'New', variant: 'Plain ask',
     version: 1, at: '28 Jul 2026, 13:48', themeId: 'th_onboarding',
     text: 'Signing up asked for my address three separate times and then lost it at checkout.',
     context: 'Order #QE-861204 · ₹520 · Andheri · Android 13',
@@ -383,7 +392,7 @@ export const OPEN_RESPONSES = [
     ],
   },
   {
-    id: 'r_9005', rating: 10, band: 'promoter', segment: 'Loyal', variant: 'Coupon-led ask',
+    id: 'r_9005', userId: 'usr_4e0f82ca', rating: 10, band: 'promoter', segment: 'Loyal', variant: 'Coupon-led ask',
     version: 2, at: '13 Aug 2026, 12:20', themeId: 'th_praise',
     text: 'Honestly the smoothest food app I use. Live map is accurate and payments never fail.',
     context: 'Order #QE-880114 · ₹890 · Bandra East · iOS 18',
@@ -394,7 +403,7 @@ export const OPEN_RESPONSES = [
     ],
   },
   {
-    id: 'r_9006', rating: 5, band: 'passive', segment: 'Repeat', variant: 'Plain ask',
+    id: 'r_9006', userId: 'usr_a6913b58', rating: 5, band: 'passive', segment: 'Repeat', variant: 'Plain ask',
     version: 2, at: '12 Aug 2026, 22:31', themeId: 'th_updates',
     text: 'Order was late in the rain, which is fine, but the app never told me. I found out by opening it.',
     context: 'Order #QE-879001 · ₹710 · Bandra West · Android 14',
@@ -405,7 +414,7 @@ export const OPEN_RESPONSES = [
     ],
   },
   {
-    id: 'r_9007', rating: 6, band: 'passive', segment: 'Loyal', variant: 'Coupon-led ask',
+    id: 'r_9007', userId: 'usr_18cd7f26', rating: 6, band: 'passive', segment: 'Loyal', variant: 'Coupon-led ask',
     version: 2, at: '11 Aug 2026, 20:02', themeId: 'th_support',
     text: 'Raised a missing-item complaint in the app and the chat closed itself twice before anyone replied.',
     context: 'Order #QE-877620 · ₹360 · Khar · iOS 17',
@@ -416,7 +425,7 @@ export const OPEN_RESPONSES = [
     ],
   },
   {
-    id: 'r_9008', rating: 9, band: 'promoter', segment: 'New', variant: 'Plain ask',
+    id: 'r_9008', userId: 'usr_bb52e9a1', rating: 9, band: 'promoter', segment: 'New', variant: 'Plain ask',
     version: 1, at: '24 Jul 2026, 19:44', themeId: 'th_praise',
     text: 'First order and everything just worked. Nice that it remembered my card without nagging.',
     context: 'Order #QE-858330 · ₹480 · Juhu · Android 13',
@@ -427,7 +436,7 @@ export const OPEN_RESPONSES = [
     ],
   },
   {
-    id: 'r_9009', rating: 2, band: 'detractor', segment: 'Repeat', variant: 'Coupon-led ask',
+    id: 'r_9009', userId: 'usr_7f3c91a4', rating: 2, band: 'detractor', segment: 'Repeat', variant: 'Coupon-led ask',
     version: 2, at: '10 Aug 2026, 21:17', themeId: 'th_performance',
     text: 'Search takes five seconds to return anything on my phone. It was never this slow.',
     context: 'Order #QE-875510 · ₹950 · Bandra West · Android 12',
@@ -438,7 +447,7 @@ export const OPEN_RESPONSES = [
     ],
   },
   {
-    id: 'r_9010', rating: 5, band: 'passive', segment: 'New', variant: 'Plain ask',
+    id: 'r_9010', userId: 'usr_35e6c0fd', rating: 5, band: 'passive', segment: 'New', variant: 'Plain ask',
     version: 2, at: '09 Aug 2026, 14:03', themeId: 'th_unclustered',
     text: 'Fine. Nothing memorable either way.',
     context: 'Order #QE-873220 · ₹290 · Vile Parle · Web',
@@ -488,6 +497,61 @@ export const THEMES = [
     avgRating: 9.2, confidence: 'high',
     summary: 'Names payments and the live map specifically — usable as evidence for what not to change.',
   },
+];
+
+/* ==========================================================================
+   FR-101 — the open-text vocabulary, for the word cloud above the verbatims.
+
+   Counts are mentions across all 16,000 responses, not across the ten
+   verbatims the list happens to show: a cloud built from ten sentences gives
+   almost every word a count of one, which is a picture of the sample rather
+   than of what people wrote. Each term rolls up to one of the THEMES, and the
+   per-theme totals here stay inside that theme's own `volume` — a term cannot
+   be mentioned more often than the cluster it belongs to.
+
+   `rating` is the mean rating of the responses that used the term, on the
+   0–10 scale, so the cloud can be coloured on the shared ramp: a red word is
+   a word that turns up in low ratings, not merely a frequent one. That is the
+   whole reason to draw this rather than a bar chart of the same numbers —
+   size says how often, colour says how badly, and the two together find the
+   term that is both common and damaging in one look.
+
+   `also` lists the surface forms a term is actually written in — "froze" for
+   freeze, "signing up" for sign up. Clicking a term searches the verbatims for
+   the term or any of these, so a word plainly present in the sample is not
+   reported as absent on a suffix.
+   ========================================================================== */
+export const TERM_CLOUD = [
+  { term: 'tracking',       count: 1840, rating: 3.1, themeId: 'th_tracking' },
+  { term: 'slow',           count: 1620, rating: 2.8, themeId: 'th_performance' },
+  { term: 'crash',          count: 1180, rating: 2.2, themeId: 'th_performance' },
+  { term: 'payment',        count: 1090, rating: 3.4, themeId: 'th_performance' },
+  { term: 'late',           count: 1040, rating: 3.6, themeId: 'th_updates' },
+  { term: 'rider',          count: 980,  rating: 3.9, themeId: 'th_tracking' },
+  { term: 'refresh',        count: 870,  rating: 3.0, themeId: 'th_tracking' },
+  { term: 'notification',   count: 820,  rating: 4.2, themeId: 'th_updates' },
+  { term: 'freeze',         count: 760,  rating: 2.1, themeId: 'th_performance', also: ['froze'] },
+  { term: 'address',        count: 690,  rating: 3.0, themeId: 'th_onboarding' },
+  { term: 'checkout',       count: 640,  rating: 3.3, themeId: 'th_onboarding' },
+  { term: 'search',         count: 610,  rating: 2.9, themeId: 'th_performance' },
+  { term: 'map',            count: 590,  rating: 6.8, themeId: 'th_tracking' },
+  { term: 'wait',           count: 560,  rating: 3.8, themeId: 'th_updates' },
+  { term: 'sign up',        count: 480,  rating: 2.7, themeId: 'th_onboarding', also: ['signing up'] },
+  { term: 'support',        count: 460,  rating: 3.5, themeId: 'th_support' },
+  { term: 'chat',           count: 420,  rating: 3.4, themeId: 'th_support' },
+  { term: 'missing item',   count: 380,  rating: 2.4, themeId: 'th_support', also: ['missing-item'] },
+  { term: 'delivery',       count: 1240, rating: 5.4, themeId: 'th_updates' },
+  { term: 'reorder',        count: 300,  rating: 7.1, themeId: 'th_reorder' },
+  { term: 'buried',         count: 190,  rating: 6.6, themeId: 'th_reorder' },
+  { term: 'taps',           count: 170,  rating: 6.9, themeId: 'th_reorder' },
+  { term: 'reliable',       count: 940,  rating: 9.3, themeId: 'th_praise' },
+  { term: 'smooth',         count: 720,  rating: 9.1, themeId: 'th_praise' },
+  { term: 'accurate',       count: 540,  rating: 8.8, themeId: 'th_praise' },
+  { term: 'quick',          count: 510,  rating: 8.6, themeId: 'th_praise' },
+  { term: 'easy',           count: 430,  rating: 8.4, themeId: 'th_praise' },
+  { term: 'never fails',    count: 260,  rating: 9.4, themeId: 'th_praise', also: ['never fail'] },
+  { term: 'coupon',         count: 340,  rating: 5.9, themeId: 'th_unclustered' },
+  { term: 'price',          count: 310,  rating: 4.8, themeId: 'th_unclustered' },
 ];
 
 /* FR-106 / FR-107 — score driver breakdown. Replaces the food-vs-delivery
@@ -578,6 +642,13 @@ export const WORKSPACE_SERIES = (() => {
     const shown = sent - failed;
     const completed = Math.round(shown * (0.44 + rand() * 0.1));
     const abandoned = Math.round(shown * (0.19 + rand() * 0.06));
+    // Reach counts people, not prompts. One customer can be prompted by more
+    // than one campaign in a day, so reach always trails sent — and the two
+    // are not interchangeable on a screen that carries both.
+    const reach = Math.round(sent * (0.78 + rand() * 0.08));
+    // The price of that reach. Small, but it is the number that decides how
+    // often the workspace can afford to ask again.
+    const optOuts = Math.round(reach * (0.004 + rand() * 0.005));
     return {
       date: at.toISOString().slice(0, 10),
       label: at.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', timeZone: 'UTC' }),
@@ -585,6 +656,8 @@ export const WORKSPACE_SERIES = (() => {
       failed,
       completed,
       abandoned,
+      reach,
+      optOuts,
       // Normalised 0–10, so it can be read against the ramp without rescaling.
       rating: Number((5.6 + rand() * 1.9).toFixed(2)),
     };
