@@ -2,11 +2,13 @@
    builder.js — the six-step wizard.
    OD-15 resolved as full-screen focus mode with only an exit control; OD-9 /
    OD-18 resolved as six steps with the template gallery as step 1 inside the
-   stepper; OD-16 resolved as stepper-plus-Back so both routes work.
+   stepper; OD-16 resolved as the stepper alone — it is on screen at every
+   step and every completed step in it is clickable, so a Back button was a
+   second route to the same place and the only one that could not skip.
    ========================================================================== */
 import {
   html, raw, esc, icon, $, $$, on, uid, count, relativeTime, dropdown, wireDropdowns,
-  confirmDestructive, dialog, toast, wireOnce,
+  confirmDestructive, dialog, toast, wireOnce, stepPanel, keepScroll,
 } from './core.js';
 import {
   store, createVariant, reconcileVariants, validateStep, furthestReachableStep,
@@ -66,20 +68,7 @@ function stepper(draft) {
    Step 1 — Start from (FR-5 … FR-7)
    ========================================================================== */
 function step1(draft, issues) {
-  return html`
-    <section class="stack-lg" aria-labelledby="s1">
-      <header>
-        <!-- FR-7 — step 1 reads as "start from"; "template" is reserved for step 4. -->
-        <h2 class="t-h1" id="s1">What do you want to find out?</h2>
-        <p class="t-body fg-lighter" style="margin-top:2px;max-width:70ch">
-          Pick a goal. It sets the defaults for every step after this, and you can change
-          them as you go.
-        </p>
-      </header>
-
-      ${raw(ui.showIssues && issues.length
-        ? '<p class="notice notice-danger" role="alert">Choose what you want to start from to continue.</p>' : '')}
-
+  const goals = html`
       <div class="grid g4">
         ${GOALS.map((goal) => html`
           <button class="opt col" style="align-items:stretch;padding:14px"
@@ -109,7 +98,26 @@ function step1(draft, issues) {
             ${raw(icon('lock'))}Coming soon
           </span>
         </div>
-      </div>
+      </div>`;
+
+  return html`
+    <section class="stack-lg" aria-labelledby="s1">
+      <header>
+        <!-- FR-7 — step 1 reads as "start from"; "template" is reserved for step 4. -->
+        <h2 class="t-h1" id="s1">What do you want to find out?</h2>
+        <p class="t-body fg-lighter" style="margin-top:2px;max-width:70ch">
+          The goal you start from sets the defaults for every step after this.
+        </p>
+      </header>
+
+      ${raw(stepPanel({
+        id: 's1-goal',
+        title: 'Starting point',
+        required: true,
+        desc: 'Pick one. Everything it sets stays editable as you go.',
+        body: goals,
+        error: ui.showIssues && issues.length ? 'Choose what you want to start from to continue.' : '',
+      }))}
 
       ${raw(objectiveSection(draft))}
     </section>`;
@@ -138,19 +146,8 @@ function objectiveSection(draft) {
   const read = suggestGoalFromObjective(value);
   const suggested = read && read !== draft.goal ? GOALS.find((g) => g.id === read) : null;
 
-  return html`
-    <!-- Narrower than the goal grid above it on purpose: this is prose, and a
-         field the width of the console would set 200 characters to the line. -->
-    <section class="card" style="max-width:820px" aria-labelledby="s1-obj">
-      <div class="card-head">
-        <span class="row" style="gap:8px">
-          ${raw(icon('target'))}
-          <h3 class="t-h2" id="s1-obj">Campaign objective</h3>
-        </span>
-        <span class="badge">Optional</span>
-      </div>
-
-      <div class="card-body stack">
+  const body = html`
+      <div class="stack">
         <div class="field">
           <label class="label" for="objective">Why are you running this campaign?</label>
           <textarea class="textarea" id="objective" data-act="objective" rows="4"
@@ -201,8 +198,20 @@ function objectiveSection(draft) {
             <span>Left empty, the assistant can only tell you how this campaign is
               <em>set up</em> — not why you built it. Nothing else in the draft records that.</span>
           </div>`)}
-      </div>
-    </section>`;
+      </div>`;
+
+  // Narrower than the goal grid above it on purpose: this is prose, and a field
+  // the width of the console would set 200 characters to the line.
+  return html`
+    <div style="max-width:820px">
+      ${raw(stepPanel({
+        id: 's1-obj',
+        title: 'Campaign objective',
+        desc: 'Why this campaign exists, in your own words. It configures nothing and travels with the draft.',
+        actions: '<span class="badge">Optional</span>',
+        body,
+      }))}
+    </div>`;
 }
 
 /* ==========================================================================
@@ -230,49 +239,60 @@ function step2(draft, issues) {
         </p>
       </header>
 
-      <div class="field">
-        <label class="label" for="cname">Campaign name <span class="req">*</span></label>
-        <input class="input" id="cname" data-act="name" value="${draft.name}"
-               placeholder="e.g. Post-delivery feedback · Bandra"
-               aria-invalid="${!!(ui.showIssues && issue('name'))}" />
-        ${raw(ui.showIssues && issue('name')
-          ? `<span class="error" role="alert">${esc(issue('name').message)}</span>`
-          : '<span class="hint">Used as the identifier across the builder, the campaign list and the insights page.</span>')}
-      </div>
+      ${raw(stepPanel({
+        title: 'Campaign name',
+        required: true,
+        desc: 'Used as the identifier across the builder, the campaign list and the insights page.',
+        rows: html`
+          <div class="srow">
+            <div class="srow-main">
+              <label class="srow-label" for="cname">Name</label>
+              <p class="srow-desc">Somewhere between a label and a sentence — enough for the next
+                person to recognise it in a list.</p>
+            </div>
+            <div class="srow-ctl">
+              <input class="input" id="cname" data-act="name" value="${draft.name}"
+                     placeholder="e.g. Post-delivery feedback · Bandra"
+                     aria-invalid="${!!(ui.showIssues && issue('name'))}" />
+              ${raw(ui.showIssues && issue('name')
+                ? `<span class="error" role="alert">${esc(issue('name').message)}</span>` : '')}
+            </div>
+          </div>`,
+      }))}
 
-      <fieldset class="stack-sm">
-        <legend class="label" style="margin-bottom:4px">Apps <span class="req">*</span></legend>
-        <p class="hint">At least one. App selection constrains the components available in the Content step.</p>
-        <div class="grid g3">
-          ${APP_OPTIONS.map((a) => html`
-            <label class="opt ${draft.apps.includes(a.id) ? 'is-on' : ''}">
-              <input class="check" type="checkbox" data-act="app" data-id="${a.id}"
-                     ${raw(draft.apps.includes(a.id) ? 'checked' : '')} />
-              <span><span class="opt-title">${a.label}</span><span class="opt-note">${a.note}</span></span>
-            </label>`)}
-        </div>
-        ${raw(ui.showIssues && issue('apps')
-          ? `<span class="error" role="alert">${esc(issue('apps').message)}</span>` : '')}
-      </fieldset>
+      ${raw(stepPanel({
+        title: 'Apps',
+        required: true,
+        desc: 'At least one. App selection constrains the components available in the Content step.',
+        body: html`
+          <div class="grid g3">
+            ${APP_OPTIONS.map((a) => html`
+              <label class="opt ${draft.apps.includes(a.id) ? 'is-on' : ''}">
+                <input class="check" type="checkbox" data-act="app" data-id="${a.id}"
+                       ${raw(draft.apps.includes(a.id) ? 'checked' : '')} />
+                <span><span class="opt-title">${a.label}</span><span class="opt-note">${a.note}</span></span>
+              </label>`)}
+          </div>`,
+        error: ui.showIssues && issue('apps') ? issue('apps').message : '',
+      }))}
 
-      <fieldset class="stack-sm">
-        <legend class="label" style="margin-bottom:4px">Campaign type <span class="req">*</span></legend>
-        <div class="stack-sm">
-          ${TYPE_OPTIONS.map((t) => html`
-            <label class="opt ${draft.type === t.id ? 'is-on' : ''}">
-              <input class="radio" type="radio" name="ctype" data-act="type" data-id="${t.id}"
-                     ${raw(draft.type === t.id ? 'checked' : '')} />
-              <span><span class="opt-title">${t.label}</span><span class="opt-note">${t.note}</span></span>
-            </label>`)}
-        </div>
-      </fieldset>
-
-      <!-- FR-11 — channel is deliberately not here. -->
-      <div class="notice">
-        ${raw(icon('info'))}
-        <span>Channel is chosen in the Content step, not here — so the builder can hide components
-          that cannot render your questions at the moment you pick one.</span>
-      </div>
+      ${raw(stepPanel({
+        title: 'Campaign type',
+        required: true,
+        desc: 'How many pieces of content this campaign runs, and who decides the split.',
+        body: html`
+          <div class="stack-sm">
+            ${TYPE_OPTIONS.map((t) => html`
+              <label class="opt ${draft.type === t.id ? 'is-on' : ''}">
+                <input class="radio" type="radio" name="ctype" data-act="type" data-id="${t.id}"
+                       ${raw(draft.type === t.id ? 'checked' : '')} />
+                <span><span class="opt-title">${t.label}</span><span class="opt-note">${t.note}</span></span>
+              </label>`)}
+          </div>`,
+        // FR-11 — channel is deliberately not here.
+        note: 'Channel is chosen in the Content step, not here — so the builder can hide components '
+          + 'that cannot render your questions at the moment you pick one.',
+      }))}
     </section>`;
 }
 
@@ -284,6 +304,110 @@ const AUDIENCE_MODES = [
   { id: 'segmented', label: 'Segmented', note: 'Rule-based groups from the shared library.' },
   { id: 'user-data-table', label: 'User Data Table', note: 'Target an uploaded list of user IDs.' },
 ];
+
+/* --------------------------------------------------------------------------
+   User Data Table — a CSV of user IDs (FR-12).
+
+   Parsed in the browser, and only what is worth showing back is kept: the
+   file's name, how many unique ids came out of it, the column they were read
+   from and the first few of them. The ids themselves are deliberately dropped
+   — a draft is persisted between sessions, and forty thousand of them would
+   be a localStorage quota error rather than a feature. The count is what the
+   audience maths needs, and the sample is what proves the right column was
+   read.
+   -------------------------------------------------------------------------- */
+const ID_HEADERS = ['user_id', 'userid', 'user id', 'id', 'uid', 'customer_id'];
+
+const csvCells = (line) => line.split(',').map((c) => c.trim().replace(/^"|"$/g, ''));
+
+function parseUserIds(text) {
+  const rows = text.split(/\r\n|\r|\n/).map((line) => line.trim()).filter(Boolean);
+  if (rows.length === 0) return { ids: [], column: 'column 1', skipped: 0 };
+
+  // A first row only counts as a header if one of its cells names an id
+  // column — otherwise a headerless export would silently lose its first user.
+  const head = csvCells(rows[0]).map((c) => c.toLowerCase());
+  const at = head.findIndex((c) => ID_HEADERS.includes(c));
+  const index = at >= 0 ? at : 0;
+  const column = at >= 0 ? csvCells(rows[0])[index] : 'column 1';
+  const body = at >= 0 ? rows.slice(1) : rows;
+
+  const seen = new Set();
+  let skipped = 0;
+  body.forEach((line) => {
+    const value = csvCells(line)[index] || '';
+    if (!value || seen.has(value)) { skipped += 1; return; }
+    seen.add(value);
+  });
+  return { ids: [...seen], column, skipped };
+}
+
+/** Reads one picked or dropped file into the summary the draft stores. */
+async function readUserList(file) {
+  if (!file) return null;
+  if (!/\.csv$/i.test(file.name)) {
+    toast('Not a CSV', `${file.name} is not a .csv file. Export the list as CSV and try again.`, 'danger');
+    return null;
+  }
+  const { ids, column, skipped } = parseUserIds(await file.text());
+  if (ids.length === 0) {
+    toast('No user IDs found', `${file.name} has no readable rows. Expected one user ID per row.`, 'danger');
+    return null;
+  }
+  return {
+    name: file.name,
+    size: ids.length,
+    column,
+    skipped,
+    sample: ids.slice(0, 4),
+    uploadedAt: new Date().toISOString(),
+  };
+}
+
+function userListBody(draft) {
+  const list = draft.audience.userList;
+  // One input for both routes: the empty state's label points at it, and
+  // Replace clicks it. Two would be two ids to keep in step.
+  const field = '<input type="file" id="userlist-file" accept=".csv,text/csv" hidden '
+    + 'data-act="user-list-file" aria-label="Upload a CSV of user IDs" />';
+
+  if (!list) {
+    return html`
+      <label class="drop" for="userlist-file" data-drop>
+        ${raw(icon('upload'))}
+        <span class="drop-title">Drop a CSV here, or browse</span>
+        <span class="drop-note">One user ID per row. A <span class="mono">user_id</span> header is
+          used when there is one, otherwise the first column.</span>
+      </label>
+      ${raw(field)}`;
+  }
+
+  return html`
+    <div class="dropped" data-drop>
+      ${raw(icon('fileText'))}
+      <div style="min-width:0;flex:1 1 auto">
+        <p class="t-h3 truncate">${list.name}</p>
+        <p class="t-xs fg-lighter" style="margin-top:2px">
+          ${count(list.size)} user IDs · read from <span class="mono">${list.column}</span> ·
+          uploaded ${relativeTime(list.uploadedAt)}
+        </p>
+        ${raw(list.sample && list.sample.length ? html`
+          <p class="mono t-xs fg-muted" style="margin-top:6px">
+            ${list.sample.join(', ')}${raw(list.size > list.sample.length ? ' …' : '')}
+          </p>` : '')}
+        ${raw(list.skipped ? html`
+          <p class="t-xs fg-lighter" style="margin-top:6px">
+            ${count(list.skipped)} empty or duplicate ${list.skipped === 1 ? 'row was' : 'rows were'} dropped.
+          </p>` : '')}
+      </div>
+      <span class="row" style="gap:6px;flex:none">
+        <button class="btn btn-outline btn-sm" data-act="user-list-replace">Replace</button>
+        <button class="btn btn-ghost btn-icon btn-sm" data-act="user-list-remove"
+                aria-label="Remove ${esc(list.name)}">${raw(icon('trash'))}</button>
+      </span>
+    </div>
+    ${raw(field)}`;
+}
 
 function step3(draft, issues) {
   const { audience } = draft;
@@ -303,89 +427,107 @@ function step3(draft, issues) {
         </p>
       </header>
 
-      <fieldset class="stack-sm">
-        <legend class="label" style="margin-bottom:4px">Target audience</legend>
-        <div class="grid g3">
-          ${AUDIENCE_MODES.map((m) => html`
-            <label class="opt ${audience.mode === m.id ? 'is-on' : ''}">
-              <input class="radio" type="radio" name="amode" data-act="audience-mode" data-id="${m.id}"
-                     ${raw(audience.mode === m.id ? 'checked' : '')} />
-              <span><span class="opt-title">${m.label}</span><span class="opt-note">${m.note}</span></span>
-            </label>`)}
-        </div>
-      </fieldset>
+      ${raw(stepPanel({
+        title: 'Target audience',
+        required: true,
+        desc: 'How this campaign decides who qualifies.',
+        body: html`
+          <div class="grid g3">
+            ${AUDIENCE_MODES.map((m) => html`
+              <label class="opt ${audience.mode === m.id ? 'is-on' : ''}">
+                <input class="radio" type="radio" name="amode" data-act="audience-mode" data-id="${m.id}"
+                       ${raw(audience.mode === m.id ? 'checked' : '')} />
+                <span><span class="opt-title">${m.label}</span><span class="opt-note">${m.note}</span></span>
+              </label>`)}
+          </div>`,
+      }))}
 
-      ${raw(audience.mode !== 'segmented' ? '' : html`
-        <div class="stack-sm">
-          <div class="row-between">
-            <h3 class="t-h2">Segments</h3>
-            <button class="btn btn-outline btn-sm" data-act="new-segment">${raw(icon('plus'))}Create segment</button>
-          </div>
-          <!-- FR-13 — the rule is visible at the point of selection. -->
+      ${raw(audience.mode !== 'segmented' ? '' : stepPanel({
+        title: 'Segments',
+        required: true,
+        desc: 'Rule-based groups from the shared library. Each one shows the rule it selects on.',
+        actions: `<button class="btn btn-outline btn-sm" data-act="new-segment">${
+          icon('plus')}Create segment</button>`,
+        // FR-13 — the rule is visible at the point of selection.
+        body: html`
           <div class="grid g2">
-            ${segments.map((s) => html`
-              <label class="opt ${audience.segments.includes(s.id) ? 'is-on' : ''}">
-                <input class="check" type="checkbox" data-act="segment" data-id="${s.id}"
-                       ${raw(audience.segments.includes(s.id) ? 'checked' : '')} />
+            ${segments.map((sg) => html`
+              <label class="opt ${audience.segments.includes(sg.id) ? 'is-on' : ''}">
+                <input class="check" type="checkbox" data-act="segment" data-id="${sg.id}"
+                       ${raw(audience.segments.includes(sg.id) ? 'checked' : '')} />
                 <span style="min-width:0">
                   <span class="row" style="gap:6px">
-                    <span class="opt-title">${s.name}</span>
-                    ${raw(s.userCreated ? '<span class="badge badge-mono">custom</span>' : '')}
+                    <span class="opt-title">${sg.name}</span>
+                    ${raw(sg.userCreated ? '<span class="badge badge-mono">custom</span>' : '')}
                   </span>
-                  <span class="opt-note">${s.rule}</span>
-                  <span class="mono t-xs fg-light" style="display:block;margin-top:4px">${count(s.size)} users</span>
+                  <span class="opt-note">${sg.rule}</span>
+                  <span class="mono t-xs fg-light" style="display:block;margin-top:4px">${count(sg.size)} users</span>
                 </span>
               </label>`)}
-          </div>
-          ${raw(ui.showIssues && issue('segments')
-            ? `<p class="error" role="alert">${esc(issue('segments').message)}</p>` : '')}
-        </div>`)}
+          </div>`,
+        error: ui.showIssues && issue('segments') ? issue('segments').message : '',
+      }))}
 
-      ${raw(audience.mode !== 'user-data-table' ? '' : html`
-        <div class="card card-pad row-start">
-          ${raw(icon('database', 'fg-lighter'))}
-          <div>
-            <p class="t-h3">quickeats_users_aug26.csv</p>
-            <p class="t-xs fg-lighter">12,400 user IDs · uploaded 28 Aug 2026 · matched on
-              <span class="mono">user_id</span></p>
-          </div>
-        </div>`)}
+      ${raw(audience.mode !== 'user-data-table' ? '' : stepPanel({
+        title: 'User ID list',
+        required: true,
+        desc: 'Upload a CSV and this campaign targets exactly those users — no rule is evaluated.',
+        body: userListBody(draft),
+        note: 'IDs are matched against the user table on send. Anything in the file that does not '
+          + 'resolve to a user is dropped at that point, so the estimate below is an upper bound.',
+        error: ui.showIssues && issue('userList') ? issue('userList').message : '',
+      }))}
 
-      <!-- FR-16 — exclusion is a dropdown, multi-select via repeat selection. -->
-      <div class="stack-sm">
-        <h3 class="t-h2">Exclude</h3>
-        <div class="row wrap">
-          <select class="select" data-act="add-exclusion" style="width:320px" aria-label="Exclude a list or segment">
-            <option value="">Select a list or segment to exclude</option>
-            ${availableExclusions.map((e) => html`
-              <option value="${e.id}">${e.name} · ${e.kind} · ${count(e.size)}</option>`)}
-          </select>
-          ${raw(availableExclusions.length === 0
-            ? '<span class="hint">Everything available is already excluded.</span>' : '')}
-          ${raw(audience.exclusions.length === 0
-            ? '<button class="btn btn-link t-sm" data-act="new-segment">or create a segment to exclude</button>' : '')}
-        </div>
-        ${raw(audience.exclusions.length === 0 ? '' : html`
-          <ul class="row wrap" style="gap:6px">
-            ${audience.exclusions.map((id) => {
-              const item = EXCLUSION_LISTS.find((e) => e.id === id);
-              return item ? html`
-                <li class="chip">${item.name}
-                  <button data-act="remove-exclusion" data-id="${id}"
-                          aria-label="Remove exclusion ${item.name}">${raw(icon('x'))}</button>
-                </li>` : '';
-            })}
-          </ul>`)}
-      </div>
+      ${raw(stepPanel({
+        title: 'Exclude',
+        desc: 'Applied after inclusion. Select repeatedly to exclude more than one list.',
+        // FR-16 — exclusion is a dropdown, multi-select via repeat selection.
+        body: html`
+          <div class="stack-sm">
+            <div class="row wrap">
+              <select class="select" data-act="add-exclusion" style="width:320px"
+                      aria-label="Exclude a list or segment">
+                <option value="">Select a list or segment to exclude</option>
+                ${availableExclusions.map((e) => html`
+                  <option value="${e.id}">${e.name} · ${e.kind} · ${count(e.size)}</option>`)}
+              </select>
+              ${raw(availableExclusions.length === 0
+                ? '<span class="hint">Everything available is already excluded.</span>' : '')}
+              ${raw(audience.exclusions.length === 0
+                ? '<button class="btn btn-link t-sm" data-act="new-segment">or create a segment to exclude</button>' : '')}
+            </div>
+            ${raw(audience.exclusions.length === 0 ? '' : html`
+              <ul class="row wrap" style="gap:6px">
+                ${audience.exclusions.map((id) => {
+                  const item = EXCLUSION_LISTS.find((e) => e.id === id);
+                  return item ? html`
+                    <li class="chip">${item.name}
+                      <button data-act="remove-exclusion" data-id="${id}"
+                              aria-label="Remove exclusion ${item.name}">${raw(icon('x'))}</button>
+                    </li>` : '';
+                })}
+              </ul>`)}
+          </div>`,
+      }))}
 
-      <div class="grid g3">
-        <div class="stat"><span class="stat-label">${raw(icon('users'))}Included</span>
-          <span class="stat-value">${count(included)}</span></div>
-        <div class="stat"><span class="stat-label">${raw(icon('users'))}Excluded</span>
-          <span class="stat-value">${raw(excluded > 0 ? '−' : '')}${count(excluded)}</span></div>
-        <div class="stat is-key"><span class="stat-label">${raw(icon('target'))}Estimated reach</span>
-          <span class="stat-value">${count(reach)}</span></div>
-      </div>
+      ${raw(stepPanel({
+        title: 'Estimated reach',
+        desc: 'What the selections above work out to right now. Recomputed as you change them.',
+        body: html`
+          <div class="grid g3">
+            <div class="stat"><span class="stat-label">${raw(icon('users'))}Included</span>
+              <span class="stat-value">${count(included)}</span></div>
+            <div class="stat"><span class="stat-label">${raw(icon('users'))}Excluded</span>
+              <span class="stat-value">${raw(excluded > 0 ? '−' : '')}${count(excluded)}</span></div>
+            <div class="stat is-key"><span class="stat-label">${raw(icon('target'))}Estimated reach</span>
+              <span class="stat-value">${count(reach)}</span></div>
+          </div>`,
+        // FR-18 — rolling enrolment with a per-user lock at capture.
+        note: '<strong>Rolling enrolment.</strong> This audience re-evaluates continuously. A user is '
+          + 'enrolled the moment they first qualify and their variant assignment locks at that point — '
+          + 'someone who joins as <em>New</em> and later becomes <em>Repeat</em> stays under their '
+          + 'original assignment and is never re-bucketed.',
+      }))}
 
       <!-- FR-17 — warn before proceeding if exclusion empties the audience. -->
       ${raw(emptied ? html`
@@ -394,15 +536,6 @@ function step3(draft, issues) {
           <span>Your exclusions remove everyone in the included audience. This campaign would reach
             nobody — remove an exclusion or widen the inclusion before continuing.</span>
         </div>` : '')}
-
-      <!-- FR-18 — rolling enrolment with a per-user lock at capture. -->
-      <div class="notice">
-        ${raw(icon('refresh'))}
-        <span><strong>Rolling enrolment.</strong> This audience re-evaluates continuously. A user is
-          enrolled the moment they first qualify and their variant assignment locks at that point —
-          someone who joins as <em>New</em> and later becomes <em>Repeat</em> stays under their
-          original assignment and is never re-bucketed.</span>
-      </div>
     </section>`;
 }
 
@@ -421,86 +554,94 @@ function step5(draft, issues) {
         </p>
       </header>
 
-      <!-- FR-46 — Now or Later; the date and time inputs are disabled under Now. -->
-      <fieldset class="card card-pad stack-sm">
-        <legend class="label" style="padding:0 4px">Start</legend>
-        <label class="row" style="cursor:pointer">
-          <input class="radio" type="radio" name="start" data-act="start-mode" data-id="now"
-                 ${raw(s.startMode === 'now' ? 'checked' : '')} />
-          <span class="t-sm" style="font-weight:500">Now</span>
-          <span class="hint">Enrolment opens the moment you publish.</span>
-        </label>
-        <label class="row" style="cursor:pointer">
-          <input class="radio" type="radio" name="start" data-act="start-mode" data-id="later"
-                 ${raw(s.startMode === 'later' ? 'checked' : '')} />
-          <span class="t-sm" style="font-weight:500">Later</span>
-        </label>
-        <div class="row" style="padding-left:25px">
-          <input class="input" type="date" style="width:170px" data-act="start-date" value="${s.startDate}"
-                 ${raw(s.startMode === 'now' ? 'disabled' : '')} aria-label="Start date" />
-          <input class="input" type="time" style="width:130px" data-act="start-time" value="${s.startTime}"
-                 ${raw(s.startMode === 'now' ? 'disabled' : '')} aria-label="Start time" />
-        </div>
-        ${raw(ui.showIssues && issue('start')
-          ? `<span class="error" role="alert">${esc(issue('start').message)}</span>` : '')}
-      </fieldset>
+      ${raw(stepPanel({
+        title: 'Start',
+        required: true,
+        desc: 'When enrolment opens. The date and time are inert under Now.',
+        // FR-46 — Now or Later; the date and time inputs are disabled under Now.
+        body: html`
+          <div class="stack-sm">
+            <label class="row" style="cursor:pointer">
+              <input class="radio" type="radio" name="start" data-act="start-mode" data-id="now"
+                     ${raw(s.startMode === 'now' ? 'checked' : '')} />
+              <span class="t-sm" style="font-weight:500">Now</span>
+              <span class="hint">Enrolment opens the moment you publish.</span>
+            </label>
+            <label class="row" style="cursor:pointer">
+              <input class="radio" type="radio" name="start" data-act="start-mode" data-id="later"
+                     ${raw(s.startMode === 'later' ? 'checked' : '')} />
+              <span class="t-sm" style="font-weight:500">Later</span>
+            </label>
+            <div class="row" style="padding-left:25px">
+              <input class="input" type="date" style="width:170px" data-act="start-date" value="${s.startDate}"
+                     ${raw(s.startMode === 'now' ? 'disabled' : '')} aria-label="Start date" />
+              <input class="input" type="time" style="width:130px" data-act="start-time" value="${s.startTime}"
+                     ${raw(s.startMode === 'now' ? 'disabled' : '')} aria-label="Start time" />
+            </div>
+          </div>`,
+        error: ui.showIssues && issue('start') ? issue('start').message : '',
+      }))}
 
-      <!-- FR-47 — Never or End on; End must be after Start. -->
-      <fieldset class="card card-pad stack-sm">
-        <legend class="label" style="padding:0 4px">End</legend>
-        <label class="row" style="cursor:pointer">
-          <input class="radio" type="radio" name="end" data-act="end-mode" data-id="never"
-                 ${raw(s.endMode === 'never' ? 'checked' : '')} />
-          <span class="t-sm" style="font-weight:500">Never</span>
-          <span class="hint">Runs until you stop it manually.</span>
-        </label>
-        <label class="row" style="cursor:pointer">
-          <input class="radio" type="radio" name="end" data-act="end-mode" data-id="end-on"
-                 ${raw(s.endMode === 'end-on' ? 'checked' : '')} />
-          <span class="t-sm" style="font-weight:500">End on</span>
-        </label>
-        <div class="row" style="padding-left:25px">
-          <input class="input" type="date" style="width:170px" data-act="end-date" value="${s.endDate}"
-                 ${raw(s.endMode === 'never' ? 'disabled' : '')} aria-label="End date" />
-          <input class="input" type="time" style="width:130px" data-act="end-time" value="${s.endTime}"
-                 ${raw(s.endMode === 'never' ? 'disabled' : '')} aria-label="End time" />
-        </div>
-        ${raw(ui.showIssues && issue('end')
-          ? `<span class="error" role="alert">${esc(issue('end').message)}</span>` : '')}
-      </fieldset>
+      ${raw(stepPanel({
+        title: 'End',
+        required: true,
+        desc: 'Whether enrolment ever closes on its own. An end must fall after the start.',
+        // FR-47 — Never or End on; End must be after Start.
+        body: html`
+          <div class="stack-sm">
+            <label class="row" style="cursor:pointer">
+              <input class="radio" type="radio" name="end" data-act="end-mode" data-id="never"
+                     ${raw(s.endMode === 'never' ? 'checked' : '')} />
+              <span class="t-sm" style="font-weight:500">Never</span>
+              <span class="hint">Runs until you stop it manually.</span>
+            </label>
+            <label class="row" style="cursor:pointer">
+              <input class="radio" type="radio" name="end" data-act="end-mode" data-id="end-on"
+                     ${raw(s.endMode === 'end-on' ? 'checked' : '')} />
+              <span class="t-sm" style="font-weight:500">End on</span>
+            </label>
+            <div class="row" style="padding-left:25px">
+              <input class="input" type="date" style="width:170px" data-act="end-date" value="${s.endDate}"
+                     ${raw(s.endMode === 'never' ? 'disabled' : '')} aria-label="End date" />
+              <input class="input" type="time" style="width:130px" data-act="end-time" value="${s.endTime}"
+                     ${raw(s.endMode === 'never' ? 'disabled' : '')} aria-label="End time" />
+            </div>
+          </div>`,
+        // FR-48 — a Never campaign keeps enrolling until an explicit manual stop.
+        note: s.endMode === 'never'
+          ? 'With no end date this campaign runs indefinitely. Combined with rolling enrolment it '
+            + 'keeps enrolling users as they qualify, so it needs an explicit <strong>Stop</strong> — '
+            + "available on the campaign's insights page after publish."
+          : '',
+        error: ui.showIssues && issue('end') ? issue('end').message : '',
+      }))}
 
-      <!-- FR-48 — a Never campaign keeps enrolling until an explicit manual stop. -->
-      ${raw(s.endMode === 'never' ? html`
-        <div class="notice">
-          ${raw(icon('hand'))}
-          <span>With no end date this campaign runs indefinitely. Combined with rolling enrolment it
-            keeps enrolling users as they qualify, so it needs an explicit <strong>Stop</strong> —
-            available on the campaign's insights page after publish.</span>
-        </div>` : '')}
-
-      <!-- FR-49 / OD-2 — re-entry, reconciled against the per-user lock in FR-18. -->
-      <div class="card card-pad">
-        <div class="row-between">
-          <div style="max-width:56ch">
-            <span class="t-h3">Allow users to re-enter this campaign</span>
-            <p class="hint" style="margin-top:3px">
-              Off by default. A user is normally enrolled once and their variant locks at capture.
-              Turning this on lets a user who already responded qualify again on a later trigger —
-              they keep their original variant assignment, so re-entry adds responses without
-              re-bucketing anyone.
-            </p>
-          </div>
-          <input class="switch" type="checkbox" data-act="reentry"
-                 ${raw(s.allowReentry ? 'checked' : '')} aria-label="Allow re-entry" />
-        </div>
-        ${raw(s.allowReentry ? html`
-          <div class="notice notice-warning" style="margin-top:12px">
-            ${raw(icon('warn'))}
-            <span>Open decision <span class="mono">OD-2</span> — with re-entry on, one user can appear
-              in the response count more than once. Per-respondent figures on the insights page will
-              read higher than unique users.</span>
-          </div>` : '')}
-      </div>
+      ${raw(stepPanel({
+        title: 'Re-entry',
+        desc: 'Whether a user who already responded can qualify again on a later trigger.',
+        // FR-49 / OD-2 — re-entry, reconciled against the per-user lock in FR-18.
+        rows: html`
+          <div class="srow srow-top">
+            <div class="srow-main">
+              <div class="srow-label">Allow users to re-enter this campaign</div>
+              <p class="srow-desc">
+                Off by default. A user is normally enrolled once and their variant locks at capture.
+                Turning this on lets a user who already responded qualify again on a later trigger —
+                they keep their original variant assignment, so re-entry adds responses without
+                re-bucketing anyone.
+              </p>
+            </div>
+            <div class="srow-ctl srow-ctl-auto">
+              <input class="switch" type="checkbox" data-act="reentry"
+                     ${raw(s.allowReentry ? 'checked' : '')} aria-label="Allow re-entry" />
+            </div>
+          </div>`,
+        note: s.allowReentry
+          ? 'Open decision <span class="mono">OD-2</span> — with re-entry on, one user can appear in '
+            + 'the response count more than once. Per-respondent figures on the insights page will '
+            + 'read higher than unique users.'
+          : '',
+      }))}
     </section>`;
 }
 
@@ -521,10 +662,12 @@ function step6(draft) {
 
       <div class="grid" style="grid-template-columns:minmax(0,1fr) 292px;gap:24px;align-items:start">
         <div class="stack-lg">
-          <div class="card">
-            <div class="card-head"><h3 class="t-h2">Ready to publish</h3>
-              <span class="badge badge-mono">${draft.campaignId}</span></div>
-            <div class="card-body stack-sm">
+          ${raw(stepPanel({
+            title: 'Ready to publish',
+            desc: 'Everything the five steps before this one resolved to.',
+            actions: `<span class="badge badge-mono">${esc(draft.campaignId)}</span>`,
+            body: html`
+            <div class="stack-sm">
               ${[
                 ['Goal', GOALS.find((g) => g.id === draft.goal)?.name || '—'],
                 ['Apps', draft.apps.map((a) => APP_OPTIONS.find((o) => o.id === a)?.label || a).join(' · ')],
@@ -554,13 +697,15 @@ function step6(draft) {
                     <button class="btn btn-link t-xs" data-act="goto" data-step="1">Add one on step 1</button>
                   </p>`)}
               </div>
-            </div>
-          </div>
+            </div>`,
+          }))}
 
           <!-- FR-51 — a Test action beside a saved-account dropdown and a direct user ID. -->
-          <div class="card">
-            <div class="card-head"><h3 class="t-h2">Send a test</h3></div>
-            <div class="card-body stack">
+          ${raw(stepPanel({
+            title: 'Send a test',
+            desc: 'Deliver the configured content to yourself before anyone else sees it.',
+            body: html`
+            <div class="stack">
               <div class="grid g2">
                 <div class="field">
                   <label class="label" for="ta">Test account</label>
@@ -590,13 +735,11 @@ function step6(draft) {
                 <span>Responses from a test send are excluded from the insights page entirely — they
                   do not count toward delivery, response or impact figures.</span>
               </div>
-              <!-- OD-5 — test is not a hard gate, and the preview simulates branches. -->
-              <p class="hint">
-                Testing is not required before publishing. The preview beside this panel is
-                interactive: tap a rating to walk the branch a respondent in that band would see.
-              </p>
-            </div>
-          </div>
+            </div>`,
+            // OD-5 — test is not a hard gate, and the preview simulates branches.
+            note: 'Testing is not required before publishing. The preview beside this panel is '
+              + 'interactive: tap a rating to walk the branch a respondent in that band would see.',
+          }))}
         </div>
 
         <aside style="position:sticky;top:16px">
@@ -630,41 +773,45 @@ async function openSegmentCreator() {
         <div class="field">
           <label class="label" for="segname">Segment name <span class="req">*</span></label>
           <input class="input" id="segname" data-name value="${name}" placeholder="e.g. Bandra · lapsed 21d" />
-          <span class="hint">Required before saving. The segment joins the shared library and is
-            selectable on every later campaign.</span>
+          <!-- One line, not three: the modal's own footer says what saving does, and
+               the two sentences that were here repeated it. -->
+          <span class="hint">Saved to the shared library and selectable on every later campaign.</span>
         </div>
 
-        <div class="row">
-          <span class="t-xs fg-lighter">Match</span>
-          <select class="select select-sm" data-match style="width:90px">
-            <option value="all" ${raw(match === 'all' ? 'selected' : '')}>all</option>
-            <option value="any" ${raw(match === 'any' ? 'selected' : '')}>any</option>
-          </select>
-          <span class="t-xs fg-lighter">of the following conditions</span>
-        </div>
-
-        <ul class="stack-sm">
-          ${rules.map((r) => html`
-            <li class="row" style="gap:6px">
-              <select class="select select-sm grow" data-rule-field data-id="${r.id}" aria-label="Field">
-                ${RULE_FIELDS.map((f) => html`<option ${raw(r.field === f ? 'selected' : '')}>${f}</option>`)}
+        <div class="field">
+          <div class="row-between" style="margin-bottom:6px">
+            <span class="label" style="margin:0">Conditions</span>
+            <span class="row" style="gap:6px">
+              <span class="t-xs fg-lighter">Match</span>
+              <select class="select select-sm" data-match style="width:78px" aria-label="Match all or any">
+                <option value="all" ${raw(match === 'all' ? 'selected' : '')}>all</option>
+                <option value="any" ${raw(match === 'any' ? 'selected' : '')}>any</option>
               </select>
-              <select class="select select-sm" style="width:150px" data-rule-op data-id="${r.id}" aria-label="Operator">
-                ${RULE_OPERATORS.map((o) => html`<option ${raw(r.operator === o ? 'selected' : '')}>${o}</option>`)}
-              </select>
-              <input class="input input-sm" style="width:110px" data-rule-value data-id="${r.id}"
-                     value="${r.value}" placeholder="value" aria-label="Value" />
-              <button class="btn btn-ghost btn-icon btn-sm" data-rule-rm="${r.id}"
-                      ${raw(rules.length <= 1 ? 'disabled' : '')} aria-label="Remove rule">${raw(icon('trash'))}</button>
-            </li>`)}
-        </ul>
+            </span>
+          </div>
 
-        <div class="row">
-          <button class="btn btn-outline btn-sm" data-rule-add>${raw(icon('plus'))}Add condition</button>
-          <button class="btn btn-outline btn-sm" data-group-add>${raw(icon('gitBranch'))}Add nested group</button>
+          <ul class="stack-sm">
+            ${rules.map((r) => html`
+              <li class="row" style="gap:6px">
+                <select class="select select-sm grow" data-rule-field data-id="${r.id}" aria-label="Field">
+                  ${RULE_FIELDS.map((f) => html`<option ${raw(r.field === f ? 'selected' : '')}>${f}</option>`)}
+                </select>
+                <select class="select select-sm" style="width:150px" data-rule-op data-id="${r.id}" aria-label="Operator">
+                  ${RULE_OPERATORS.map((o) => html`<option ${raw(r.operator === o ? 'selected' : '')}>${o}</option>`)}
+                </select>
+                <input class="input input-sm" style="width:110px" data-rule-value data-id="${r.id}"
+                       value="${r.value}" placeholder="value" aria-label="Value" />
+                <button class="btn btn-ghost btn-icon btn-sm" data-rule-rm="${r.id}"
+                        ${raw(rules.length <= 1 ? 'disabled' : '')} aria-label="Remove rule">${raw(icon('trash'))}</button>
+              </li>`)}
+          </ul>
+
+          <div class="row" style="margin-top:8px">
+            <button class="btn btn-outline btn-sm" data-rule-add>${raw(icon('plus'))}Add condition</button>
+            <button class="btn btn-outline btn-sm" data-group-add>${raw(icon('gitBranch'))}Add nested group</button>
+          </div>
+          <span class="hint">The full rule builder — the same one the segment library uses.</span>
         </div>
-        <p class="hint">This is the full rule builder — the same one the segment library uses, not a
-          reduced inline version.</p>
       </div>`;
 
     $('[data-name]', body).addEventListener('input', (e) => { name = e.target.value; });
@@ -715,6 +862,17 @@ async function openSegmentCreator() {
    Render + wire
    ========================================================================== */
 export function renderBuilder() {
+  // A repaint replaces #app wholesale, and the scroller's offset goes with it.
+  // The step is the key: staying on one step holds your place, moving to the
+  // next one opens it at the top. See keepScroll() in core.js.
+  keepScroll(
+    () => $('.scroll', $('#app')),
+    store.state.draft ? store.state.draft.currentStep : 1,
+    paintBuilder,
+  );
+}
+
+function paintBuilder() {
   let draft = store.state.draft;
   if (!draft) {
     // Opened directly without a draft — seed one so the screen is explorable.
@@ -788,10 +946,11 @@ export function renderBuilder() {
       </div>
     </div>
 
+    <!-- OD-16 revisited — the stepper is the way back. It is on screen at every
+         step, every completed step in it is clickable, and it says where each
+         one lands; a Back button beside it was a second, worse route to the
+         same place, and the only one that could not skip. -->
     <footer class="builder-foot">
-      <button class="btn btn-ghost" data-act="back" ${raw(step === 1 ? 'disabled' : '')}>
-        ${raw(icon('left'))}Back
-      </button>
       <span class="mono t-xs fg-muted">Step ${step} of 6 · ${STEPS[step - 1].label}</span>
       <!-- Paired in one span so the footer's space-between still reads as three
            columns rather than four evenly spread ones. Save sits left of the
@@ -873,11 +1032,6 @@ function wireCommon(root) {
 
   /* Navigation */
   on(root, 'click', '[data-act="next"]', () => advance(draft().currentStep + 1));
-  on(root, 'click', '[data-act="back"]', () => {
-    ui.showIssues = false;
-    store.setStep(draft().currentStep - 1);
-    renderBuilder();
-  });
   // FR-66 — a completed step navigates; a locked one surfaces the blocking field.
   on(root, 'click', '[data-act="goto"]', (e, el) => advance(Number(el.dataset.step)));
 
@@ -977,22 +1131,18 @@ function wireCommon(root) {
   });
 
   /* A keystroke re-renders the whole wizard, so the field being typed into has
-     to be handed back its focus, its caret *and* the page's scroll position.
-     The first two were already restored for the name; the third only started
-     to matter with a field that sits below the fold, where losing it throws the
-     reader back to the top of the step on every character. */
+     to be handed back its focus and its caret. The scroll position is no longer
+     this function's problem — renderBuilder() holds it for every repaint, not
+     just the ones a keystroke causes — but the focus call still has to opt out
+     of scrolling, because focusing a field is itself allowed to move the page. */
   function typeInto(selector, apply) {
     return (event) => {
       const caret = event.target.selectionStart;
-      const top = $('.scroll', $('#app'))?.scrollTop || 0;
       apply(event.target.value);
       renderBuilder();
       const next = $(selector, $('#app'));
       next?.focus({ preventScroll: true });
       next?.setSelectionRange(caret, caret);
-      // Last, because focusing a field is itself allowed to scroll to it.
-      const scroller = $('.scroll', $('#app'));
-      if (scroller) scroller.scrollTop = top;
     };
   }
 
@@ -1040,6 +1190,54 @@ function wireCommon(root) {
   });
   on(root, 'click', '[data-act="remove-exclusion"]', (e, el) =>
     setAudience({ exclusions: draft().audience.exclusions.filter((x) => x !== el.dataset.id) }));
+
+  /* FR-12 — the CSV behind User Data Table. Picking a file and dropping one are
+     the same action, so they land in the same reader. */
+  const acceptUserList = async (file) => {
+    const list = await readUserList(file);
+    if (!list) return;
+    setAudience({ mode: 'user-data-table', userList: list });
+    toast('List uploaded', `${count(list.size)} user IDs from ${list.name} are now targeted.`);
+  };
+
+  on(root, 'change', '[data-act="user-list-file"]', async (e, el) => {
+    const file = el.files && el.files[0];
+    // Cleared before the read so that re-picking the same file still fires.
+    el.value = '';
+    await acceptUserList(file);
+  });
+
+  on(root, 'click', '[data-act="user-list-replace"]', () => $('#userlist-file', root)?.click());
+
+  on(root, 'click', '[data-act="user-list-remove"]', async () => {
+    const list = draft().audience.userList;
+    if (!list) return;
+    const ok = await confirmDestructive({
+      title: 'Remove this list?',
+      description: `<strong>${esc(list.name)}</strong> and the ${count(list.size)} user IDs read from
+        it will be dropped from this campaign. The file on your machine is untouched.`,
+      confirmLabel: 'Remove list',
+    });
+    if (ok) setAudience({ userList: null });
+  });
+
+  /* Delegated rather than bound to the zone: the zone is re-rendered on every
+     repaint, and a handler on the node would go with it. */
+  const dropZone = (event) => event.target.closest('[data-drop]');
+  root.addEventListener('dragover', (event) => {
+    const zone = dropZone(event);
+    if (!zone) return;
+    event.preventDefault();
+    zone.classList.add('is-over');
+  });
+  root.addEventListener('dragleave', (event) => dropZone(event)?.classList.remove('is-over'));
+  root.addEventListener('drop', (event) => {
+    const zone = dropZone(event);
+    if (!zone) return;
+    event.preventDefault();
+    zone.classList.remove('is-over');
+    acceptUserList(event.dataTransfer && event.dataTransfer.files[0]);
+  });
 
   on(root, 'click', '[data-act="new-segment"]', async () => {
     const segment = await openSegmentCreator();

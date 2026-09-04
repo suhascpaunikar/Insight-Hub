@@ -84,7 +84,12 @@ export function createDraft(goal = null) {
     objective: '',
     apps: ['android', 'ios'],
     type: 'regular',
-    audience: { mode: 'all', segments: [], exclusions: [] },
+    // `userList` is the parsed CSV behind the User Data Table mode: the file's
+    // name, how many unique ids came out of it, which column they were read
+    // from, and a handful of them to show back. The ids themselves are not
+    // kept — a draft is persisted, and forty thousand of them would be a
+    // localStorage quota error rather than a feature.
+    audience: { mode: 'all', segments: [], exclusions: [], userList: null },
     variants: [createVariant('Variant A', 100, goal)],
     schedule: {
       startMode: 'now', startDate: '', startTime: '',
@@ -138,6 +143,9 @@ export function validateStep(draft, step) {
   if (step === 3) {
     if (draft.audience.mode === 'segmented' && draft.audience.segments.length === 0) {
       add('segments', 'Select at least one segment, or switch to All users.');
+    }
+    if (draft.audience.mode === 'user-data-table' && !draft.audience.userList) {
+      add('userList', 'Upload a CSV of user IDs, or switch to All users.');
     }
     if (audienceReach(draft).reach === 0 && audienceReach(draft).included > 0) {
       // FR-17 — exclusion emptying the audience blocks publication, not progression.
@@ -218,7 +226,7 @@ export function audienceReach(draft) {
   const { audience } = draft;
   const included =
     audience.mode === 'all' ? 486320
-    : audience.mode === 'user-data-table' ? 12400
+    : audience.mode === 'user-data-table' ? (audience.userList ? audience.userList.size : 0)
     : SEGMENTS.filter((s) => audience.segments.includes(s.id)).reduce((sum, s) => sum + s.size, 0);
   const excluded = EXCLUSION_SIZES(audience.exclusions);
   return { included, excluded, reach: Math.max(0, included - excluded) };
@@ -521,7 +529,8 @@ export function audienceLabel(draft) {
   const { audience } = draft;
   const base =
     audience.mode === 'all' ? 'All users'
-    : audience.mode === 'user-data-table' ? 'User Data Table'
+    : audience.mode === 'user-data-table'
+      ? (audience.userList ? audience.userList.name : 'User Data Table')
     : store.state.segments
         .filter((s) => audience.segments.includes(s.id))
         .map((s) => s.name).join(' · ') || 'No segment';

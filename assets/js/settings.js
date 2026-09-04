@@ -12,7 +12,7 @@
    Cancel drops the panel's keys and the rows re-read the stored values.
    ========================================================================== */
 import {
-  html, raw, esc, icon, $, on, count, dropdown, wireDropdowns, toast, dialog, wireOnce,
+  html, raw, esc, icon, $, on, count, dropdown, wireDropdowns, toast, dialog, wireOnce, keepScroll,
 } from './core.js';
 import { store } from './store.js';
 
@@ -355,6 +355,13 @@ function alertsTab() {
 
 /* ---------- Render ---------- */
 export function renderSettings(host) {
+  // Ticking a switch two panels down repaints the screen; without this the
+  // reader is returned to the top of it. The tab is the key — a new tab is a
+  // new screen and opens at the top. See keepScroll() in core.js.
+  keepScroll(() => host, view.tab, () => paintSettings(host));
+}
+
+function paintSettings(host) {
   const body =
     view.tab === 'general' ? generalTab()
     : view.tab === 'delivery' ? deliveryTab()
@@ -417,7 +424,9 @@ function wire(host) {
     rerender();
     const again = $(`[data-field="${field}"]`, host);
     if (again && isText) {
-      again.focus();
+      // preventScroll, because focusing a field is itself allowed to scroll to
+      // it — and the position has just been restored above.
+      again.focus({ preventScroll: true });
       if (caret !== null) again.setSelectionRange(caret, caret);
     }
   });

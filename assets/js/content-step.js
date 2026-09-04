@@ -5,7 +5,7 @@
    ========================================================================== */
 import {
   html, raw, esc, icon, $, $$, on, uid, dropdown,
-  confirmDestructive, dialog, toast, BANDS, BAND_LABEL, bandRange, clamp,
+  confirmDestructive, dialog, toast, stepPanel, BANDS, BAND_LABEL, bandRange, clamp,
 } from './core.js';
 import { store, createVariant, evenSplit, variantScaleMax, templateOf } from './store.js';
 import { TEMPLATES, TEMPLATE_CATEGORIES, CHANNELS, ELEMENTS, TRIGGER_EVENTS } from './data.js';
@@ -433,19 +433,30 @@ export function renderContentStep(draft, issues) {
 
       <div class="grid" style="grid-template-columns:minmax(0,1fr) 292px;align-items:start;gap:24px">
         <div class="stack-lg">
-          <div class="grid g2">
-            <div class="field">
-              <!-- FR-22 / FR-23 — the name drives the tab label live and never versions. -->
-              <label class="label" for="vname">Variant name</label>
-              <input class="input" id="vname" data-act="variant-name" value="${variant.name}" />
-              <span class="hint">
-                Renaming does not create a new version, and it carries through to the insights page.
-              </span>
+          ${raw(stepPanel({
+            title: 'Variant',
+            desc: 'What this variant is called, and how much of the audience it takes.',
+            rows: html`
+            <div class="srow">
+              <div class="srow-main">
+                <!-- FR-22 / FR-23 — the name drives the tab label live and never versions. -->
+                <label class="srow-label" for="vname">Variant name</label>
+                <p class="srow-desc">
+                  Renaming does not create a new version, and it carries through to the insights page.
+                </p>
+              </div>
+              <div class="srow-ctl">
+                <input class="input" id="vname" data-act="variant-name" value="${variant.name}" />
+              </div>
             </div>
 
             <!-- FR-24 — weightage sits above the template/component picker. -->
-            <div class="field">
-              <label class="label" for="weight">Weightage</label>
+            <div class="srow srow-top">
+              <div class="srow-main">
+                <label class="srow-label" for="weight">Weightage</label>
+                <p class="srow-desc">The share of the audience this variant is served to.</p>
+              </div>
+              <div class="srow-ctl srow-ctl-auto">
               ${raw(aiManaged ? html`
                 <!-- FR-25 / OD-6 — the even starting split is visible; the AI moves it after launch. -->
                 <div class="notice notice-ai">
@@ -461,32 +472,30 @@ export function renderContentStep(draft, issues) {
                   ${raw(draft.variants.length > 1
                     ? '<button class="btn btn-outline btn-sm" data-act="even-split">Even split</button>' : '')}
                 </div>`)}
-              <span class="mono t-xs ${weightTotal === 100 ? 'fg-muted' : 'fg-danger'}">
-                Total across variants: ${weightTotal}%
-              </span>
-            </div>
-          </div>
-
-          <div>
-            <div class="row-between" style="margin-bottom:10px">
-              <h3 class="t-h2">Template &amp; component</h3>
-              ${raw(variant.templateId
-                ? `<span class="mono t-xs fg-muted">In use: ${esc(variant.templateId)}</span>` : '')}
-            </div>
-            ${raw(issue(`template:${variant.id}`)
-              ? `<p class="error" role="alert" style="margin-bottom:8px">${esc(issue(`template:${variant.id}`).message)}</p>` : '')}
-            ${raw(templatePicker(draft, variant))}
-          </div>
-
-          ${raw(!template ? '' : html`
-            <div class="stack" style="border-top:1px solid var(--border-default);padding-top:20px">
-              <div class="row-between">
-                <h3 class="t-h2">Content elements</h3>
-                <!-- FR-35 — the add-content modal lists the elements this component allows. -->
-                <button class="btn btn-outline btn-sm" data-act="add-content">
-                  ${raw(icon('plus'))}Add content
-                </button>
+                <span class="mono t-xs ${weightTotal === 100 ? 'fg-muted' : 'fg-danger'}">
+                  Total across variants: ${weightTotal}%
+                </span>
               </div>
+            </div>`,
+          }))}
+
+          ${raw(stepPanel({
+            title: 'Template & component',
+            required: true,
+            desc: 'The channel this variant is delivered on, and the component that renders it.',
+            actions: variant.templateId
+              ? `<span class="mono t-xs fg-muted">In use: ${esc(variant.templateId)}</span>` : '',
+            body: templatePicker(draft, variant),
+            error: issue(`template:${variant.id}`) ? issue(`template:${variant.id}`).message : '',
+          }))}
+
+          ${raw(!template ? '' : stepPanel({
+            title: 'Content elements',
+            desc: "What sits inside the template's slots. You edit values, never the layout.",
+            // FR-35 — the add-content modal lists the elements this component allows.
+            actions: `<button class="btn btn-outline btn-sm" data-act="add-content">${
+              icon('plus')}Add content</button>`,
+            body: html`
               ${raw(variant.elements.length === 0 ? html`
                 <p class="hint">
                   The template's own slots are already populated. Add an element to place another
@@ -511,23 +520,26 @@ export function renderContentStep(draft, issues) {
                                 data-id="${e.id}" aria-label="Remove element">${raw(icon('trash'))}</button>
                       </span>
                     </li>`)}
-                </ul>`)}
-            </div>
+                </ul>`)}`,
+          }))}
 
-            <div style="border-top:1px solid var(--border-default);padding-top:20px">
-              <h3 class="t-h2" style="margin-bottom:12px">Questions</h3>
-              ${raw(questionLogic(variant))}
-            </div>`)}
+          ${raw(!template ? '' : stepPanel({
+            title: 'Questions',
+            required: true,
+            desc: 'What the respondent is asked, and where each rating band takes them next.',
+            body: questionLogic(variant),
+          }))}
 
-          <!-- FR-44 / FR-45 — per-variant trigger; delay is a text input, not a dropdown. -->
-          <div class="stack" style="border-top:1px solid var(--border-default);padding-top:20px">
-            <div class="row-between wrap">
-              <h3 class="t-h2">Trigger, event &amp; delay</h3>
-              ${raw(draft.variants.length > 1
-                ? dropdown({ trigger: `${icon('copy')}Copy trigger from a variant`,
-                             label: 'Copy from', items: triggerCopyItems }) : '')}
-            </div>
-
+          ${raw(stepPanel({
+            title: 'Trigger, event & delay',
+            required: true,
+            desc: 'The event that enrols a user into this variant, and how long after it they are asked.',
+            // FR-44 / FR-45 — per-variant trigger; delay is a text input, not a dropdown.
+            actions: draft.variants.length > 1
+              ? dropdown({ trigger: `${icon('copy')}Copy trigger from a variant`,
+                           label: 'Copy from', items: triggerCopyItems }) : '',
+            body: html`
+            <div class="stack">
             <div class="grid g3">
               <div class="field">
                 <label class="label" for="ev">Event</label>
@@ -561,7 +573,8 @@ export function renderContentStep(draft, issues) {
                 <span>Your variants run different triggers. Content is no longer the single variable,
                   so the comparison on the insights page will be flagged as not like-for-like.</span>
               </div>` : '')}
-          </div>
+            </div>`,
+          }))}
         </div>
 
         <aside style="position:sticky;top:16px">

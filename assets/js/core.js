@@ -43,6 +43,32 @@ export function wireOnce(node, key, fn) {
   fn(target);
 }
 
+/**
+ * Re-render without throwing the reader back to the top of the screen.
+ *
+ * Every screen here repaints by replacing innerHTML, which collapses the
+ * content to nothing for an instant and takes the scroller's offset with it.
+ * A reader who ticks a checkbox two thirds of the way down a step then has to
+ * find their place again — on every selection. So the offset is read before
+ * the repaint and put back after it.
+ *
+ * `find` returns the scrolling element, re-queried after the render because
+ * the repaint may well have replaced that node too. `key` says what the
+ * position belongs to: a wizard step, a settings tab, a campaign id. When the
+ * key changes the new screen opens at the top, which is the one case where
+ * starting at the top is what the reader wants.
+ */
+export function keepScroll(find, key, render) {
+  const before = find();
+  const stamp = String(key);
+  const top = before && before.dataset.scrollKey === stamp ? before.scrollTop : 0;
+  render();
+  const after = find();
+  if (!after) return;
+  after.dataset.scrollKey = stamp;
+  after.scrollTop = top;
+}
+
 /** Event delegation: on(root, 'click', '[data-act="x"]', handler). */
 export function on(root, type, selector, handler) {
   const node = typeof root === 'string' ? $(root) : root;
@@ -92,6 +118,8 @@ const PATHS = {
   stop: '<rect width="16" height="16" x="4" y="4" rx="2"/>',
   pencil: '<path d="M21.2 6.6 17.4 2.8a2 2 0 0 0-2.8 0L3 14.4V21h6.6L21.2 9.4a2 2 0 0 0 0-2.8Z"/><path d="m15 5 4 4"/>',
   download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
+  upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/>',
+  fileText: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M15 2v5h5"/><path d="M8 13h8"/><path d="M8 17h5"/>',
   refresh: '<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/>',
   hand: '<path d="M18 11V6a2 2 0 0 0-4 0v5"/><path d="M14 10V4a2 2 0 0 0-4 0v7"/><path d="M10 10.5V6a2 2 0 0 0-4 0v9"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2a8 8 0 0 1-8-8"/>',
   send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
@@ -284,8 +312,12 @@ export function dialog({ title, body = '', actions = [], size = '', onMount } = 
     scrim.className = 'scrim';
     scrim.innerHTML = html`
       <div class="dialog ${size}" role="dialog" aria-modal="true" aria-label="${title}">
+        <!-- The head is a hairline-divided bar with its own dismiss, not a bare
+             line of text: the border is what separates the dialog's subject from
+             its content, and it is the console's own modal shape. -->
         <div class="dialog-head">
           <h2 class="t-h1">${title}</h2>
+          <button class="btn btn-ghost btn-icon btn-sm" data-dismiss aria-label="Close">${raw(icon('x'))}</button>
         </div>
         <div class="dialog-body" data-body>${raw(body)}</div>
         <div class="dialog-foot">
@@ -302,6 +334,8 @@ export function dialog({ title, body = '', actions = [], size = '', onMount } = 
     });
     scrim.querySelectorAll('[data-i]').forEach((btn) =>
       btn.addEventListener('click', () => finish(actions[Number(btn.dataset.i)].value ?? true)));
+    // Same answer as the scrim and Escape: dismissed, not decided.
+    scrim.querySelector('[data-dismiss]').addEventListener('click', () => finish(null));
 
     if (onMount) onMount(scrim.querySelector('[data-body]'), finish);
     const focusTarget = scrim.querySelector('[autofocus]') || scrim.querySelector('.dialog-foot .btn:last-child');
@@ -323,6 +357,38 @@ export function confirmDestructive({ title, description, confirmLabel = 'Discard
       { label: confirmLabel, kind: 'danger', value: true },
     ],
   });
+}
+
+/* ---------- Step section ----------
+   The settings screen's shape, factored out so every wizard step can use it:
+   a heading and one line of explanation outside a bordered panel, and the
+   choices that heading governs inside it. The reader gets named, bounded
+   regions to scan instead of one long column of controls.
+
+   `body` is markup the panel pads; `rows` is markup that brings its own
+   padding (a run of `.srow`s), so the two are not interchangeable. `note` is
+   the qualifying sentence that belongs to the panel rather than the heading,
+   and rides under it on the panel's own footer.  */
+export function stepPanel({
+  id = '', title, desc = '', required = false, actions = '',
+  body = '', rows = '', note = '', error = '',
+} = {}) {
+  return html`
+    <section class="ssection">
+      <div class="ssection-head">
+        <div style="min-width:0">
+          <h3 class="ssection-title" ${raw(id ? `id="${esc(id)}"` : '')}>${title}${raw(
+            required ? ' <span class="req">*</span>' : '')}</h3>
+          ${raw(desc ? `<p class="ssection-desc">${desc}</p>` : '')}
+        </div>
+        ${raw(actions ? `<div class="ssection-actions">${actions}</div>` : '')}
+      </div>
+      <div class="spanel">
+        ${raw(rows || `<div class="spanel-body">${body}</div>`)}
+        ${raw(note ? `<div class="spanel-note">${note}</div>` : '')}
+      </div>
+      ${raw(error ? `<p class="error" role="alert">${esc(error)}</p>` : '')}
+    </section>`;
 }
 
 /* ---------- Dropdown ---------- */
