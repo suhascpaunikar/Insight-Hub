@@ -488,19 +488,27 @@ img { max-width: 100%; }
   background: rgba(0, 0, 0, 0.6); padding: var(--sp-xl);
   animation: fade .12s ease;
 }
+/* A column, not a single scrolling box: the head and the foot hold their
+   place while only the body moves, so the title's hairline stays put over a
+   long form instead of scrolling out of the frame with it. */
 .dialog {
-  width: 100%; max-width: 480px; max-height: 85vh; overflow: auto;
+  display: flex; flex-direction: column;
+  width: 100%; max-width: 480px; max-height: 85vh; overflow: hidden;
   background: var(--background-100); border: 1px solid var(--border-overlay);
   border-radius: var(--radius-md); box-shadow: var(--shadow-3);
   animation: pop .14s ease;
 }
 .dialog-lg { max-width: 720px; }
 .dialog-xl { max-width: 900px; }
-.dialog-head { padding: var(--sp-lg) var(--sp-lg) var(--sp-md); }
-.dialog-body { padding: 0 var(--sp-lg) var(--sp-lg); }
+.dialog-head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-md);
+  flex: none; padding: var(--sp-md) var(--sp-lg);
+  border-bottom: 1px solid var(--border-default);
+}
+.dialog-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: var(--sp-lg); }
 .dialog-foot {
   display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-sm);
-  padding: var(--sp-md) var(--sp-lg); border-top: 1px solid var(--border-default);
+  flex: none; padding: var(--sp-md) var(--sp-lg); border-top: 1px solid var(--border-default);
   background: var(--background-200); border-radius: 0 0 var(--radius-md) var(--radius-md);
 }
 @keyframes fade { from { opacity: 0; } }
@@ -858,6 +866,64 @@ img { max-width: 100%; }
   padding: 10px var(--sp-lg);
   background: var(--background-200); border-top: 1px solid var(--border-default);
 }
+
+/* ---------- Step section ----------
+   The settings screen's shape, borrowed for the wizard. A heading and one
+   line of explanation sit outside the box; every choice that heading governs
+   sits inside it. What this buys is scanning: a step reads as three or four
+   bounded regions with a name each, rather than one undifferentiated column
+   of controls the reader has to parse in order to find the boundaries. */
+.ssection { display: flex; flex-direction: column; gap: 10px; }
+.ssection-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--sp-md); flex-wrap: wrap;
+}
+.ssection-title { font-size: 15px; font-weight: 500; line-height: 1.35; color: var(--foreground-default); }
+.ssection-desc {
+  margin-top: 3px; font-size: 12.5px; line-height: 1.5;
+  color: var(--foreground-lighter); max-width: 76ch;
+}
+.ssection-actions { display: flex; align-items: center; gap: var(--sp-sm); flex-wrap: wrap; }
+
+/* The panel's plain content region, for a group of choices rather than
+   label-and-control rows. Two of them stack behind one hairline, so a panel
+   can carry its options and the note that qualifies them. */
+.spanel-body { padding: var(--sp-lg); }
+.spanel-body + .spanel-body,
+.spanel-body + .srow, .srow + .spanel-body { border-top: 1px solid var(--border-default); }
+/* Inside a panel the notice already has a border around it, so it drops its
+   own and reads as the panel's footnote. */
+.spanel-note {
+  padding: 10px var(--sp-lg); background: var(--background-200);
+  border-top: 1px solid var(--border-default);
+  font-size: 12px; line-height: 1.5; color: var(--foreground-lighter);
+}
+
+/* ---------- File drop ----------
+   Upload target for a list of user IDs. Dashed while empty so it reads as a
+   place to put something rather than a control that does something. */
+.drop {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; width: 100%; padding: var(--sp-xl) var(--sp-lg); text-align: center;
+  background: var(--background-200); border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md); cursor: pointer;
+  transition: border-color .12s ease, background-color .12s ease;
+}
+.drop:hover, .drop.is-over { border-color: var(--brand-400); background: var(--surface-100); }
+.drop svg { width: 18px; height: 18px; color: var(--foreground-muted); }
+.drop.is-over svg { color: var(--brand-default); }
+.drop-title { font-size: 12.5px; font-weight: 500; color: var(--foreground-default); }
+.drop-note { font-size: 11.5px; color: var(--foreground-lighter); }
+
+/* The same region once a file is in it: solid border, the file's own facts. */
+.dropped {
+  display: flex; align-items: flex-start; gap: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg);
+  background: var(--background-200); border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+.dropped > svg { width: 18px; height: 18px; flex: none; margin-top: 1px; color: var(--foreground-lighter); }
+.dropped.is-over { border-color: var(--brand-400); background: var(--surface-100); }
 
 /* ---------- Input with a unit ----------
    The suffix names what the number counts, inside the field's own border so

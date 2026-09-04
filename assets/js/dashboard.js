@@ -4,7 +4,7 @@
    ========================================================================== */
 import {
   html, raw, esc, icon, $, on, count, percent, relativeTime, absoluteTime,
-  ratingValue, dropdown, wireDropdowns, toast, dialog, wireOnce,
+  ratingValue, dropdown, wireDropdowns, toast, dialog, wireOnce, keepScroll,
 } from './core.js';
 import { store } from './store.js';
 import {
@@ -360,6 +360,13 @@ function rows() {
 
 /* ---------- Render ---------- */
 export function renderDashboard(host) {
+  // Sorting, filtering or toggling a column repaints the whole list; the
+  // reader's place in it should survive that. One key: the campaign list is
+  // one screen throughout. See keepScroll() in core.js.
+  keepScroll(() => host, 'campaigns', () => paintDashboard(host));
+}
+
+function paintDashboard(host) {
   const source = store.state.emptyDashboard ? [] : store.state.campaigns;
   const list = rows();
   const cols = view.columns;

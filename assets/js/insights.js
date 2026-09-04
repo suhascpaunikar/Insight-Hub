@@ -6,7 +6,7 @@
 import {
   html, raw, esc, icon, $, $$, on, count, ratingText, percent, ratingColor, ratingValue,
   ratingLegend, wireDropdowns, dialog, toast, wireOnce, AI_ACCENT, LOW_SAMPLE,
-  BANDS, BAND_LABEL, bandRange,
+  BANDS, BAND_LABEL, bandRange, keepScroll,
 } from './core.js';
 import { store } from './store.js';
 import {
@@ -1230,6 +1230,15 @@ function aiReadings(lines) {
    Page frame (FR-86 … FR-94)
    ========================================================================== */
 export function renderInsights(host) {
+  // A filter change repaints every panel below it, and the filters are at the
+  // top — so without this, changing one scrolls away from the figures it just
+  // changed. Keyed on campaign and tab, both of which are new screens.
+  const c0 = campaign();
+  keepScroll(() => host, `${c0 ? c0.id : 'none'}:${c0 ? currentTab(c0) : ''}`,
+    () => paintInsights(host));
+}
+
+function paintInsights(host) {
   const c = campaign();
   if (!c) {
     host.innerHTML = html`
