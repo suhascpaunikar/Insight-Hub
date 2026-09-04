@@ -101,9 +101,9 @@ is for, and the themes (performance, tracking, onboarding, support) follow from 
 | FR-9 App multi-select | At least one; drives which channels appear in step 4 |
 | FR-10 Campaign type | Regular / A/B / Intelligent A/B → tab structure and weightage controls |
 | FR-11 Channel not chosen here | Stated inline, with the reason |
-| FR-12 Audience modes | All users / Segmented / User Data Table |
+| FR-12 Audience modes | All users / Segmented / User Data Table; the last takes a CSV of user IDs, parsed in the browser |
 | FR-13 Rules visible at selection | Each segment card shows its rule and size |
-| FR-14 Full rule builder inline | `openSegmentCreator()` — match all/any, add/remove conditions |
+| FR-14 Full rule builder inline | `openSegmentCreator()` — match all/any, add/remove conditions, nested groups |
 | FR-15 Saves to the shared library | Name required; appears in the list and is selected on save |
 | FR-16 Exclusion is a dropdown | Multi-select by repeated selection, removable chips |
 | FR-17 Exclusion after inclusion | Included / Excluded / Estimated reach; empty audience blocks publish |
@@ -228,7 +228,7 @@ prototype choice, not a PRD ruling — overrule any of them.
 | OD-13 | "Campaign" throughout; "journey" never appears | One vocabulary |
 | OD-14 **(MP)** | **One** nav column | A wizard has no sub-sections; the Content step needs the ~250px |
 | OD-15 **(MP)** | Builder is **full-screen**, outside the shell, with an exit control | Protects focus; the stepper supplies orientation |
-| OD-16 | Stepper **and** a Back button | Stepper for jumps, Back for the linear path |
+| OD-16 | Stepper **only** | Revisited: every completed step in the rail is clickable and says where it lands, so a Back button was a second, worse route to the same place — and the only one that could not skip |
 | OD-17 **(MP)** | Save-and-exit returns to the campaign list | Where drafts are discoverable |
 | OD-18 **(MP)** | Templates is step 1 **inside** the wizard | Keeps the flow at six steps and OD-9 consistent |
 | OD-19 | Desktop-first | Layouts reflow to tablet; the Content step is not designed for phones |
