@@ -606,11 +606,18 @@ a modal. Tokens: `assets/css/supabase.css`.
 | `--motion-slow` | 320ms | A chart redrawing its whole series, and nothing else |
 | `--ease-out` | `cubic-bezier(0.22, 0.61, 0.36, 1)` | Everything; the system has no bounce |
 
-Three rules hold the scale together. **Nothing overshoots** — this is a console, and a spring on
+Four rules hold the scale together. **Nothing overshoots** — this is a console, and a spring on
 a status pill reads as a bug rather than as polish. **Nothing loops except while something is
-genuinely pending**, so a moving pixel always means work in progress. And **anything that
-animates in animates out**: a toast that slides in over 160ms and then disappears on a single
-frame reads as a glitch, not a dismissal.
+genuinely pending or genuinely happening** — the only looping animation in the product marks a
+Live campaign. **Anything that animates in animates out**: a toast that slides in and then
+disappears on a single frame reads as a glitch, not a dismissal. And **a close is not an open
+played backwards** — opening is an invitation and takes `--motion-base`; closing gets out of the
+way at `--motion-fast`, travelling less and scaling less far. Dropdowns, dialogs and toasts all
+follow that asymmetry.
+
+**Delay is an intent gate, never padding.** The only delay in the system is the 80ms a tooltip
+waits before appearing, so a cursor merely crossing the toolbar does not trail three of them.
+Nothing waits before leaving: a dismissal is always instant.
 
 Motion is never the only carrier of a state change. Every transition here decorates a change
 that is already legible in text, colour or position, which is what makes the global
@@ -623,6 +630,29 @@ the one that earns a transition. The ranges are 7 and 24 columns, so there is no
 between: the old plot leaves over `--motion-fast`, and the new series grows from its own
 baseline, each column 8ms behind the last.
 
+**Status pulse** (`.pill[data-status="Live"] .dot`) — a ring expanding out of the Live dot on a
+2.4s loop, and the one piece of perpetual motion in the product. It is a pseudo-element animating
+transform and opacity rather than the dot's own `box-shadow`: a shadow animation repaints every
+frame, and this one runs for as long as the tab is open. No other status moves, because no other
+status is still happening.
+
+**Figures** (`countUp`) — a headline number tweens to its new value whenever the window behind it
+changes, so the figure and the chart it belongs to read as one event rather than two. Driven only
+by a deliberate change of range; a keystroke must never start one, or the figures would live
+permanently in flight.
+
+**Tab marker** (`.tab-pill`) — the active tab's underline travels rather than jumping. Every
+screen repaints by replacing `innerHTML`, so the marker is a new node on every render with no
+position to travel from; the last position is remembered per strip and replayed, which is what
+makes the move readable. Where the pill runs, the tab gives up its own `border-bottom` — two
+indicators under one tab is a bug.
+
+**Step travel** (`[data-step-page]`) — the builder's step body enters from the side it travelled
+from: forward from the right, back from the left, so the direction says which way you moved
+through the wizard. Fired only by an actual step change. The builder deliberately has **no**
+skeleton: a wizard step is a form being filled, not data arriving, and a wait between steps reads
+as lag.
+
 **Skeleton** (`.skel`) — what a section shows while its data is on the way. Every block is sized
 to the element it stands in for, measured against the real thing rather than guessed, so content
 lands into space already held and nothing below it moves. Deliberately flat: a skeleton that
@@ -631,6 +661,7 @@ reader cannot tell it from the real thing. Blocks read as absence, which is what
 
 A section holds its skeleton for 1–1.5s, once per section per browser-tab session, and only when
 it has something to load — an empty workspace and a campaign with no responses go straight to
-their zero states, because neither is waiting on anything. The chrome around the section stays
+their zero states, because neither is waiting on anything. Settings panels do load, since a
+workspace's configuration is as much a fetch as its campaigns are. The chrome around the section stays
 put and stays live throughout: a reader who has just clicked Responses needs to see that
 Responses is selected, and blanking the control they used would read as the click having failed.

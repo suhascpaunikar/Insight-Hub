@@ -861,6 +861,23 @@ async function openSegmentCreator() {
 /* ==========================================================================
    Render + wire
    ========================================================================== */
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)');
+
+/** Has the wizard painted once this page load? The first paint enters too. */
+let mounted = false;
+
+/**
+ * The step body enters from the side it travelled from — forward from the
+ * right, back from the left — so the direction says which way you moved
+ * through the wizard. Enter-only: the outgoing step is gone the instant the
+ * builder repaints, so there is nothing left to animate out.
+ */
+function slideStep(direction) {
+  if (REDUCED.matches) return;
+  const page = $('[data-step-page]');
+  if (page) page.dataset.enterDir = direction;
+}
+
 export function renderBuilder() {
   // A repaint replaces #app wholesale, and the scroller's offset goes with it.
   // The step is the key: staying on one step holds your place, moving to the
@@ -930,7 +947,7 @@ function paintBuilder() {
     </header>
 
     <div class="scroll">
-      <div class="page">
+      <div class="page" data-step-page>
         <!-- FR-69 — blocking fields are surfaced inline on a failed advance. -->
         ${raw(ui.showIssues && issues.length ? html`
           <div class="notice notice-danger" role="alert" style="margin-bottom:20px">
@@ -964,6 +981,10 @@ function paintBuilder() {
       </span>
     </footer>
     </div>`;
+
+  // Entering the wizard reads as a forward step; after that only advance()
+  // travels, so saves and field edits repaint without moving.
+  if (!mounted) { mounted = true; slideStep('fwd'); }
 
   wireDropdowns(root);
   wireRailCollapse(root, renderBuilder, 'builderNavCollapsed');
@@ -1047,8 +1068,13 @@ function wireCommon(root) {
     }
     ui.showIssues = false;
     ui.attention.delete(step);
+    // Read before setStep, and only ever on a step that actually moved: a
+    // blocked advance returned above, and renderBuilder() also runs on saves
+    // and field edits, which must not travel.
+    const direction = target > step ? 'fwd' : 'back';
     store.setStep(target);
     renderBuilder();
+    slideStep(direction);
   }
 
   /* Save (FR-68). Saves and stays: the step you are on is the one you are still

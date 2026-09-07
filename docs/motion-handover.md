@@ -1,8 +1,13 @@
 # Motion handover
 
-State of the dashboard motion work as of the merge of `claude/dashboard-microanimations-priority-m9nnpf`
-([PR #16](https://github.com/suhascpaunikar/Insight-Hub/pull/16)). Written so the next person can pick
-up mid-stream without re-deriving the analysis.
+State of the motion work across the product. Written so the next person can pick up mid-stream
+without re-deriving the analysis.
+
+**Round 1** ([PR #16](https://github.com/suhascpaunikar/Insight-Hub/pull/16), merged) — the motion
+tokens, the P0 microanimations, and lazy loading on Campaigns and Insights.
+**Round 2** — the same treatment across every remaining page and step, plus Tier 1 and Tier 2 in
+full. Tiers 1 and 2 below are now **done**; what is left is Tier 3, and Tier 3 is mostly one
+refactor.
 
 The house rules live in **DESIGN.md → Motion**. That section is the authority; this file is the backlog.
 
@@ -60,7 +65,7 @@ Every screen repaints by replacing `innerHTML` — **14 sites across 8 files**
    render path as a tab switch. This is why `lazySection` keys on section identity rather than
    firing per render.
 2. **`transition:` never runs on re-created nodes.** There is no previous state to animate from.
-   `.chart-seg { transition: height .3s }` (`supabase.css:982`) is dead code on the dashboard for
+   `.chart-seg { transition: height .3s }` (`supabase.css:1015`) is dead code on the dashboard for
    exactly this reason — left in place because it is live on the insights charts.
 
 Anything that needs old and new state on screen at once — row enter/exit, a true skeleton→content
@@ -70,66 +75,60 @@ need for it.
 
 ---
 
-## Remaining work
+## Status by tier
 
-### Tier 1 — cheap, no architectural change
+### Tier 1 — DONE
 
-1. **Tokenize the rest of the stylesheet.** 38 `transition:` declarations, 53 hardcoded duration
-   values, only 7 using the new tokens. `.12s` and `120ms` are the same number written two ways
-   **34 times**. This is the drift the tokens exist to stop, and only the rules touched in `4b6fc79`
-   were converted. Use `transitions review` (below) to enumerate, but map onto **our** scale.
+All five shipped in round 2, product-wide:
 
-2. **Tooltip intent delay.** `.tip::after` (`supabase.css:523`) fades at `.12s` with no
-   `transition-delay`, so dragging the cursor across the toolbar flashes three tooltips in a row.
-   Wants ~80ms delay in, instant out.
+1. **Stylesheet tokenized** — 38 replacements. `.12s`/`120ms`/`.1s` → `--motion-fast`,
+   `.15s`/`.18s` → `--motion-base`, `.3s` → `--motion-slow`, and every `ease` → `var(--ease-out)`.
+   Six values remain hardcoded, all in the assistant layer (400/500/600ms and the card's own
+   `cubic-bezier`): they are ambient, carry their own intent, and match no token usage. Leave them.
+2. **Tooltip intent delay** — 80ms in, instant out, on the hover state only.
+3. **Open/close asymmetry** — opens take `--motion-base`, closes `--motion-fast`. The dropdown
+   gained a real close animation, which meant `hidden` can no longer be set on the same frame:
+   `[hidden]` is `display:none !important` and would cut the exit off. See `closeMenu()`.
+4. **Table row hover** — background transition plus the 2px chevron lean already used by `.srow`.
+5. **Live status pulse** — a pseudo-element ring on a 2.4s loop, transform/opacity so it
+   composites rather than repainting.
 
-3. **Open/close asymmetry.** A close should be quicker than its open. Today the toast is symmetric
-   at `--motion-base` both directions, and `.dd-menu` has no close animation at all — it goes
-   straight to `hidden`. Both are one-line fixes.
+### Tier 2 — DONE
 
-4. **Table row hover.** `.table tbody tr:hover td` (`supabase.css:403`) is an instant background
-   swap. Wants `transition: background-color .1s`, plus a 2px `translateX` on the Open chevron —
-   the pattern already exists at `supabase.css:846` for `.srow-chev`, so this is consistency, not
-   invention.
+6. **Count-up on the headline figures**, fired only by a range change. The figures carry
+   `data-value` so a render can tween from the previous number without re-parsing formatted text.
+7. **Sliding tab indicator** on Insights and Settings. The `innerHTML` wall meant the marker is a
+   new node every render with nothing to travel from, so `wireTabPill()` remembers the last
+   position per strip and replays it. First paint and reduced motion land in place instead.
+8. **Sparkline entrance** — reuses the range-switch grow, fired when content arrives after a
+   skeleton, so figures and shapes land together.
+9. **Clone flash** — fills the 350ms already spent waiting to navigate.
 
-5. **Live status dot pulse.** `.pill[data-status="Live"] .dot` (`supabase.css:369`) already carries
-   a static ring. Animate its scale/opacity on a ~2s loop, `Live` only. It is the one thing on
-   screen that genuinely is happening right now. Keep it CSS — a JS-driven infinite animation holds
-   the main thread awake for the life of the tab.
+### Also in round 2
 
-### Tier 2 — worth doing, some effort
+- **Settings skeletons** — reverses the round-1 decision that config is not data. All three tabs.
+- **Builder step travel** — direction-aware slide, no skeleton. Fired only from `advance()`;
+  `renderBuilder()` also runs on every save and field edit, and animating those would strobe the
+  form someone is filling.
+- **Toast stack collapse** — the stack used to jump when one was removed. The departing toast
+  animates a negative `margin-bottom` equal to its own height plus the flex gap. `transitionend`
+  is keyed to `margin-bottom` specifically, because opacity finishes first and removing on it
+  would cut the collapse short and reintroduce the jump.
 
-6. **Count-up on the headline figures** (`dashboard.js:212`, the Responses collected / Completion
-   rate pair). Fire on range change only, never on a search keystroke. `.metric-value`
-   (`supabase.css:951`) already sets `tabular-nums`, so no width jitter. This finishes P0-4: right
-   now the chart animates and the number it belongs to hard-cuts. See `02-number-pop-in` in the
-   skill — but cut its 500ms to ~250ms and drop the blur.
+### Tier 3 — what actually remains
 
-7. **Sliding tab indicator.** Insights (`insights.js`) and Settings (`settings.js`) both hard-swap
-   a `border-bottom`. `16-tabs-sliding` in the skill has the correct wire-up including the part
-   people get wrong: suspend the transition on first paint and on resize so the pill snaps into
-   position instead of flying in from zero.
-
-8. **Sparkline entrance on first paint.** Bars grow from baseline, ~20ms stagger, gated strictly to
-   first paint. Keep total stagger under ~300ms.
-
-9. **Clone flow.** `dashboard.js:558` already burns `setTimeout(…, 350)` of dead time before
-   navigating. Fill it — a brand-tinted flash on the source row.
-
-### Tier 3 — blocked or low value
-
-10. **Row enter/exit on filter.** Blocked on the `innerHTML` constraint. Needs keyed reconciliation
+1. **Row enter/exit on filter.** Blocked on the `innerHTML` constraint. Needs keyed reconciliation
     or a FLIP pass. `@formkit/auto-animate` looks tailor-made and will not work: it observes a
     parent's children, and replacing `innerHTML` destroys the `<tbody>` and the observer with it.
-11. **Skeleton→content crossfade.** `14-skeleton-reveal` needs both layers in the DOM at once.
+2. **Skeleton→content crossfade.** `14-skeleton-reveal` needs both layers in the DOM at once.
     Same wall. Current `lazy-in` fade-up is a reasonable substitute; the gain does not justify the
     refactor on its own.
-12. **`.chart-tip`** (`supabase.css:998`) fades at `.1s`; a 2px rise would make it read as attached
+3. **`.chart-tip`** (`supabase.css:1031`) fades at `.1s`; a 2px rise would make it read as attached
     to its column.
-13. **Rail collapse.** `.rail` width animates over `.18s` but `.rail-text { display: none }`
-    (`supabase.css:550`) snaps, so labels pop while the panel glides. Fade + width, or decide the
+4. **Rail collapse.** `.rail` width animates over `.18s` but `.rail-text { display: none }`
+    (`supabase.css:583`) snaps, so labels pop while the panel glides. Fade + width, or decide the
     snap is deliberate.
-14. **`a.metric:hover` (`supabase.css:942`) is dead code** — `metricCard` renders a `<div>`, so the
+5. **`a.metric:hover` (`supabase.css:975`) is dead code** — `metricCard` renders a `<div>`, so the
     rule never matches. Either make the cards interactive or delete it. Do not build hover motion
     on top of it.
 

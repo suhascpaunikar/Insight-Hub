@@ -6,7 +6,7 @@
 import {
   html, raw, esc, icon, $, $$, on, count, ratingText, percent, ratingColor, ratingValue,
   ratingLegend, wireDropdowns, dialog, toast, wireOnce, AI_ACCENT, LOW_SAMPLE,
-  BANDS, BAND_LABEL, bandRange, keepScroll, lazySection, skel,
+  BANDS, BAND_LABEL, bandRange, keepScroll, lazySection, skel, wireTabPill,
 } from './core.js';
 import { store } from './store.js';
 import {
@@ -1251,6 +1251,9 @@ function paintInsights(host, { pending = false, entering = false } = {}) {
 
   // Only the panel fades up. The chrome above it never left.
   if (entering) $$('[data-enter]', host).forEach((node) => node.classList.add('lazy-in'));
+  // Runs on every paint, including the skeleton's: the marker should already
+  // be under the tab you clicked while its panel is still loading.
+  wireTabPill($('.tabs', host), 'insights');
 
   wireDropdowns(host);
   // Bound to the chart node itself, which this render just replaced — so it
