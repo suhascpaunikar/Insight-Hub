@@ -3,8 +3,9 @@
    (FR-71 … FR-85, list conventions per FR-63).
    ========================================================================== */
 import {
-  html, raw, esc, icon, $, on, count, percent, relativeTime, absoluteTime,
+  html, raw, esc, icon, $, $$, on, count, percent, relativeTime, absoluteTime,
   ratingValue, ratingColor, dropdown, wireDropdowns, toast, dialog, wireOnce, keepScroll,
+  lazySection, skel,
 } from './core.js';
 import { store } from './store.js';
 import {
@@ -34,6 +35,10 @@ const view = {
 };
 
 const FIELD_LABEL = { name: 'campaign name', id: 'campaign ID', trigger: 'trigger' };
+
+/** Matches --motion-fast in supabase.css: how long the old plot takes to leave. */
+const SWAP_OUT = 120;
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)');
 
 /* ---------- Row pieces ---------- */
 
@@ -199,7 +204,7 @@ function activityStrip(campaigns) {
     </button>`).join('');
 
   return html`
-    <section style="margin-bottom:20px">
+    <section data-enter style="margin-bottom:20px">
       <!-- The headline pair: the volume, and the one rate that qualifies it. -->
       <div class="row-between wrap" style="margin-bottom:10px">
         <div class="row wrap" style="gap:20px">
@@ -272,6 +277,85 @@ function activityStrip(campaigns) {
     </section>`;
 }
 
+/* ==========================================================================
+   Loading shapes (FR-71 / FR-63 while the data is on its way)
+
+   Each block is sized to the element it stands in for — the same four-card
+   grid, the same 54px campaign cell, the same visible columns — so the real
+   content lands into space already held and nothing below it moves.
+   ========================================================================== */
+
+function stripSkeleton() {
+  const card = html`
+    <div class="metric">
+      <div class="metric-head">${raw(skel('74px', 9, 'margin:3px 0'))}</div>
+      <div class="metric-figures">${raw(skel('86px', 24, 'margin:3px 0'))}</div>
+      <div class="metric-plot">
+        ${raw(skel('100%', 40))}
+        <div class="metric-axis">
+          ${raw(skel('40px', 8, 'margin:3px 0'))}${raw(skel('40px', 8, 'margin:3px 0'))}
+        </div>
+      </div>
+    </div>`;
+  return html`
+    <section style="margin-bottom:20px">
+      <div class="row-between wrap" style="margin-bottom:10px">
+        <div class="row wrap" style="gap:20px">
+          ${raw(skel('178px', 26))}${raw(skel('158px', 26))}
+        </div>
+        ${raw(skel('120px', 26))}
+      </div>
+      <div class="metric-grid">${raw(card.repeat(4))}</div>
+    </section>`;
+}
+
+/** Mirrors the visible columns, so the header it loads under stays honest. */
+function listSkeleton(total) {
+  const cols = view.columns;
+  const right = (w) => `<td class="ta-r">${skel(w, 12, 'margin-left:auto')}</td>`;
+  const rows = Array.from({ length: Math.min(total, 8) }, () => html`
+    <tr>
+      <td style="min-width:240px">
+        <div class="col" style="gap:7px;min-height:54px;justify-content:center">
+          ${raw(skel('188px', 13))}${raw(skel('112px', 10))}
+        </div>
+      </td>
+      <td>${raw(skel('64px', 20))}</td>
+      ${raw(cols.trigger ? `<td>${skel('94px', 11)}</td>` : '')}
+      ${raw(cols.responses ? right('42px') : '')}
+      ${raw(cols.rating ? right('32px') : '')}
+      ${raw(cols.updated ? `<td>${skel('76px', 11)}</td>` : '')}
+      <td class="ta-r">${raw(skel('58px', 24, 'margin-left:auto'))}</td>
+      <td class="ta-r">${raw(skel('58px', 24, 'margin-left:auto'))}</td>
+    </tr>`);
+
+  return html`
+    <section class="card" style="overflow:visible">
+      <div class="toolbar">
+        ${raw(skel('150px', 28))}${raw(skel('100%', 28, 'flex:1;min-width:220px'))}
+        ${raw(skel('96px', 26))}${raw(skel('168px', 26))}
+      </div>
+      <div class="table-scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Campaign</th><th>Status</th>
+              ${raw(cols.trigger ? '<th>Trigger</th>' : '')}
+              ${raw(cols.responses ? '<th class="ta-r">Responses</th>' : '')}
+              ${raw(cols.rating ? '<th class="ta-r">Avg rating</th>' : '')}
+              ${raw(cols.updated ? '<th>Updated</th>' : '')}
+              <th class="ta-r">Clone</th><th class="ta-r">Open</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div class="card-foot row-between">
+        ${raw(skel('142px', 10, 'margin:3px 0'))}${raw(skel('186px', 10, 'margin:3px 0'))}
+      </div>
+    </section>`;
+}
+
 /* ---------- Filtering ---------- */
 function rows() {
   const source = store.state.emptyDashboard ? [] : store.state.campaigns;
@@ -291,13 +375,22 @@ function rows() {
 
 /* ---------- Render ---------- */
 export function renderDashboard(host) {
-  // Sorting, filtering or toggling a column repaints the whole list; the
-  // reader's place in it should survive that. One key: the campaign list is
-  // one screen throughout. See keepScroll() in core.js.
-  keepScroll(() => host, 'campaigns', () => paintDashboard(host));
+  const source = store.state.emptyDashboard ? [] : store.state.campaigns;
+  lazySection({
+    key: 'campaigns',
+    // A workspace with no campaigns is not waiting on anything — the empty
+    // state is the answer, not a placeholder for one.
+    hasData: source.length > 0,
+    skeleton: () => paintDashboard(host, { pending: true }),
+    // Sorting, filtering or toggling a column repaints the whole list; the
+    // reader's place in it should survive that. One key: the campaign list is
+    // one screen throughout. See keepScroll() in core.js.
+    paint: (entering) =>
+      keepScroll(() => host, 'campaigns', () => paintDashboard(host, { entering })),
+  });
 }
 
-function paintDashboard(host) {
+function paintDashboard(host, { pending = false, entering = false } = {}) {
   const source = store.state.emptyDashboard ? [] : store.state.campaigns;
   const list = rows();
   const cols = view.columns;
@@ -332,10 +425,10 @@ function paintDashboard(host) {
         </div>
       </header>
 
-      ${raw(source.length === 0 ? '' : activityStrip(source))}
+      ${raw(source.length === 0 ? '' : pending ? stripSkeleton() : activityStrip(source))}
 
-      ${raw(source.length === 0 ? emptyState() : html`
-        <section class="card" style="overflow:visible">
+      ${raw(source.length === 0 ? emptyState() : pending ? listSkeleton(source.length) : html`
+        <section class="card" data-enter style="overflow:visible">
           <!-- FR-63 / FR-84 — one toolbar pattern across every list screen. -->
           <div class="toolbar">
             <select class="select select-sm" data-act="set-field" style="width:150px" aria-label="Search field">
@@ -391,6 +484,10 @@ function paintDashboard(host) {
         </button> · <button class="btn btn-link t-xs" data-act="reset">Reset all prototype state</button>
       </p>
     </div>`;
+
+  // Only what replaced a skeleton fades up. The page header was on screen
+  // throughout the wait, and animating it would make it flicker for no reason.
+  if (entering) $$('[data-enter]', host).forEach((node) => node.classList.add('lazy-in'));
 
   wireDropdowns(host);
   wireOnce(host, 'dashWired', wire);
@@ -473,8 +570,32 @@ function wire(host) {
   on(host, 'change', '[data-act="set-field"]', (event) => { view.field = event.target.value; rerender(); });
   on(host, 'click', '[data-act="clear"]', () => { view.query = ''; rerender(); });
   on(host, 'click', '[data-act="set-sort"]', (event, btn) => { view.sort = btn.dataset.key; rerender(); });
-  // Re-slices the figures and the sparklines together — they read the same rows.
-  on(host, 'click', '[data-act="set-range"]', (event, btn) => { view.range = btn.dataset.key; rerender(); });
+  /* Re-slices the figures and the sparklines together — they read the same
+     rows. This is the one interaction where a number and the shape behind it
+     change meaning at the same moment, so it is the one that earns a
+     transition: without it the four cards hard-cut and the reader cannot tell
+     the window changed from the data changing.
+
+     7 days and 30 days are 7 and 24 columns, so there is nothing to morph
+     between — the old plot leaves, and the new series grows back from its own
+     baseline, each column just behind the last. */
+  on(host, 'click', '[data-act="set-range"]', async (event, btn) => {
+    if (view.range === btn.dataset.key) return;
+    view.range = btn.dataset.key;
+
+    if (!REDUCED.matches) {
+      $$('.chart-plot', host).forEach((plot) => { plot.dataset.swap = 'out'; });
+      await new Promise((done) => setTimeout(done, SWAP_OUT));
+    }
+    rerender();
+    if (REDUCED.matches) return;
+    // These are new nodes, so setting the attribute is itself what starts the
+    // animation — there is no previous state for a transition to run from.
+    $$('.chart-plot', host).forEach((plot) => {
+      [...plot.children].forEach((col, i) => col.style.setProperty('--i', i));
+      plot.dataset.swap = 'in';
+    });
+  });
   on(host, 'click', '[data-act="toggle-col"]', (event, btn) => {
     view.columns[btn.dataset.key] = !view.columns[btn.dataset.key];
     rerender();
