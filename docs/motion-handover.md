@@ -5,9 +5,9 @@ without re-deriving the analysis.
 
 **Round 1** ([PR #16](https://github.com/suhascpaunikar/Insight-Hub/pull/16), merged) — the motion
 tokens, the P0 microanimations, and lazy loading on Campaigns and Insights.
-**Round 2** — the same treatment across every remaining page and step, plus Tier 1 and Tier 2 in
-full. Tiers 1 and 2 below are now **done**; what is left is Tier 3, and Tier 3 is mostly one
-refactor.
+**Round 2** — the same treatment across every remaining page and step, plus Tier 1, Tier 2, and
+three of the five Tier 3 items. **Two things remain**, and both are the same refactor: nothing
+else in the backlog is blocked on anything but `innerHTML`.
 
 The house rules live in **DESIGN.md → Motion**. That section is the authority; this file is the backlog.
 
@@ -115,7 +115,22 @@ All five shipped in round 2, product-wide:
   is keyed to `margin-bottom` specifically, because opacity finishes first and removing on it
   would cut the collapse short and reintroduce the jump.
 
-### Tier 3 — what actually remains
+### Tier 3 — three done, two left
+
+**Done:**
+
+- **Chart tooltip** now rises 2px into place instead of only fading, so it reads as belonging to
+  the column under it.
+- **Rail collapse** animates. The stated cause was wrong: the labels were not the only problem —
+  `wireRailCollapse` called `rerender()`, which **rebuilt the rail**, so the width transition had
+  no node to run on and never fired either. The toggle now flips `data-collapsed` in place and
+  patches the few things that are markup rather than state (the link titles, the button's label
+  and glyph). The badge is always rendered so both states share one shape. The content behind the
+  rail no longer repaints on a collapse either.
+- **`a.metric:hover`** deleted. Confirmed dead first: `<div class="metric">` is the only form in
+  the codebase.
+
+**Left:**
 
 1. **Row enter/exit on filter.** Blocked on the `innerHTML` constraint. Needs keyed reconciliation
     or a FLIP pass. `@formkit/auto-animate` looks tailor-made and will not work: it observes a
@@ -123,14 +138,7 @@ All five shipped in round 2, product-wide:
 2. **Skeleton→content crossfade.** `14-skeleton-reveal` needs both layers in the DOM at once.
     Same wall. Current `lazy-in` fade-up is a reasonable substitute; the gain does not justify the
     refactor on its own.
-3. **`.chart-tip`** (`supabase.css:1031`) fades at `.1s`; a 2px rise would make it read as attached
-    to its column.
-4. **Rail collapse.** `.rail` width animates over `.18s` but `.rail-text { display: none }`
-    (`supabase.css:583`) snaps, so labels pop while the panel glides. Fade + width, or decide the
-    snap is deliberate.
-5. **`a.metric:hover` (`supabase.css:975`) is dead code** — `metricCard` renders a `<div>`, so the
-    rule never matches. Either make the cards interactive or delete it. Do not build hover motion
-    on top of it.
+
 
 ---
 

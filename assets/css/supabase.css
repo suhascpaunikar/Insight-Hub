@@ -577,10 +577,15 @@ img { max-width: 100%; }
 .rail {
   display: flex; flex-direction: column; flex: none; width: var(--rail-w);
   background: var(--background-100); border-right: 1px solid var(--border-default);
+  overflow: hidden;
   transition: width var(--motion-base) var(--ease-out);
 }
+.rail-text { white-space: nowrap; transition: opacity var(--motion-fast) var(--ease-out); }
 .rail[data-collapsed="true"] { width: var(--rail-w-collapsed); }
-.rail[data-collapsed="true"] .rail-text { display: none; }
+/* The labels fade while the rail narrows rather than disappearing on the frame
+   the width starts moving. They stay in flow and are clipped by the rail's own
+   overflow, so the icons hold their place while the text is on its way out. */
+.rail[data-collapsed="true"] .rail-text { opacity: 0; pointer-events: none; }
 .rail-brand { display: flex; align-items: center; gap: 8px; height: var(--bar-h); padding: 0 12px; border-bottom: 1px solid var(--border-default); }
 .rail-mark {
   display: grid; place-items: center; flex: none; width: 22px; height: 22px;
@@ -972,7 +977,6 @@ img { max-width: 100%; }
   border-radius: var(--radius-md);
   transition: border-color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out);
 }
-a.metric:hover, button.metric:hover { border-color: var(--border-strong); background: var(--surface-100); }
 .metric-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-sm); }
 .metric-name { font-size: 10px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--foreground-lighter); }
 .metric-legend { display: flex; align-items: center; gap: 10px; }
@@ -1032,9 +1036,13 @@ a.metric:hover, button.metric:hover { border-color: var(--border-strong); backgr
   position: absolute; z-index: 40; min-width: 190px; padding: 9px 11px;
   background: var(--background-200); border: 1px solid var(--border-overlay);
   border-radius: var(--radius-md); box-shadow: var(--shadow-3);
-  pointer-events: none; opacity: 0; transition: opacity var(--motion-fast) var(--ease-out);
+  pointer-events: none; opacity: 0; transform: translateY(2px);
+  transition: opacity var(--motion-fast) var(--ease-out),
+              transform var(--motion-fast) var(--ease-out);
 }
-.chart-tip[data-open="true"] { opacity: 1; }
+/* Rises the last two pixels into place so it reads as belonging to the column
+   under it rather than floating above the plot. */
+.chart-tip[data-open="true"] { opacity: 1; transform: none; }
 .chart-tip-row { display: flex; align-items: center; gap: var(--sp-md); }
 .chart-tip-row + .chart-tip-row { margin-top: 5px; }
 .chart-tip-row i { width: 8px; height: 8px; border-radius: var(--radius-full); flex: none; }
@@ -1578,6 +1586,8 @@ body[data-asst-pointer="true"] [data-insight][data-insight-armed] {
   .dd-menu[data-closing="1"] { animation: none; }
   [data-step-page][data-enter-dir] { animation: none; }
   .table tbody tr[data-flash] td { animation: none; }
+  .chart-tip, .rail-text { transition: none; }
+  .chart-tip[data-open="true"] { transform: none; }
   .tab-pill { transition: none; }
   .pill[data-status="Live"] .dot::after { animation: none; opacity: 0; }
   .tip:hover::after, .tip:focus-visible::after { transition-delay: 0s; }
