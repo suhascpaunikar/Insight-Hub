@@ -87,6 +87,15 @@
   --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.4);
   --shadow-3: 0 16px 48px rgba(0, 0, 0, 0.55);
 
+  /* Motion — one scale for the whole system, so a hover and a panel entrance
+     are never accidentally the same length. Feedback that only changes colour
+     is --motion-fast; anything that moves or resizes a box is --motion-base;
+     only a chart redrawing its whole series earns --motion-slow. */
+  --motion-fast: 120ms;
+  --motion-base: 180ms;
+  --motion-slow: 320ms;
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+
   /* Chrome */
   --rail-w: 212px;
   --rail-w-collapsed: 60px;
@@ -438,9 +447,13 @@ img { max-width: 100%; }
   position: absolute; z-index: 60; top: calc(100% + 4px); min-width: 190px; padding: 4px;
   background: var(--background-100); border: 1px solid var(--border-overlay);
   border-radius: var(--radius-md); box-shadow: var(--shadow-3);
+  animation: dd-in var(--motion-fast) var(--ease-out);
 }
-.dd-menu[data-align="end"] { right: 0; }
-.dd-menu[data-align="start"] { left: 0; }
+/* Scaled from the corner it is anchored to, so the menu reads as opening out
+   of its own trigger rather than arriving from nowhere. */
+.dd-menu[data-align="end"] { right: 0; transform-origin: top right; }
+.dd-menu[data-align="start"] { left: 0; transform-origin: top left; }
+@keyframes dd-in { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
 .dd-label { padding: 6px 8px 4px; font-size: 10px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; color: var(--foreground-muted); }
 .dd-sep { height: 1px; margin: 4px 0; background: var(--border-default); }
 .dd-item {
@@ -496,6 +509,14 @@ img { max-width: 100%; }
 .toast-title { font-size: 12.5px; font-weight: 500; color: var(--foreground-default); }
 .toast-desc { margin-top: 3px; font-size: 11.5px; color: var(--foreground-lighter); }
 @keyframes slidein { from { opacity: 0; transform: translateX(14px); } }
+/* Leaves the way it arrived. `animation: none` because a toast dismissed
+   inside its own 160ms entrance would otherwise have the two fighting over
+   the same two properties. */
+.toast[data-leaving="true"] {
+  animation: none; opacity: 0; transform: translateX(14px);
+  transition: opacity var(--motion-base) var(--ease-out),
+              transform var(--motion-base) var(--ease-out);
+}
 
 /* ---------- Tooltip ---------- */
 .tip { position: relative; }
@@ -960,6 +981,18 @@ a.metric:hover, button.metric:hover { border-color: var(--border-strong); backgr
 .chart-col:hover::before { background: var(--surface-100); opacity: .5; border-radius: 2px; }
 .chart-seg { position: relative; border-radius: 2px 2px 0 0; transition: height .3s ease; }
 
+/* A range change replaces the columns rather than resizing them: 7 days and
+   30 days are not the same number of bars, so there is no height to morph
+   between. The old plot leaves, and the new series grows back from its own
+   baseline, one column just behind the last. */
+.chart-plot[data-swap="out"] { opacity: 0; transition: opacity var(--motion-fast) var(--ease-out); }
+.chart-plot[data-swap="in"] .chart-col {
+  transform-origin: bottom;
+  animation: col-grow var(--motion-slow) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 8ms);
+}
+@keyframes col-grow { from { opacity: 0; transform: scaleY(.35); } }
+
 /* Floating readout. Positioned in JS against the hovered column, so it can
    sit over the plot without the columns having to reserve room for it. */
 .chart-tip {
@@ -975,6 +1008,33 @@ a.metric:hover, button.metric:hover { border-color: var(--border-strong); backgr
 .chart-tip-row span { flex: 1 1 auto; font-size: 12px; color: var(--foreground-light); }
 .chart-tip-row b { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 400; color: var(--foreground-default); }
 .chart-tip-foot { margin-top: 7px; padding-top: 6px; border-top: 1px solid var(--border-default); font-size: 11.5px; color: var(--foreground-muted); }
+
+/* ---------- Skeleton ----------
+   What a section shows while its data is on the way. Every block is sized to
+   the real element it stands in for, so content lands into space already
+   reserved and nothing below it jumps.
+
+   Deliberately flat: a skeleton that mimicked bars or a rating ramp would be
+   fake data on screen, and for the second it is up a reader cannot tell it
+   from the real thing. Blocks read as absence, which is what this is. */
+.skel {
+  position: relative; overflow: hidden;
+  background: var(--surface-100); border-radius: var(--radius-xs);
+}
+/* The sweep is the only thing moving, and it is a transform, so a table of
+   twenty of these stays on the compositor. They mount together and therefore
+   travel together — one pass across the section, not twenty out of step. */
+.skel::after {
+  content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.045), transparent);
+  animation: skel-sweep 1.4s ease-in-out infinite;
+}
+@keyframes skel-sweep { to { transform: translateX(100%); } }
+
+/* Real content arriving after the wait: it fades up rather than snapping in,
+   which is the difference between "loaded" and "flickered". */
+.lazy-in { animation: lazy-in var(--motion-base) var(--ease-out) both; }
+@keyframes lazy-in { from { opacity: 0; transform: translateY(4px); } }
 
 @media (max-width: 1100px) {
   .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1453,4 +1513,25 @@ body[data-asst-pointer="true"] [data-insight][data-insight-armed] {
 
 @media (prefers-reduced-motion: reduce) {
   .asst-pointer-progress { animation: none; stroke-dashoffset: 0; }
+}
+
+/* ==========================================================================
+   Reduced motion — global.
+
+   The three blocks above this one each cover a single assistant surface. This
+   one covers the rest of the product, including the dialog, toast and scrim
+   animations that predate it. Anything that travels, scales or loops is
+   stilled; colour and opacity feedback is left alone, since neither provokes
+   the vestibular response this preference exists to avoid.
+
+   The lazy-load wait is timing, not motion, and is deliberately kept: the
+   skeleton still holds the layout, it simply stops shimmering.
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .scrim, .dialog, .toast, .dd-menu, .lazy-in { animation: none; }
+  .skel::after { animation: none; }
+  .toast[data-leaving="true"] { transform: none; transition: opacity var(--motion-fast) ease; }
+  .chart-plot[data-swap="in"] .chart-col { animation: none; }
+  .chart-seg, .bar-fill { transition: none; }
+  .rail { transition: none; }
 }

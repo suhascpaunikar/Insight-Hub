@@ -592,3 +592,45 @@ is stated, never hidden.
 left gutter rather than on top of the first bar, and a floating readout (`.chart-tip`) opened by
 hovering a column: a dot per series, the series name with its share, the value, and the point's
 date under a rule. Bars alone leave the reader estimating heights against nothing.
+
+## Motion
+
+The marketing doc specifies no motion, and a console needs a scale for it as much as it needs
+one for spacing — otherwise every screen invents its own and a hover ends up the same length as
+a modal. Tokens: `assets/css/supabase.css`.
+
+| Token | Value | Used for |
+| --- | --- | --- |
+| `--motion-fast` | 120ms | Feedback that only changes colour — hover, focus, a menu opening |
+| `--motion-base` | 180ms | Anything that moves or resizes a box — toasts, arriving content |
+| `--motion-slow` | 320ms | A chart redrawing its whole series, and nothing else |
+| `--ease-out` | `cubic-bezier(0.22, 0.61, 0.36, 1)` | Everything; the system has no bounce |
+
+Three rules hold the scale together. **Nothing overshoots** — this is a console, and a spring on
+a status pill reads as a bug rather than as polish. **Nothing loops except while something is
+genuinely pending**, so a moving pixel always means work in progress. And **anything that
+animates in animates out**: a toast that slides in over 160ms and then disappears on a single
+frame reads as a glitch, not a dismissal.
+
+Motion is never the only carrier of a state change. Every transition here decorates a change
+that is already legible in text, colour or position, which is what makes the global
+`prefers-reduced-motion` block at the foot of the stylesheet safe: it stills travel, scale and
+loops, and the product loses nothing but the movement.
+
+**Range switch** (`.chart-plot[data-swap]`) — re-slicing the activity strip is the one
+interaction where a figure and the shape behind it change meaning at the same moment, so it is
+the one that earns a transition. The ranges are 7 and 24 columns, so there is nothing to morph
+between: the old plot leaves over `--motion-fast`, and the new series grows from its own
+baseline, each column 8ms behind the last.
+
+**Skeleton** (`.skel`) — what a section shows while its data is on the way. Every block is sized
+to the element it stands in for, measured against the real thing rather than guessed, so content
+lands into space already held and nothing below it moves. Deliberately flat: a skeleton that
+mimicked bars or a rating ramp would be fake data on screen, and for the second it is up a
+reader cannot tell it from the real thing. Blocks read as absence, which is what this is.
+
+A section holds its skeleton for 1–1.5s, once per section per browser-tab session, and only when
+it has something to load — an empty workspace and a campaign with no responses go straight to
+their zero states, because neither is waiting on anything. The chrome around the section stays
+put and stays live throughout: a reader who has just clicked Responses needs to see that
+Responses is selected, and blanking the control they used would read as the click having failed.

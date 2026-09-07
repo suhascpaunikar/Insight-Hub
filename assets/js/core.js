@@ -69,6 +69,67 @@ export function keepScroll(find, key, render) {
   after.scrollTop = top;
 }
 
+/* ==========================================================================
+   Lazy sections
+
+   A section with something to show holds a skeleton for a beat before the
+   real content lands, once per section per browser-tab session.
+
+   The prototype has no network — every figure is already in memory — so this
+   wait is synthetic on purpose: it is what the screen will feel like against
+   a real API, and the skeleton is what reserves the space so nothing below it
+   jumps when the content arrives. Sections with nothing to load skip it
+   entirely; an empty screen has no request to wait on.
+
+   The seen-set lives in sessionStorage rather than a module variable because
+   each screen here is its own document. A flag in memory would not survive
+   the walk from campaigns to insights, so every trip back would reload.
+   ========================================================================== */
+const LAZY_STORE = 'insighthub.loaded.v1';
+const LAZY_MIN = 1000;
+const LAZY_MAX = 1500;
+
+function loadedSections() {
+  try { return new Set(JSON.parse(sessionStorage.getItem(LAZY_STORE) || '[]')); }
+  catch { return new Set(); }
+}
+
+function markLoaded(key) {
+  try {
+    const seen = loadedSections();
+    seen.add(key);
+    sessionStorage.setItem(LAZY_STORE, JSON.stringify([...seen]));
+  } catch { /* storage refused (private mode): the section reloads each visit */ }
+}
+
+/** A placeholder block, sized to whatever real element it stands in for. */
+export const skel = (width, height, extra = '') =>
+  `<span class="skel" style="display:block;width:${width};height:${height}px${extra ? `;${extra}` : ''}"></span>`;
+
+/**
+ * One timer for the whole app. Moving to another section mid-load must not
+ * leave the abandoned one to paint itself over the section the reader is now
+ * looking at — so entering any section cancels the load of the last.
+ */
+let lazyTimer = null;
+
+/**
+ * `skeleton` and `paint` both render; neither returns markup. `paint` is told
+ * whether it followed a wait, so the screen can fade the arriving content in
+ * without also animating chrome that was on screen the whole time.
+ */
+export function lazySection({ key, hasData, skeleton, paint }) {
+  clearTimeout(lazyTimer);
+  // A section already seen this session is one a real client would have
+  // cached, and one with no data has nothing to fetch.
+  if (!hasData || loadedSections().has(key)) { paint(false); return; }
+  skeleton();
+  lazyTimer = setTimeout(() => {
+    markLoaded(key);
+    paint(true);
+  }, LAZY_MIN + Math.random() * (LAZY_MAX - LAZY_MIN));
+}
+
 /** Event delegation: on(root, 'click', '[data-act="x"]', handler). */
 export function on(root, type, selector, handler) {
   const node = typeof root === 'string' ? $(root) : root;
@@ -296,7 +357,27 @@ export function toast(title, description = '', kind = 'success') {
     </div>`;
   const host = toastHost();
   host.appendChild(node);
-  const kill = () => node.remove();
+
+  // It arrives under an animation, so it leaves under one too — a toast that
+  // slides in and then vanishes on a frame reads as a glitch rather than a
+  // dismissal. Guarded, because the close button and the dismiss timer both
+  // call this and only the first should count.
+  let leaving = false;
+  const kill = () => {
+    if (leaving) return;
+    leaving = true;
+    node.dataset.leaving = 'true';
+    // transitionend fires once per property, and not at all if the node is
+    // already hidden. The timer is what actually guarantees removal; the
+    // listener just usually gets there first.
+    //
+    // Filtered by target because the toast holds a button with transitions of
+    // its own, and those bubble: moving the cursor off the close control mid
+    // dismissal would otherwise cut the toast's own exit short.
+    const done = (event) => { if (!event || event.target === node) node.remove(); };
+    node.addEventListener('transitionend', done);
+    setTimeout(done, 400);
+  };
   node.querySelector('[data-close]').addEventListener('click', kill);
   setTimeout(kill, 5200);
 }

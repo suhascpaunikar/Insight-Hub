@@ -6,7 +6,7 @@
 import {
   html, raw, esc, icon, $, $$, on, count, ratingText, percent, ratingColor, ratingValue,
   ratingLegend, wireDropdowns, dialog, toast, wireOnce, AI_ACCENT, LOW_SAMPLE,
-  BANDS, BAND_LABEL, bandRange, keepScroll,
+  BANDS, BAND_LABEL, bandRange, keepScroll, lazySection, skel,
 } from './core.js';
 import { store } from './store.js';
 import {
@@ -1091,16 +1091,43 @@ function aiReadings(lines) {
 /* ==========================================================================
    Page frame (FR-86 … FR-94)
    ========================================================================== */
-export function renderInsights(host) {
-  // A filter change repaints every panel below it, and the filters are at the
-  // top — so without this, changing one scrolls away from the figures it just
-  // changed. Keyed on campaign and tab, both of which are new screens.
-  const c0 = campaign();
-  keepScroll(() => host, `${c0 ? c0.id : 'none'}:${c0 ? currentTab(c0) : ''}`,
-    () => paintInsights(host));
+/**
+ * The panel below the tabs is what loads; the header, the filters and the tab
+ * strip stay put and stay live. A reader who has just clicked Responses needs
+ * to see that Responses is selected — blanking the control they used would
+ * read as the click having failed.
+ */
+function tabSkeleton() {
+  const figure = html`
+    <div class="col" style="gap:8px">
+      ${raw(skel('86px', 10))}${raw(skel('102px', 24))}${raw(skel('128px', 10))}
+    </div>`;
+  return html`
+    <div class="figures" style="margin-bottom:20px">${raw(figure.repeat(4))}</div>
+    <div class="card" style="padding:16px">
+      ${raw(skel('176px', 13))}
+      <div style="margin-top:14px">${raw(skel('100%', 200))}</div>
+    </div>`;
 }
 
-function paintInsights(host) {
+export function renderInsights(host) {
+  const c0 = campaign();
+  const tab = c0 ? currentTab(c0) : '';
+  lazySection({
+    key: `insights:${c0 ? c0.id : 'none'}:${tab}`,
+    // A campaign that has collected nothing yet is not waiting on a request —
+    // its zero states are the answer, and should not sit behind a placeholder.
+    hasData: !!c0 && volumeOf(c0) > 0,
+    skeleton: () => paintInsights(host, { pending: true }),
+    // A filter change repaints every panel below it, and the filters are at the
+    // top — so without this, changing one scrolls away from the figures it just
+    // changed. Keyed on campaign and tab, both of which are new screens.
+    paint: (entering) => keepScroll(() => host, `${c0 ? c0.id : 'none'}:${tab}`,
+      () => paintInsights(host, { entering })),
+  });
+}
+
+function paintInsights(host, { pending = false, entering = false } = {}) {
   const c = campaign();
   if (!c) {
     host.innerHTML = html`
@@ -1118,8 +1145,8 @@ function paintInsights(host) {
   const isRunning = c.status === 'Live';
   const isPaused = c.status === 'Paused';
 
-  const body =
-    tab === 'delivery' ? deliveryTab(c)
+  const body = pending ? tabSkeleton()
+    : tab === 'delivery' ? deliveryTab(c)
     : tab === 'responses' ? responsesTab(c)
     : tab === 'engagement' ? engagementTab(c)
     : impactTab(c);
@@ -1219,8 +1246,11 @@ function paintInsights(host) {
           </button>`)}
       </div>
 
-      <div style="margin-top:20px">${raw(body)}</div>
+      <div data-enter style="margin-top:20px">${raw(body)}</div>
     </div>`;
+
+  // Only the panel fades up. The chrome above it never left.
+  if (entering) $$('[data-enter]', host).forEach((node) => node.classList.add('lazy-in'));
 
   wireDropdowns(host);
   // Bound to the chart node itself, which this render just replaced — so it
