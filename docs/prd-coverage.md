@@ -57,7 +57,7 @@ is for, and the themes (performance, tracking, onboarding, support) follow from 
 | FR | Where |
 |---|---|
 | FR-71 Landing screen | `index.html` |
-| FR-72 New Campaign is the only route in | `dashboard.js` → `[data-act="new"]`, present in the empty state too |
+| FR-72 New Campaign is the only route in | `app/src/components/campaigns-page.tsx` → `startNew()`, on the page header and in the empty state |
 | FR-73 Section framing | Heading plus the one-line explanation of live-vs-completed |
 | FR-74 Columns | Campaign · Status · Trigger · Responses · Avg rating · Updated · Clone · Open |
 | FR-75 Campaign identity | Name in emphasis, ID beneath in mono, `user-select:all` |

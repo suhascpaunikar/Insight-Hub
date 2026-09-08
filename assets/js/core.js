@@ -166,7 +166,7 @@ export function countUp(node, from, to, format, duration = 260) {
    exist. Every screen here repaints by replacing innerHTML, so a chart's
    `transition` has no previous value to run from and never fires — setting the
    attribute is itself what starts the animation, and the stylesheet does the
-   rest. They live here rather than in dashboard.js because the campaign list
+   rest. They live here rather than on one screen because the campaign list
    and the Insights panels draw the same marks and should draw them in the same
    way; a bar that grows on one screen and appears on the other is the
    inconsistency, not the missing motion.

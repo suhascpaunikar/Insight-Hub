@@ -10,7 +10,7 @@ and what is left. Written to be read cold.
 ## Read this first
 
 Every screen repaints by replacing `innerHTML` — **14 sites across 8 files** (`assistant.js`,
-`builder.js`, `content-step.js`, `core.js`, `dashboard.js`, `insights.js`, `settings.js`,
+`builder.js`, `content-step.js`, `core.js`, `insights.js`, `settings.js`,
 `shell.js`). Almost every non-obvious decision below traces back to it:
 
 1. **`transition:` cannot fire on a re-created node.** There is no previous value to move from. Any
@@ -160,10 +160,8 @@ Pre-existing and untouched: `asst-resolve`, `asst-blink`, `asst-rise`, `asst-bea
 | `growBars(host)` | `core.js` | distribution bar entrance, 8ms per row, counted per block |
 | `swapOut(host)` | `core.js` | fades every `.chart-plot` and `.bar-track` out; resolves when they have gone |
 | `swapCharts(host, repaint, between)` | `core.js` | the whole gesture: out, repaint, `between`, grow back |
-| `wireMetricCharts(host)` | `dashboard.js` | the campaign list's card readout; re-bound every paint |
 | `figureValue()` / `countFigures()` | `insights.js` | figures that tween between windows |
 | `navigate(href)` | `core.js` | leave for another page behind the exit fade |
-| `countFigures(host, before)` | `dashboard.js` | figure motion |
 | `markChangedSteps(root)` / `slideStep(dir)` / `exitStep(dir)` | `builder.js` | stepper states + step travel, both directions |
 | `wireRailTips(rail)` | `shell.js` | the collapsed rail's 1.5s tooltip |
 | `applyRailState(rail, collapsed)` | `shell.js` | in-place rail collapse |

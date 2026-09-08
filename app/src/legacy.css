@@ -1,0 +1,16 @@
+/* ==========================================================================
+   The vanilla prototype's stylesheet, imported into a layer of its own.
+
+   The assistant companion (FR-60) mounts itself into <body> from
+   assets/js/assistant.js and is styled entirely by `.asst-*` rules in here —
+   it is shared chrome, the same component the builder and the insights screen
+   put on screen, so this page keeps it rather than dropping a feature on the
+   way to shadcn.
+
+   The layer is what keeps the two systems apart: `legacy` is declared before
+   Tailwind's own layers in index.css, so every token, reset and utility here
+   loses to Tailwind, while the `.asst-*`, `.btn`, `.badge` and `.input` rules
+   the assistant's markup depends on — which Tailwind never competes for —
+   still apply.
+   ========================================================================== */
+@import "../../assets/css/supabase.css" layer(legacy);

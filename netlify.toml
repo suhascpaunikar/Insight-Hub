@@ -1,4 +1,5 @@
-# Static prototype — no build step. Netlify publishes the repo root as-is.
+# Static prototype. The one build step (app/ → assets/dashboard/) is committed,
+# so Netlify still publishes the repo root as-is.
 [build]
   publish = "."
 
@@ -11,5 +12,11 @@
 # The pages load ES modules; a wrong Content-Type makes the browser refuse them.
 [[headers]]
   for = "/assets/js/*.js"
+  [headers.values]
+    Content-Type = "text/javascript; charset=utf-8"
+
+# The dashboard's built bundle is a module too.
+[[headers]]
+  for = "/assets/dashboard/*.js"
   [headers.values]
     Content-Type = "text/javascript; charset=utf-8"

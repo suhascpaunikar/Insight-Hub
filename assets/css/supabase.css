@@ -1358,7 +1358,15 @@ body[data-leaving="true"] { opacity: 0; transition: opacity var(--motion-fast) v
   position: fixed; right: var(--sp-lg); bottom: var(--sp-lg);
   z-index: 80;                     /* over dropdowns and tooltips, under dialogs and toasts */
   display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-sm);
+  /* The closed card keeps its 320×380 (see .asst-card) so opening never reflows
+     the page — which makes this container a 320×432 box over the bottom-right
+     corner of every screen whether or not anything in it is visible. Without
+     this it swallowed clicks on whatever was underneath: the last row's action
+     menu on the campaign list, the last setting's control, the corner of the
+     Insights charts. The launcher and the card take their own clicks back. */
+  pointer-events: none;
 }
+.asst > * { pointer-events: auto; }
 
 /* The wizard is the one screen carrying a bar of its own along the bottom edge,
    and at the default 16px the 44px launcher lands on top of Next — the primary
