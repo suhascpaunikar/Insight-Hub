@@ -867,6 +867,36 @@ const REDUCED = matchMedia('(prefers-reduced-motion: reduce)');
 let mounted = false;
 
 /**
+ * What state each step was in on the previous paint.
+ *
+ * The stepper is rebuilt on every repaint, so its `transition` can never fire —
+ * a fresh node has no previous value to move from. Remembering the states here
+ * lets a repaint work out which steps actually changed and animate only those,
+ * which is also what keeps a field edit from re-firing the whole row.
+ */
+let stepStates = new Map();
+
+/**
+ * Mark the steps whose state changed since the last paint. The state itself is
+ * the value, so the stylesheet can give arriving, finishing and blocked steps
+ * each their own motion.
+ */
+function markChangedSteps(root) {
+  const next = new Map();
+  $$('.step', root).forEach((step) => {
+    const { step: n, state } = step.dataset;
+    next.set(n, state);
+    // A first paint has no previous state: the stepper arrives with the page
+    // rather than changing, and animating all six would be a light show.
+    const before = stepStates.get(n);
+    if (!REDUCED.matches && before !== undefined && before !== state) {
+      step.dataset.changed = state;
+    }
+  });
+  stepStates = next;
+}
+
+/**
  * The step body enters from the side it travelled from — forward from the
  * right, back from the left — so the direction says which way you moved
  * through the wizard. Enter-only: the outgoing step is gone the instant the
@@ -985,6 +1015,7 @@ function paintBuilder() {
   // Entering the wizard reads as a forward step; after that only advance()
   // travels, so saves and field edits repaint without moving.
   if (!mounted) { mounted = true; slideStep('fwd'); }
+  markChangedSteps(root);
 
   wireDropdowns(root);
   wireRailCollapse(root, renderBuilder, 'builderNavCollapsed');

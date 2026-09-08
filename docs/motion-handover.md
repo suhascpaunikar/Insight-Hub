@@ -130,6 +130,24 @@ All five shipped in round 2, product-wide:
 - **`a.metric:hover`** deleted. Confirmed dead first: `<div class="metric">` is the only form in
   the codebase.
 
+**Also done since:** **stepper state changes** — see DESIGN.md. Same replay technique as the tab
+marker, for the same reason.
+
+### Found while animating the stepper: the `attention` state cannot render
+
+`stepper()` computes `needsAttention = ui.attention.has(s.n) && !isCurrent`, so a step never shows
+attention while it is the current one. But `ui.attention` is only ever *added* for the current step
+(on a blocked forward advance), and `advance()` **deletes** it on the one path that would stop that
+step being current. So the flag is always cleared before it could render: `.step[data-state=
+"attention"]` and its three CSS rules are unreachable in normal use.
+
+This is a product decision to make, not a motion one, which is why nothing was changed: the inline
+`.notice-danger` already carries the error for the current step, so the stepper's attention state
+may simply be redundant. Either delete the state and its styles, or stop clearing the flag on a
+backward `goto` so a step you left broken stays marked. No animation was added for it — shipping
+motion for a state that never renders is the same dead code as the `a.metric:hover` rule that was
+just removed.
+
 **Left:**
 
 1. **Row enter/exit on filter.** Blocked on the `innerHTML` constraint. Needs keyed reconciliation

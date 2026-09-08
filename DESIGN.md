@@ -647,6 +647,17 @@ position to travel from; the last position is remembered per strip and replayed,
 makes the move readable. Where the pill runs, the tab gives up its own `border-bottom` — two
 indicators under one tab is a bug.
 
+**Step states** (`.step[data-changed]`) — the stepper marks what changed, not what is.
+Arriving, the current marker wipes out from the centre and the badge settles; finishing, the badge
+pops as its number becomes a check; and reachability moves both ways, since clearing a required
+field can put later steps back out of reach and that is worth seeing too. Only steps whose state
+actually changed animate — `builder.js` remembers the previous states, because the stepper is
+rebuilt on every repaint and a fresh node has no previous value for a `transition` to run from.
+A first paint marks nothing: the stepper arrives with the page rather than changing.
+
+The current marker is a real element rather than the inset `box-shadow` it started as. A shadow
+cannot wipe; an element can.
+
 **Step travel** (`[data-step-page]`) — the builder's step body enters from the side it travelled
 from: forward from the right, back from the left, so the direction says which way you moved
 through the wizard. Fired only by an actual step change. The builder deliberately has **no**

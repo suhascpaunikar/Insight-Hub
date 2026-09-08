@@ -633,6 +633,7 @@ img { max-width: 100%; }
 /* ---------- Stepper (FR-64 … FR-69) ---------- */
 .stepper { display: flex; gap: 4px; }
 .step {
+  position: relative;
   display: flex; align-items: center; gap: 9px; flex: 1 1 0; min-width: 0; padding: 7px 10px;
   border: 1px solid var(--border-default); border-radius: var(--radius-sm);
   background: var(--background-100); text-align: left;
@@ -648,7 +649,13 @@ img { max-width: 100%; }
 .step-label { display: block; font-size: 12px; font-weight: 500; color: var(--foreground-light); }
 .step-state { display: block; font-family: var(--font-mono); font-size: 9px; letter-spacing: .05em; text-transform: uppercase; color: var(--foreground-muted); }
 /* Legible in greyscale (FR-65): fill, weight and glyph carry the state, not hue. */
-.step[data-state="current"] { background: var(--surface-200); border-color: var(--border-overlay); box-shadow: inset 0 -2px 0 0 var(--brand-default); }
+.step[data-state="current"] { background: var(--surface-200); border-color: var(--border-overlay); }
+/* The current marker is a real element rather than an inset shadow: same 2px
+   bar in the same place, but a shadow cannot wipe and an element can. */
+.step[data-state="current"]::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+  background: var(--brand-default); border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
 .step[data-state="current"] .step-num { background: var(--foreground-default); border-color: var(--foreground-default); color: var(--background-200); font-weight: 600; }
 .step[data-state="current"] .step-label { color: var(--foreground-default); font-weight: 600; }
 .step[data-state="complete"] .step-num { background: var(--surface-300); border-color: var(--border-overlay); color: var(--foreground-default); }
@@ -657,6 +664,35 @@ img { max-width: 100%; }
 .step[data-state="attention"] { border-color: var(--destructive-400); background: var(--destructive-200); }
 .step[data-state="attention"] .step-num { border-color: var(--destructive); color: var(--destructive-fg); }
 .step[data-state="attention"] .step-state { color: var(--destructive-fg); }
+
+/* ---------- Step state changes ----------
+   Only the steps that actually changed animate, and each state gets the motion
+   its meaning asks for. The stepper is rebuilt on every repaint, so these are
+   animations rather than transitions — a fresh node has no previous value for
+   a transition to run from. builder.js decides which steps are marked. */
+
+/* Arriving: the marker wipes out from the centre, the badge settles in. */
+.step[data-changed="current"]::after { animation: step-mark var(--motion-base) var(--ease-out); }
+.step[data-changed="current"] .step-num { animation: step-settle var(--motion-base) var(--ease-out); }
+@keyframes step-mark   { from { transform: scaleX(0); } }
+@keyframes step-settle { from { transform: scale(.88); } }
+
+/* Finishing: the badge trades its number for a check, so the swap is marked. */
+.step[data-changed="complete"] .step-num { animation: step-done var(--motion-base) var(--ease-out); }
+.step[data-changed="complete"] .step-num svg { animation: step-check var(--motion-slow) var(--ease-out) both; }
+@keyframes step-done  { from { transform: scale(.82); } }
+@keyframes step-check { from { opacity: 0; transform: scale(.55); } }
+
+/* Reachability, both directions: clearing a required field can put later steps
+   back out of reach, and that is worth seeing as much as unlocking them is. */
+.step[data-changed="ready"]  { animation: step-unlock var(--motion-base) var(--ease-out); }
+.step[data-changed="locked"] { animation: step-lock   var(--motion-base) var(--ease-out); }
+@keyframes step-unlock { from { opacity: .55; } }
+@keyframes step-lock   { from { opacity: 1; } }
+
+/* No rule for [data-changed="attention"]: the stepper hides that state while a
+   step is current, and advance() clears the flag on the same path that would
+   stop it being current — so it never renders. See docs/motion-handover.md. */
 
 /* ---------- Rating ramp (FR-89) ---------- */
 .legend { display: inline-flex; align-items: center; gap: 10px; padding: 5px 10px; background: var(--background-100); border: 1px solid var(--border-default); border-radius: var(--radius-sm); }
@@ -1585,6 +1621,8 @@ body[data-asst-pointer="true"] [data-insight][data-insight-armed] {
   .scrim, .dialog, .toast, .dd-menu, .lazy-in { animation: none; }
   .dd-menu[data-closing="1"] { animation: none; }
   [data-step-page][data-enter-dir] { animation: none; }
+  .step[data-changed], .step[data-changed]::after,
+  .step[data-changed] .step-num, .step[data-changed] .step-num svg { animation: none; }
   .table tbody tr[data-flash] td { animation: none; }
   .chart-tip, .rail-text { transition: none; }
   .chart-tip[data-open="true"] { transform: none; }
