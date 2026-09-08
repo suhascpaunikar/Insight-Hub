@@ -7,15 +7,15 @@ import {
   html, raw, esc, icon, $, $$, on, count, ratingText, percent, ratingColor, ratingValue,
   ratingLegend, wireDropdowns, dialog, toast, wireOnce, AI_ACCENT, LOW_SAMPLE,
   BANDS, BAND_LABEL, bandRange, keepScroll, lazySection, skel, wireTabPill,
-  growPlots, growBars, navigate,
+  growPlots, growBars, swapOut, countUp, navigate,
 } from './core.js';
 import { store } from './store.js';
 import {
-  DELIVERY_FUNNEL, DELIVERY_SERIES, FAILURE_REASONS, RATING_BLOCK, BRANCH_BLOCKS,
+  DELIVERY_FUNNEL, DELIVERY_SERIES, DELIVERY_STEP_DAYS, FAILURE_REASONS, RATING_BLOCK, BRANCH_BLOCKS,
   OPEN_RESPONSES, SCORE_DRIVERS, OWNER_TEAMS, VARIANT_RESULTS, WEIGHT_HISTORY,
   AI_SUGGESTIONS, SEGMENTS,
   campaignKind, isFeedback, KIND_LABEL,
-  ANNOUNCE_FUNNEL, ANNOUNCE_SERIES, ANNOUNCE_FAILURE_REASONS, ENGAGEMENT,
+  ANNOUNCE_FUNNEL, ANNOUNCE_SERIES, ANNOUNCE_STEP_DAYS, ANNOUNCE_FAILURE_REASONS, ENGAGEMENT,
   TIME_TO_TAP, TAP_DESTINATIONS, ENGAGEMENT_BY_APP, ENGAGEMENT_BY_SEGMENT,
   CONVERSION_FUNNEL, CONVERSION, HOLDOUT, OFFER, ANNOUNCE_VARIANTS,
   ANNOUNCE_AI_SUGGESTIONS,
@@ -88,6 +88,48 @@ const money = (n) => {
 };
 const rate = (n, total, digits = 1) => (total ? percent((n / total) * 100, digits) : '—');
 
+/* ==========================================================================
+   Figures that move with the panel behind them
+
+   The campaign list counts its two headline numbers to the new window when the
+   range changes. These did not, so the same gesture — re-slice, watch the
+   figure land — behaved one way on one screen and cut on the next. The
+   inconsistency was the defect more than the missing motion was.
+
+   Same rule as everywhere else here: a deliberate change of view only. The
+   Responses tab repaints on every character typed into its search, and figures
+   tweened on that path would be permanently in flight.
+   ========================================================================== */
+
+/**
+ * A figure the next paint can tween from. `key` has to be stable across the
+ * change being animated — it is what pairs the old value with the new one —
+ * so it names what the figure *is* rather than where it sits.
+ */
+function figureValue(key, value, digits = 0) {
+  const text = digits === null ? count(Math.round(value)) : percent(value, digits);
+  return `<span class="figure-value" data-figure="${esc(key)}" data-value="${value}"
+                data-digits="${digits === null ? '' : digits}">${text}</span>`;
+}
+
+/** How a figure renders mid-tween — the same format its final value uses. */
+const figureFormat = (node) =>
+  (node.dataset.digits === ''
+    ? (v) => count(Math.round(v))
+    : (v) => percent(v, Number(node.dataset.digits)));
+
+const readFigures = (host) => Object.fromEntries(
+  $$('.figure-value[data-figure]', host).map((n) => [n.dataset.figure, Number(n.dataset.value)]));
+
+function countFigures(host, before) {
+  $$('.figure-value[data-figure]', host).forEach((node) => {
+    const from = before[node.dataset.figure];
+    const to = Number(node.dataset.value);
+    if (from === undefined || Number.isNaN(from) || Number.isNaN(to)) return;
+    countUp(node, from, to, figureFormat(node));
+  });
+}
+
 /** FR-94 — below the threshold, withhold percentages and show raw counts. */
 const lowSample = (n) => n < LOW_SAMPLE;
 const share = (n, total) =>
@@ -117,6 +159,40 @@ function chartTop(max) {
 }
 
 /** Four dashed rules — 0 and three divisions up to the plot's top. */
+/* ==========================================================================
+   The date range, applied
+
+   FR-92 put a Date range control at the top of every tab, and until now the
+   delivery series ignored it: the control moved, the chart did not, and the
+   only way to notice was to count the columns before and after. A filter that
+   changes nothing is worse than one that is not there, because the reader
+   believes it.
+
+   Sliced by elapsed time rather than by a point count. The two series have
+   different cadences — three days a point for feedback, eight hours for the
+   announcement — so "last 7 days" is 3 columns on one and every column it has
+   on the other. A point count would have meant two different windows under one
+   label.
+   ========================================================================== */
+const RANGE_DAYS = { '7d': 7, '30d': 30, all: Infinity };
+/** The same words the filter's own options use, so the axis and the control agree. */
+const RANGE_LABEL = { '7d': 'Last 7 days', '30d': 'Last 30 days', all: 'All time' };
+
+/**
+ * The tail of `series` inside the selected window, and whether that window
+ * actually cut anything. A campaign shorter than the window is not an error —
+ * it is a fact about the campaign, and `full` is what lets the caller say so
+ * rather than leave the reader wondering why 7 days and 30 days look identical.
+ */
+function sliceRange(series, stepDays) {
+  const days = RANGE_DAYS[filters.range] ?? Infinity;
+  // Two points is the shortest thing that is still a series; one column is a
+  // number with an axis under it.
+  const points = Number.isFinite(days) ? Math.max(2, Math.ceil(days / stepDays)) : series.length;
+  if (points >= series.length) return { rows: series, full: true };
+  return { rows: series.slice(-points), full: false };
+}
+
 function gridlines(top) {
   return html`
     <div class="chart-grid" aria-hidden="true">
@@ -176,11 +252,41 @@ function deliveryTab(c) {
   // Completed for a feedback campaign, Tapped for an announcement. Delivered is
   // the step only a push needs — the OS can accept one and never surface it.
   const feedback = isFeedback(c);
-  const funnel = feedback ? DELIVERY_FUNNEL : ANNOUNCE_FUNNEL;
-  const failures = feedback ? FAILURE_REASONS : ANNOUNCE_FAILURE_REASONS;
-  const doneLabel = funnel[funnel.length - 1].label;
-  const series = (feedback ? DELIVERY_SERIES : ANNOUNCE_SERIES)
+  const wholeFunnel = feedback ? DELIVERY_FUNNEL : ANNOUNCE_FUNNEL;
+  const wholeFailures = feedback ? FAILURE_REASONS : ANNOUNCE_FAILURE_REASONS;
+  const doneLabel = wholeFunnel[wholeFunnel.length - 1].label;
+  const wholeSeries = (feedback ? DELIVERY_SERIES : ANNOUNCE_SERIES)
     .map((p) => ({ date: p.date, sends: p.sends, done: feedback ? p.completions : p.taps, version: p.version }));
+  // FR-92 — the Date range control at the top of the page reaches this chart.
+  const { rows: series, full: wholeRun } = sliceRange(wholeSeries,
+    feedback ? DELIVERY_STEP_DAYS : ANNOUNCE_STEP_DAYS);
+  // Whether a version change actually falls inside the window on show. The
+  // notice under the chart points at a dashed rule, so it must not be printed
+  // when the slice starts after the boundary and there is no rule to point at.
+  const boundaryShown = series.some((p, i) => i > 0 && p.version !== series[i - 1].version);
+
+  /* The window, applied to the rest of the tab.
+   *
+   * Slicing the chart and leaving the funnel above it on lifetime totals would
+   * put two disagreeing answers on one screen: the columns would say "last 7
+   * days" while the figure over them said "since launch". So every count on
+   * this tab is read at the same share of the run the chart is showing.
+   *
+   * One factor, applied to everything. The seed carries a per-day breakdown for
+   * sends and completions only — nothing per-day for Shown, Started, or the
+   * failure reasons — so the rest is read proportionally. That is one stated
+   * assumption (delivery held roughly steady across the window) rather than
+   * several invented series, and because it is a single linear factor every
+   * relationship the seed was built to preserve survives it exactly: failure
+   * reasons still sum to Sent − Delivered, and the step-to-step conversions are
+   * identical, which is right — a conversion rate is a property of the
+   * campaign, not of the window you read it over.
+   */
+  const windowShare = wholeRun ? 1
+    : series.reduce((t, p) => t + p.sends, 0) / wholeSeries.reduce((t, p) => t + p.sends, 0);
+  const scale = (n) => Math.round(n * windowShare);
+  const funnel = wholeFunnel.map((step) => ({ ...step, value: scale(step.value) }));
+  const failures = wholeFailures.map((f) => ({ ...f, count: scale(f.count) }));
 
   const top = funnel[0].value;
   let biggestDrop = { label: '', pct: 0 };
@@ -201,7 +307,14 @@ function deliveryTab(c) {
       <section class="card" data-insight="delivery-funnel">
         <div class="card-head">
           <h3 class="t-h2">Delivery funnel</h3>
-          <span class="t-xs fg-lighter">Absolute counts with step-to-step conversion</span>
+          <!-- Says which window the counts belong to, and that the conversions
+               under them do not move with it — a reader who watches the numbers
+               drop on a narrower range needs to know the percentages did not. -->
+          <span class="t-xs fg-lighter">
+            ${raw(wholeRun
+              ? 'Absolute counts with step-to-step conversion'
+              : `${esc(RANGE_LABEL[filters.range])} · conversion is the whole run`)}
+          </span>
         </div>
         <div class="card-body stack">
           <!-- FR-95 — the count is the headline; conversion is its caption. Bar length
@@ -218,7 +331,7 @@ function deliveryTab(c) {
               return html`
                 <div class="figure" ${raw(isWorst ? 'data-flag="worst"' : '')}>
                   <span class="figure-label">${raw(isWorst ? icon('warn') : '')}${s.label}</span>
-                  <span class="figure-value">${count(s.value)}</span>
+                  ${raw(figureValue(`funnel:${s.label}`, s.value, null))}
                   <span class="figure-note">${note}</span>
                 </div>`;
             })}
@@ -264,12 +377,23 @@ function deliveryTab(c) {
             </div>
             <div class="chart-tip" data-chart-tip></div>
           </div>
-          <div class="row-between" style="margin-top:8px">
+          <!-- The window between its own bounds. A range control the reader
+               cannot see the effect of is one they stop trusting, and where the
+               campaign is shorter than the window the middle label says so
+               rather than leaving 7 days and 30 days looking identical for no
+               stated reason. -->
+          <div class="row-between" style="margin-top:8px;gap:12px">
             <span class="mono t-xs fg-muted">${series[0].date}</span>
+            <span class="t-xs fg-lighter" style="text-align:center">
+              ${raw(wholeRun && filters.range !== 'all'
+                ? `Whole run — shorter than ${esc(RANGE_LABEL[filters.range])}`
+                : `${esc(RANGE_LABEL[filters.range])} · ${count(series.length)} points`)}
+            </span>
             <span class="mono t-xs fg-muted">${series[series.length - 1].date}</span>
           </div>
-          <!-- FR-93 — the version boundary is marked on the chart. -->
-          ${raw(c.versions > 1 ? html`
+          <!-- FR-93 — the version boundary is marked on the chart, so the notice
+               that explains the rule only prints where the rule is on screen. -->
+          ${raw(c.versions > 1 && boundaryShown ? html`
             <div class="notice notice-ai" style="margin-top:12px">
               ${raw(icon('layers'))}
               <span>The dashed rule marks where <strong>version 2</strong> begins. This series spans a
@@ -281,6 +405,16 @@ function deliveryTab(c) {
       <section class="card" data-insight="failure-reasons">
         <div class="card-head"><h3 class="t-h2">Failure reasons</h3>
           <span class="mono t-xs fg-lighter">${count(failTotal)} failed sends</span></div>
+        ${raw(wholeRun ? '' : html`
+          <div style="padding:0 var(--sp-lg)">
+            <div class="notice">
+              ${raw(icon('info'))}
+              <span>Read at this window's share of the run. The seed behind this prototype
+                breaks down sends and completions by day but not failures, so these are
+                proportional rather than counted — the mix between reasons is exact, the
+                totals are an estimate.</span>
+            </div>
+          </div>`)}
         <div class="card-body dist">
           ${failures.map((f) => html`
             <div class="dist-row" style="grid-template-columns:220px 1fr 120px">
@@ -554,22 +688,24 @@ function engagementTab(c) {
           <div class="figures">
             <div class="figure">
               <span class="figure-label">Unique reach</span>
-              <span class="figure-value">${count(e.uniqueReach)}</span>
+              ${raw(figureValue('eng:reach', e.uniqueReach, null))}
               <span class="figure-note">People, not sends</span>
             </div>
             <div class="figure">
               <span class="figure-label">Impressions</span>
-              <span class="figure-value">${count(e.impressions)}</span>
+              ${raw(figureValue('eng:impressions', e.impressions, null))}
               <span class="figure-note">${(e.impressions / e.uniqueReach).toFixed(2)} per person reached</span>
             </div>
             <div class="figure">
               <span class="figure-label">Taps</span>
-              <span class="figure-value">${count(e.taps)}</span>
+              ${raw(figureValue('eng:taps', e.taps, null))}
               <span class="figure-note">${rate(e.taps, e.uniqueReach)} of people reached</span>
             </div>
             <div class="figure">
               <span class="figure-label">Tap-through rate</span>
-              <span class="figure-value">${rate(e.taps, e.impressions)}</span>
+              ${raw(e.impressions
+                ? figureValue('eng:ttr', (e.taps / e.impressions) * 100, 1)
+                : '<span class="figure-value">—</span>')}
               <span class="figure-note">Of impressions — the honest denominator</span>
             </div>
           </div>
@@ -870,7 +1006,7 @@ function announcementImpactTab(c) {
               return html`
                 <div class="figure">
                   <span class="figure-label">${step.label}</span>
-                  <span class="figure-value">${count(step.value)}</span>
+                  ${raw(figureValue(`conv:${step.label}`, step.value, null))}
                   <span class="figure-note">${note}</span>
                 </div>`;
             })}
@@ -1129,8 +1265,48 @@ function tabSkeleton() {
    ========================================================================== */
 let drawIn = false;
 
-/** Ask the next paint to draw its marks in. */
-const redraw = (rerender) => { drawIn = true; rerender(); };
+/**
+ * The figures as they stood before the repaint that is about to replace them,
+ * handed to the paint so it can tween rather than cut. Null on the paths that
+ * must not tween, which is every path that is not a deliberate change of view.
+ */
+let figuresBefore = null;
+
+/** Ask the next paint to draw its marks in, and repaint now. */
+const drawNext = (host, rerender) => {
+  drawIn = true;
+  figuresBefore = readFigures(host);
+  rerender();
+};
+
+/**
+ * Take the current marks off, repaint, and let the new ones grow back.
+ *
+ * For a *filter*, not a tab. A filter re-measures the marks that are already on
+ * screen — same chart, same question, different slice — and that is exactly
+ * what the campaign list's range picker does, so it gets the same crossfade.
+ *
+ * A tab switch is not that. It replaces the panel with a different panel, and
+ * the marks that leave are not the marks that come back; the arrival is the
+ * whole gesture, which is why the tab handler calls drawNext() directly. It
+ * also cannot afford the wait: the sliding marker under the tabs is painted by
+ * the repaint, so holding the repaint for 120ms would leave the marker sitting
+ * under the old tab after the click.
+ *
+ * The out half is swapOut(); the back half is the `drawIn` flag rather than a
+ * call here, because the regrow has to run at the end of the paint — after the
+ * panel has decided whether it is showing a skeleton. That is the one reason
+ * this is not simply swapCharts().
+ */
+const redraw = async (host, rerender) => {
+  // Read before the fade, not after: swapOut() only takes the marks down, but
+  // reading here keeps the capture in one place for both callers.
+  const figures = readFigures(host);
+  await swapOut(host);
+  drawIn = true;
+  figuresBefore = figures;
+  rerender();
+};
 
 export function renderInsights(host) {
   const c0 = campaign();
@@ -1279,8 +1455,13 @@ function paintInsights(host, { pending = false, entering = false } = {}) {
   if ((entering || drawIn) && !pending) {
     growPlots(host);
     growBars(host);
+    // The figure counts to its new value while the marks under it grow back,
+    // so the number and the shape it belongs to change as one event — the same
+    // pairing the campaign list makes on its range picker.
+    if (figuresBefore) countFigures(host, figuresBefore);
   }
   drawIn = false;
+  figuresBefore = null;
   // Runs on every paint, including the skeleton's: the marker should already
   // be under the tab you clicked while its panel is still loading.
   wireTabPill($('.tabs', host), 'insights');
@@ -1302,12 +1483,12 @@ function wire(host) {
     p.set('tab', el.dataset.tab);
     if (!p.get('id')) p.set('id', c().id);
     history.replaceState(null, '', `?${p}`);
-    redraw(rerender);
+    drawNext(host, rerender);
   });
 
   on(host, 'change', '[data-act="filter"]', (e, el) => {
     filters[el.dataset.key] = el.value;
-    redraw(rerender);
+    redraw(host, rerender);
   });
 
   on(host, 'click', '[data-act="toggle-status"]', () => {
@@ -1391,7 +1572,7 @@ function wire(host) {
     const next = $('[data-act="text-search"]', host);
     next?.focus(); next?.setSelectionRange(caret, caret);
   });
-  on(host, 'change', '[data-act="band-filter"]', (e) => { view.bandFilter = e.target.value; redraw(rerender); });
+  on(host, 'change', '[data-act="band-filter"]', (e) => { view.bandFilter = e.target.value; redraw(host, rerender); });
   on(host, 'click', '[data-act="open-response"]', (e, el) => openResponseDetail(el.dataset.id));
 
   /* Impact tab */

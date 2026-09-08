@@ -5,7 +5,7 @@
 import {
   html, raw, esc, icon, $, $$, on, count, percent, relativeTime, absoluteTime,
   ratingValue, ratingColor, dropdown, wireDropdowns, toast, dialog, wireOnce, keepScroll,
-  lazySection, skel, countUp, growPlots, navigate,
+  lazySection, skel, countUp, growPlots, swapCharts, navigate,
 } from './core.js';
 import { store } from './store.js';
 import {
@@ -35,10 +35,6 @@ const view = {
 };
 
 const FIELD_LABEL = { name: 'campaign name', id: 'campaign ID', trigger: 'trigger' };
-
-/** Matches --motion-fast in supabase.css: how long the old plot takes to leave. */
-const SWAP_OUT = 120;
-const REDUCED = matchMedia('(prefers-reduced-motion: reduce)');
 
 /** How each headline figure renders mid-tween. */
 const FIGURE_FORMAT = {
@@ -97,6 +93,63 @@ function campaignCell(c) {
     </div>`;
 }
 
+/* ==========================================================================
+   Row menu (FR-74, FR-81)
+
+   Everything you can do to a campaign without opening it. It exists because
+   the row had run out of room: Clone had taken a column of its own, and Pause,
+   Resume and Stop were reachable only from inside the campaign — so holding a
+   campaign that had started misbehaving meant opening it first, which is the
+   one moment nobody wants an extra screen.
+
+   Status-adaptive rather than uniform. A Draft has never sent anything, so
+   Pause and Stop are not "disabled" for it — they are meaningless, and a menu
+   of greyed rows the reader has to read past is worse than a short one. Delete
+   is the exception that stays visible while disabled: a reader who cannot find
+   it assumes the product cannot do it, so it is shown with the reason it
+   cannot be pressed attached.
+   ========================================================================== */
+
+/** Deleting is for campaigns that are not currently sending to anyone. */
+const canDelete = (c) => c.status !== 'Live' && c.status !== 'Paused';
+
+/** Only a campaign that has run has anything to export. */
+const hasData = (c) => c.status !== 'Draft' && c.status !== 'Scheduled';
+
+function rowMenu(c) {
+  const item = (act, ic, label, extra = '') =>
+    `<button class="dd-item" role="menuitem" data-act="${act}" data-id="${esc(c.id)}" ${extra}>${icon(ic)}${esc(label)}</button>`;
+  const isLive = c.status === 'Live';
+  const isPaused = c.status === 'Paused';
+  const running = isLive || isPaused;
+
+  const items = [
+    item('rename', 'pencil', 'Rename…'),
+    item('clone', 'clone', 'Clone…'),
+    item('copy-id', 'copy', 'Copy campaign ID'),
+    hasData(c) ? item('export', 'download', 'Export…') : '',
+    // FR-79 — the run controls, on the row rather than one screen inside it.
+    running ? '<div class="dd-sep"></div>' : '',
+    isLive ? item('pause', 'pause', 'Pause') : '',
+    isPaused ? item('resume', 'play', 'Resume') : '',
+    running ? item('stop', 'stop', 'Stop…') : '',
+    '<div class="dd-sep"></div>',
+    canDelete(c)
+      ? item('delete', 'trash', 'Delete…', 'data-tone="danger"')
+      : item('delete', 'trash', 'Delete…',
+        `disabled data-tone="danger" title="A ${esc(c.status.toLowerCase())} campaign is still enrolling users. Stop it first."`),
+  ];
+
+  return dropdown({
+    trigger: icon('ellipsis'),
+    triggerClass: 'btn btn-ghost btn-icon btn-sm',
+    triggerLabel: `Actions for ${c.name}`,
+    label: c.name,
+    items: items.filter(Boolean).join(''),
+    dismissOnSelect: true,
+  });
+}
+
 function rowMarkup(c) {
   const cols = view.columns;
   const isBuilderRoute = c.status === 'Draft' || c.status === 'Scheduled';
@@ -124,15 +177,14 @@ function rowMarkup(c) {
           <span class="t-xs fg-lighter tip" data-tip="${absoluteTime(c.updatedAt)}">${relativeTime(c.updatedAt)}</span>
         </td>` : '')}
       <td class="ta-r">
-        <button class="btn btn-ghost btn-sm" data-act="clone" data-id="${c.id}">
-          ${raw(icon('clone'))}Clone
-        </button>
-      </td>
-      <td class="ta-r">
         <button class="btn btn-default btn-sm" data-act="open" data-id="${c.id}">
           ${isBuilderRoute ? 'Resume' : 'Open'}${raw(icon('right'))}
         </button>
       </td>
+      <!-- Clone used to have this column to itself. Everything that is not the
+           one action a row is for now lives behind the menu, which is what made
+           room for the run controls to come out of the campaign. -->
+      <td class="ta-r" style="width:1%">${raw(rowMenu(c))}</td>
     </tr>`;
 }
 
@@ -169,6 +221,17 @@ function metricCard({ name, legend = [], value, subs = [], rows, series, axis, b
   const span = peak - floor || 1;
 
   const bars = rows.map((row) => {
+    // What the readout says for this column: one line per series, in the ink
+    // the series is drawn in. Built here rather than in the hover handler
+    // because this is the only place that knows what the card is measuring —
+    // by the time the pointer arrives, `series` is long out of scope.
+    const readout = series.map((s) => ({
+      label: s.label,
+      value: s.read ? s.read(row) : count(Math.round(s.of(row))),
+      fill: typeof s.fill === 'function' ? s.fill(row) : s.fill,
+      opacity: s.opacity || '1',
+    }));
+
     const segs = series.map((s, i) => {
       // Only the base segment carries the floor; the ones stacked on it are
       // already measured from where it ends.
@@ -178,7 +241,8 @@ function metricCard({ name, legend = [], value, subs = [], rows, series, axis, b
       return `<span class="chart-seg" style="height:${height.toFixed(1)}px;background:${fill}${s.opacity ? `;opacity:${s.opacity}` : ''}"></span>`;
     });
     // Stacked top-down, so the qualifying series sits above the base it came out of.
-    return `<span class="chart-col" title="${esc(row.label)}">${segs.reverse().join('')}</span>`;
+    return `<span class="chart-col" data-label="${esc(row.label)}"
+                  data-readout="${esc(JSON.stringify(readout))}">${segs.reverse().join('')}</span>`;
   });
 
   return html`
@@ -198,6 +262,7 @@ function metricCard({ name, legend = [], value, subs = [], rows, series, axis, b
       <div class="metric-plot">
         <div class="chart-plot" style="height:40px" aria-hidden="true">${raw(bars.join(''))}</div>
         <div class="metric-axis"><span>${axis[0]}</span><span>${axis[1]}</span></div>
+        <div class="chart-tip" data-chart-tip></div>
       </div>
     </div>`;
 }
@@ -253,8 +318,8 @@ function activityStrip(campaigns) {
           rows,
           axis,
           series: [
-            { of: (r) => r.sent - r.failed, fill: 'var(--brand-default)', opacity: '.32' },
-            { of: (r) => r.failed, fill: 'var(--destructive)' },
+            { label: 'Delivered', of: (r) => r.sent - r.failed, fill: 'var(--brand-default)', opacity: '.32' },
+            { label: 'Failed', of: (r) => r.failed, fill: 'var(--destructive)' },
           ],
         }))}
 
@@ -266,8 +331,8 @@ function activityStrip(campaigns) {
           rows,
           axis,
           series: [
-            { of: (r) => r.completed, fill: 'var(--brand-default)' },
-            { of: (r) => r.abandoned, fill: 'var(--warning)' },
+            { label: 'Completed', of: (r) => r.completed, fill: 'var(--brand-default)' },
+            { label: 'Abandoned', of: (r) => r.abandoned, fill: 'var(--warning)' },
           ],
         }))}
 
@@ -278,7 +343,10 @@ function activityStrip(campaigns) {
           rows,
           band: true,
           axis: bandAxis(rows.map(dayRate), (v) => percent(v, 0)),
-          series: [{ of: dayRate, fill: 'var(--brand-default)', opacity: '.75' }],
+          series: [{
+            label: 'Completion', of: dayRate, read: (r) => percent(dayRate(r), 0),
+            fill: 'var(--brand-default)', opacity: '.75',
+          }],
         }))}
 
         ${raw(metricCard({
@@ -291,10 +359,83 @@ function activityStrip(campaigns) {
           axis: bandAxis(rows.map((r) => r.rating), (v) => v.toFixed(1)),
           // Each bar takes its own point's ramp colour: the trend is readable
           // as colour before the heights are read as a shape.
-          series: [{ of: (r) => r.rating, fill: (r) => ratingColor(r.rating, 10) }],
+          series: [{
+            label: 'Rating', of: (r) => r.rating, read: (r) => r.rating.toFixed(1),
+            fill: (r) => ratingColor(r.rating, 10),
+          }],
         }))}
       </div>
     </section>`;
+}
+
+/* ==========================================================================
+   Reading a card
+
+   Four cards, twenty-four columns each, and until now the only way to ask one
+   what a day was worth was the browser's own `title` tooltip — which gave the
+   date and none of the numbers, unstyled, on the browser's own schedule.
+
+   The Insights delivery chart already had a proper readout. This is the same
+   component on the screen the reader lands on first, so it behaves the same
+   way: the column under the pointer holds its ink while its neighbours step
+   back, and the card's own figures for that day open beside it.
+
+   Bound to the plot, not to each column, and re-bound on every paint — these
+   nodes are replaced wholesale by innerHTML, so a listener on a column would
+   be thrown away with it. mousemove rather than mouseenter for the same reason
+   the Insights chart uses it: the columns are 3px apart, and entering each one
+   separately makes the readout flicker as the pointer crosses the gaps.
+   ========================================================================== */
+function wireMetricCharts(host) {
+  $$('.metric-plot', host).forEach((plot) => {
+    const chart = $('.chart-plot', plot);
+    const tip = $('[data-chart-tip]', plot);
+    if (!chart || !tip) return;
+
+    let reading = null;
+
+    const clear = () => {
+      if (!reading) return;
+      reading.removeAttribute('data-on');
+      reading = null;
+      chart.removeAttribute('data-reading');
+      tip.dataset.open = 'false';
+    };
+
+    plot.addEventListener('mousemove', (event) => {
+      const col = event.target.closest('.chart-col');
+      if (!col) { clear(); return; }
+
+      if (col !== reading) {
+        if (reading) reading.removeAttribute('data-on');
+        col.setAttribute('data-on', '');
+        chart.dataset.reading = 'true';
+        reading = col;
+        // Only rebuilt when the column changes. Rewriting it on every mousemove
+        // would relayout the tip forty times a second for the same content.
+        let rows = [];
+        try { rows = JSON.parse(col.dataset.readout || '[]'); } catch { rows = []; }
+        tip.innerHTML = html`
+          ${raw(rows.map((r) => `
+            <div class="chart-tip-row">
+              <i style="background:${r.fill};opacity:${r.opacity}"></i>
+              <span>${esc(r.label)}</span><b>${esc(r.value)}</b>
+            </div>`).join(''))}
+          <div class="chart-tip-foot">${col.dataset.label}</div>`;
+      }
+
+      // Measured after filling, then flipped to the left of the cursor where it
+      // would otherwise run past the card's right edge — the cards are 300px
+      // wide, so the right-hand third of every plot needs the flip.
+      const box = plot.getBoundingClientRect();
+      const x = event.clientX - box.left;
+      tip.style.left = `${Math.min(Math.max(0, x + 12), Math.max(0, box.width - tip.offsetWidth))}px`;
+      tip.style.top = `${Math.max(0, event.clientY - box.top - tip.offsetHeight - 10)}px`;
+      tip.dataset.open = 'true';
+    });
+
+    plot.addEventListener('mouseleave', clear);
+  });
 }
 
 /* ==========================================================================
@@ -346,7 +487,7 @@ function listSkeleton(total) {
       ${raw(cols.rating ? right('32px') : '')}
       ${raw(cols.updated ? `<td>${skel('76px', 11)}</td>` : '')}
       <td class="ta-r">${raw(skel('58px', 24, 'margin-left:auto'))}</td>
-      <td class="ta-r">${raw(skel('58px', 24, 'margin-left:auto'))}</td>
+      <td class="ta-r">${raw(skel('24px', 24, 'margin-left:auto'))}</td>
     </tr>`);
 
   return html`
@@ -364,7 +505,8 @@ function listSkeleton(total) {
               ${raw(cols.responses ? '<th class="ta-r">Responses</th>' : '')}
               ${raw(cols.rating ? '<th class="ta-r">Avg rating</th>' : '')}
               ${raw(cols.updated ? '<th>Updated</th>' : '')}
-              <th class="ta-r">Clone</th><th class="ta-r">Open</th>
+              <th class="ta-r">Open</th>
+              <th class="ta-r"><span class="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -482,7 +624,8 @@ function paintDashboard(host, { pending = false, entering = false } = {}) {
                     ${raw(cols.responses ? '<th class="ta-r">Responses</th>' : '')}
                     ${raw(cols.rating ? '<th class="ta-r">Avg rating</th>' : '')}
                     ${raw(cols.updated ? '<th>Updated</th>' : '')}
-                    <th class="ta-r">Clone</th><th class="ta-r">Open</th>
+                    <th class="ta-r">Open</th>
+                    <th class="ta-r"><span class="sr-only">Actions</span></th>
                   </tr>
                 </thead>
                 <tbody>${list.map(rowMarkup)}</tbody>
@@ -515,6 +658,9 @@ function paintDashboard(host, { pending = false, entering = false } = {}) {
   }
 
   wireDropdowns(host);
+  // Bound to the plots this paint just created, so it re-binds every time —
+  // unlike the delegated listeners in wire().
+  wireMetricCharts(host);
   wireOnce(host, 'dashWired', wire);
 }
 
@@ -586,6 +732,137 @@ function wire(host) {
     setTimeout(() => { navigate('builder.html'); }, 350);
   });
 
+  /* ---- Row menu (FR-74, FR-79, FR-81) ---- */
+  const find = (id) => store.state.campaigns.find((c) => c.id === id);
+
+  on(host, 'click', '[data-act="rename"]', async (event, btn) => {
+    const campaign = find(btn.dataset.id);
+    if (!campaign) return;
+    let name = campaign.name;
+    const ok = await dialog({
+      title: 'Rename campaign',
+      body: html`
+        <div class="field">
+          <label class="label" for="rename-input">Campaign name</label>
+          <input class="input" id="rename-input" value="${campaign.name}" />
+          <span class="hint">The campaign ID stays <span class="mono">${campaign.campaignId}</span>.
+            Nothing else about the campaign changes.</span>
+        </div>`,
+      actions: [
+        { label: 'Cancel', kind: 'outline', value: false },
+        { label: 'Rename', kind: 'primary', value: true },
+      ],
+      onMount: (body) => {
+        const input = $('#rename-input', body);
+        input.addEventListener('input', () => { name = input.value; });
+        input.focus();
+        input.select();
+      },
+    });
+    if (!ok || !name.trim() || name.trim() === campaign.name) return;
+    store.renameCampaign(campaign.id, name.trim());
+    rerender();
+    $(`tr[data-id="${campaign.id}"]`, host)?.setAttribute('data-flash', '');
+    toast('Campaign renamed', `Now “${name.trim()}”.`);
+  });
+
+  on(host, 'click', '[data-act="copy-id"]', async (event, btn) => {
+    const campaign = find(btn.dataset.id);
+    if (!campaign) return;
+    // The clipboard is refused outside a secure context and in some embedded
+    // browsers. The id is on the row and selectable (FR-75), so a failure has
+    // somewhere to point rather than nowhere.
+    try {
+      await navigator.clipboard.writeText(campaign.campaignId);
+      toast('Copied', `${campaign.campaignId} is on your clipboard.`);
+    } catch {
+      toast('Could not copy', `Select ${campaign.campaignId} on the row to copy it by hand.`, 'warning');
+    }
+  });
+
+  on(host, 'click', '[data-act="export"]', (event, btn) => {
+    const campaign = find(btn.dataset.id);
+    if (!campaign) return;
+    toast('Export queued', `A download link for “${campaign.name}” will arrive by email when it is ready.`);
+  });
+
+  // FR-79 — holding and resuming enrolment, without opening the campaign.
+  on(host, 'click', '[data-act="pause"], [data-act="resume"]', (event, btn) => {
+    const campaign = find(btn.dataset.id);
+    if (!campaign) return;
+    const next = btn.dataset.act === 'pause' ? 'Paused' : 'Live';
+    store.setCampaignStatus(campaign.id, next);
+    rerender();
+    toast(next === 'Paused' ? 'Campaign paused' : 'Campaign resumed',
+      next === 'Paused'
+        ? 'Enrolment is held. Nothing already sent is affected.'
+        : 'Rolling enrolment has resumed.');
+  });
+
+  // FR-48 — stopping is permanent, so it asks. Same wording the insights page
+  // uses, because it is the same action and a reader should not have to work
+  // out whether two screens mean the same thing by it.
+  on(host, 'click', '[data-act="stop"]', async (event, btn) => {
+    const campaign = find(btn.dataset.id);
+    if (!campaign) return;
+    const ok = await dialog({
+      title: `Stop “${campaign.name}”?`,
+      body: html`<p class="t-body fg-light">
+        Stopping ends enrolment permanently. Everything already collected stays on the
+        campaign's insights page. A stopped campaign cannot be resumed.</p>`,
+      actions: [
+        { label: 'Cancel', kind: 'outline', value: false },
+        { label: 'Stop campaign', kind: 'danger', value: true },
+      ],
+    });
+    if (!ok) return;
+    store.setCampaignStatus(campaign.id, 'Stopped');
+    rerender();
+    toast('Campaign stopped', 'Enrolment has ended. Collected responses remain here.');
+  });
+
+  /* Delete asks, then hands back a way out. The dialog is where the reader
+     decides; the toast is where they change their mind, which is a different
+     moment and needs its own affordance — an undo they have to go looking for
+     after the row has gone is not one. */
+  on(host, 'click', '[data-act="delete"]', async (event, btn) => {
+    const campaign = find(btn.dataset.id);
+    if (!campaign || !canDelete(campaign)) return;
+    const collected = campaign.responses > 0;
+    const ok = await dialog({
+      title: `Delete “${campaign.name}”?`,
+      body: html`
+        <p class="t-body fg-light">
+          ${raw(collected
+            ? `This campaign has collected <span class="mono">${count(campaign.responses)}</span> responses.
+               Deleting it removes them and its insights page along with it.`
+            : 'This campaign has collected nothing, so there is no response data to lose.')}
+        </p>
+        <p class="t-body fg-lighter" style="margin-top:10px">
+          You can undo this from the confirmation for a few seconds.
+        </p>`,
+      actions: [
+        { label: 'Cancel', kind: 'outline', value: false },
+        { label: 'Delete campaign', kind: 'danger', value: true },
+      ],
+    });
+    if (!ok) return;
+    const record = store.deleteCampaign(campaign.id);
+    rerender();
+    toast('Campaign deleted', `“${campaign.name}” was removed.`, 'danger', {
+      label: 'Undo',
+      icon: 'undo',
+      onClick: () => {
+        store.restoreCampaign(record);
+        rerender();
+        // Marked on its way back so the reader finds the row again rather than
+        // scanning the list for what returned.
+        $(`tr[data-id="${record.row.id}"]`, host)?.setAttribute('data-flash', '');
+        toast('Campaign restored', `“${record.row.name}” is back in the list.`);
+      },
+    });
+  });
+
   on(host, 'input', '[data-act="search"]', (event) => {
     view.query = event.target.value;
     const caret = event.target.selectionStart;
@@ -599,29 +876,22 @@ function wire(host) {
   on(host, 'click', '[data-act="clear"]', () => { view.query = ''; rerender(); });
   on(host, 'click', '[data-act="set-sort"]', (event, btn) => { view.sort = btn.dataset.key; rerender(); });
   /* Re-slices the figures and the sparklines together — they read the same
-     rows. This is the one interaction where a number and the shape behind it
-     change meaning at the same moment, so it is the one that earns a
-     transition: without it the four cards hard-cut and the reader cannot tell
-     the window changed from the data changing.
+     rows, so a number and the shape behind it change meaning at the same
+     moment. Without the swap the four cards hard-cut and the reader cannot
+     tell the window changed from the data changing.
 
-     7 days and 30 days are 7 and 24 columns, so there is nothing to morph
-     between — the old plot leaves, and the new series grows back from its own
-     baseline, each column just behind the last. */
-  on(host, 'click', '[data-act="set-range"]', async (event, btn) => {
+     Sort, search and the column toggles deliberately do not swap: they filter
+     the list below, and the strip measures the workspace rather than the list.
+     Nothing in these four cards changes, so animating them would claim
+     something happened to figures that did not move. */
+  on(host, 'click', '[data-act="set-range"]', (event, btn) => {
     if (view.range === btn.dataset.key) return;
     view.range = btn.dataset.key;
-
-    // Captured before the repaint replaces the nodes holding them.
+    // Captured before the repaint replaces the nodes holding them, and spent
+    // between the repaint and the regrow — so the figure counts to its new
+    // window while the series it belongs to grows back underneath it.
     const figures = readFigures(host);
-    if (!REDUCED.matches) {
-      $$('.chart-plot', host).forEach((plot) => { plot.dataset.swap = 'out'; });
-      await new Promise((done) => setTimeout(done, SWAP_OUT));
-    }
-    rerender();
-    // The figures count to their new window while the series grows back, so
-    // the number and the shape it belongs to change as one event.
-    countFigures(host, figures);
-    growPlots(host);
+    swapCharts(host, rerender, () => countFigures(host, figures));
   });
   on(host, 'click', '[data-act="toggle-col"]', (event, btn) => {
     view.columns[btn.dataset.key] = !view.columns[btn.dataset.key];

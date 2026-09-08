@@ -1,10 +1,12 @@
 /* ==========================================================================
-   builder.js — the six-step wizard.
+   builder.js — the four-step wizard.
    OD-15 resolved as full-screen focus mode with only an exit control; OD-9 /
-   OD-18 resolved as six steps with the template gallery as step 1 inside the
-   stepper; OD-16 resolved as the stepper alone — it is on screen at every
+   OD-18 resolved with the template gallery inside the stepper rather than in
+   front of it; OD-16 resolved as the stepper alone — it is on screen at every
    step and every completed step in it is clickable, so a Back button was a
    second route to the same place and the only one that could not skip.
+
+   Six steps became four: see STEPS below for which two pairs merged and why.
    ========================================================================== */
 import {
   html, raw, esc, icon, $, $$, on, uid, count, relativeTime, dropdown, wireDropdowns,
@@ -12,7 +14,7 @@ import {
 } from './core.js';
 import {
   store, createVariant, reconcileVariants, validateStep, furthestReachableStep,
-  audienceReach, templateOf, suggestGoalFromObjective,
+  audienceReach, templateOf, suggestGoalFromObjective, STEP_COUNT,
 } from './store.js';
 import {
   GOALS, EXCLUSION_LISTS, RULE_FIELDS, RULE_OPERATORS, TEST_ACCOUNTS, OBJECTIVE_STARTERS,
@@ -21,17 +23,35 @@ import { renderContentStep, wireContentStep, phonePreview } from './content-step
 import { navRail, wireRailCollapse } from './shell.js';
 import { mountAssistant, openAssistant } from './assistant.js';
 
+/**
+ * Four steps, not six.
+ *
+ * The two merges are the same argument made twice: a step should be a decision
+ * the reader can finish, and two of the six were halves of one. "Start from"
+ * picked a goal and wrote an objective; "Campaign Details" named the thing and
+ * said which apps and how many variants — between them, one answer to *what is
+ * this campaign*, split across a Next button for no reason the reader could
+ * see. Schedule and Test & Publish were the same: nobody sets a start date and
+ * then leaves; they set it because they are about to publish.
+ *
+ * Content and Audience stayed whole. Both are genuinely large, both gate on
+ * their own validation, and neither is half of anything.
+ */
 export const STEPS = [
-  { n: 1, label: 'Start from' },
-  { n: 2, label: 'Campaign Details' },
-  { n: 3, label: 'Audience' },
-  { n: 4, label: 'Content' },
-  { n: 5, label: 'Schedule' },
-  { n: 6, label: 'Test & Publish' },
+  { n: 1, label: 'Start & details' },
+  { n: 2, label: 'Audience' },
+  { n: 3, label: 'Content' },
+  { n: 4, label: 'Schedule & publish' },
 ];
 
+// The count is the validator's, in store.js — a label list that disagreed with
+// it would put a step in the stepper that nothing checks.
+if (STEPS.length !== STEP_COUNT) {
+  throw new Error(`STEPS has ${STEPS.length} labels but the validator counts ${STEP_COUNT} steps.`);
+}
+
 /** Transient screen state — not part of the saved draft. */
-const ui = { showIssues: false, attention: new Set(), previewPick: null };
+const ui = { showIssues: false, attention: new Set(), previewPick: null, shake: false };
 
 /* ==========================================================================
    Stepper (FR-64 … FR-69)
@@ -65,9 +85,27 @@ function stepper(draft) {
 }
 
 /* ==========================================================================
-   Step 1 — Start from (FR-5 … FR-7)
+   Step 1 — Start & details (FR-5 … FR-11)
+
+   The old steps 1 and 2, which were one decision wearing two hats: what this
+   campaign is for, and what it is called and where it runs. The goal grid is
+   full width because it is a gallery; everything under it is prose and short
+   fields, and is held to a column so the name input does not run the width of
+   a 2560px console.
    ========================================================================== */
+const APP_OPTIONS = [
+  { id: 'android', label: 'Android', note: 'Push, in-app, web view' },
+  { id: 'ios', label: 'iOS', note: 'Push, in-app' },
+  { id: 'web', label: 'Web', note: 'On-site, web push' },
+];
+const TYPE_OPTIONS = [
+  { id: 'regular', label: 'Regular', note: 'One piece of content, one tab in the Content step.' },
+  { id: 'ab', label: 'A/B Testing', note: 'Two variants you weight yourself. Extensible to more.' },
+  { id: 'intelligent-ab', label: 'Intelligent A/B', note: 'Starts at an even split, then AI shifts weight to the winner.' },
+];
+
 function step1(draft, issues) {
+  const issue = (f) => issues.find((i) => i.field === f);
   const goals = html`
       <div class="grid g4">
         ${GOALS.map((goal) => html`
@@ -103,10 +141,12 @@ function step1(draft, issues) {
   return html`
     <section class="stack-lg" aria-labelledby="s1">
       <header>
-        <!-- FR-7 — step 1 reads as "start from"; "template" is reserved for step 4. -->
+        <!-- FR-7 — this step reads as "start from"; "template" is reserved for
+             the Content step. -->
         <h2 class="t-h1" id="s1">What do you want to find out?</h2>
         <p class="t-body fg-lighter" style="margin-top:2px;max-width:70ch">
-          The goal you start from sets the defaults for every step after this.
+          The goal you start from sets the defaults for every step after this. The three
+          answers under it decide which components and elements the Content step can offer you.
         </p>
       </header>
 
@@ -116,10 +156,68 @@ function step1(draft, issues) {
         required: true,
         desc: 'Pick one. Everything it sets stays editable as you go.',
         body: goals,
-        error: ui.showIssues && issues.length ? 'Choose what you want to start from to continue.' : '',
+        // FR-69 — only the goal blocks here; the name and app errors ride on
+        // their own panels below, where the field the reader has to fix is.
+        error: ui.showIssues && issue('goal') ? 'Choose what you want to start from to continue.' : '',
       }))}
 
-      ${raw(objectiveSection(draft))}
+      <div class="stack-lg" style="max-width:820px">
+        ${raw(objectiveSection(draft))}
+        ${raw(stepPanel({
+          title: 'Campaign name',
+          required: true,
+          desc: 'Used as the identifier across the builder, the campaign list and the insights page.',
+          rows: html`
+            <div class="srow">
+              <div class="srow-main">
+                <label class="srow-label" for="cname">Name</label>
+                <p class="srow-desc">Somewhere between a label and a sentence — enough for the next
+                  person to recognise it in a list.</p>
+              </div>
+              <div class="srow-ctl">
+                <input class="input" id="cname" data-act="name" value="${draft.name}"
+                       placeholder="e.g. Post-delivery feedback · Bandra"
+                       aria-invalid="${!!(ui.showIssues && issue('name'))}" />
+                ${raw(ui.showIssues && issue('name')
+                  ? `<span class="error" role="alert">${esc(issue('name').message)}</span>` : '')}
+              </div>
+            </div>`,
+        }))}
+
+        ${raw(stepPanel({
+          title: 'Apps',
+          required: true,
+          desc: 'At least one. App selection constrains the components available in the Content step.',
+          body: html`
+            <div class="grid g3">
+              ${APP_OPTIONS.map((a) => html`
+                <label class="opt ${draft.apps.includes(a.id) ? 'is-on' : ''}">
+                  <input class="check" type="checkbox" data-act="app" data-id="${a.id}"
+                         ${raw(draft.apps.includes(a.id) ? 'checked' : '')} />
+                  <span><span class="opt-title">${a.label}</span><span class="opt-note">${a.note}</span></span>
+                </label>`)}
+            </div>`,
+          error: ui.showIssues && issue('apps') ? issue('apps').message : '',
+        }))}
+
+        ${raw(stepPanel({
+          title: 'Campaign type',
+          required: true,
+          desc: 'How many pieces of content this campaign runs, and who decides the split.',
+          body: html`
+            <div class="stack-sm">
+              ${TYPE_OPTIONS.map((t) => html`
+                <label class="opt ${draft.type === t.id ? 'is-on' : ''}">
+                  <input class="radio" type="radio" name="ctype" data-act="type" data-id="${t.id}"
+                         ${raw(draft.type === t.id ? 'checked' : '')} />
+                  <span><span class="opt-title">${t.label}</span><span class="opt-note">${t.note}</span></span>
+                </label>`)}
+            </div>`,
+          // FR-11 — channel is deliberately not here.
+          note: 'Channel is chosen in the Content step, not here — so the builder can hide components '
+            + 'that cannot render your questions at the moment you pick one.',
+        }))}
+      </div>
     </section>`;
 }
 
@@ -134,7 +232,7 @@ function step1(draft, issues) {
 
    Deliberately not gated. FR-1 blocks on configuration, and a blocked advance
    on a free-text box is the fastest way to teach people to type "asdf". The
-   cost of leaving it empty is stated instead — here, on step 6, and in what the
+   cost of leaving it empty is stated instead — here, on the final step, and in what the
    assistant can answer.
    -------------------------------------------------------------------------- */
 const OBJECTIVE_MAX = 400;
@@ -200,104 +298,20 @@ function objectiveSection(draft) {
           </div>`)}
       </div>`;
 
-  // Narrower than the goal grid above it on purpose: this is prose, and a field
-  // the width of the console would set 200 characters to the line.
-  return html`
-    <div style="max-width:820px">
-      ${raw(stepPanel({
-        id: 's1-obj',
-        title: 'Campaign objective',
-        desc: 'Why this campaign exists, in your own words. It configures nothing and travels with the draft.',
-        actions: '<span class="badge">Optional</span>',
-        body,
-      }))}
-    </div>`;
+  // The column this sits in is the step's, not this panel's: the goal grid
+  // above is a gallery and wants the width, while this and the three fields
+  // under it are prose and would otherwise set 200 characters to the line.
+  return stepPanel({
+    id: 's1-obj',
+    title: 'Campaign objective',
+    desc: 'Why this campaign exists, in your own words. It configures nothing and travels with the draft.',
+    actions: '<span class="badge">Optional</span>',
+    body,
+  });
 }
 
 /* ==========================================================================
-   Step 2 — Campaign Details (FR-8 … FR-11)
-   ========================================================================== */
-const APP_OPTIONS = [
-  { id: 'android', label: 'Android', note: 'Push, in-app, web view' },
-  { id: 'ios', label: 'iOS', note: 'Push, in-app' },
-  { id: 'web', label: 'Web', note: 'On-site, web push' },
-];
-const TYPE_OPTIONS = [
-  { id: 'regular', label: 'Regular', note: 'One piece of content, one tab in the Content step.' },
-  { id: 'ab', label: 'A/B Testing', note: 'Two variants you weight yourself. Extensible to more.' },
-  { id: 'intelligent-ab', label: 'Intelligent A/B', note: 'Starts at an even split, then AI shifts weight to the winner.' },
-];
-
-function step2(draft, issues) {
-  const issue = (f) => issues.find((i) => i.field === f);
-  return html`
-    <section class="stack-lg" style="max-width:760px" aria-labelledby="s2">
-      <header>
-        <h2 class="t-h1" id="s2">Campaign details</h2>
-        <p class="t-body fg-lighter" style="margin-top:2px">
-          These three answers decide which components and elements the Content step can offer you.
-        </p>
-      </header>
-
-      ${raw(stepPanel({
-        title: 'Campaign name',
-        required: true,
-        desc: 'Used as the identifier across the builder, the campaign list and the insights page.',
-        rows: html`
-          <div class="srow">
-            <div class="srow-main">
-              <label class="srow-label" for="cname">Name</label>
-              <p class="srow-desc">Somewhere between a label and a sentence — enough for the next
-                person to recognise it in a list.</p>
-            </div>
-            <div class="srow-ctl">
-              <input class="input" id="cname" data-act="name" value="${draft.name}"
-                     placeholder="e.g. Post-delivery feedback · Bandra"
-                     aria-invalid="${!!(ui.showIssues && issue('name'))}" />
-              ${raw(ui.showIssues && issue('name')
-                ? `<span class="error" role="alert">${esc(issue('name').message)}</span>` : '')}
-            </div>
-          </div>`,
-      }))}
-
-      ${raw(stepPanel({
-        title: 'Apps',
-        required: true,
-        desc: 'At least one. App selection constrains the components available in the Content step.',
-        body: html`
-          <div class="grid g3">
-            ${APP_OPTIONS.map((a) => html`
-              <label class="opt ${draft.apps.includes(a.id) ? 'is-on' : ''}">
-                <input class="check" type="checkbox" data-act="app" data-id="${a.id}"
-                       ${raw(draft.apps.includes(a.id) ? 'checked' : '')} />
-                <span><span class="opt-title">${a.label}</span><span class="opt-note">${a.note}</span></span>
-              </label>`)}
-          </div>`,
-        error: ui.showIssues && issue('apps') ? issue('apps').message : '',
-      }))}
-
-      ${raw(stepPanel({
-        title: 'Campaign type',
-        required: true,
-        desc: 'How many pieces of content this campaign runs, and who decides the split.',
-        body: html`
-          <div class="stack-sm">
-            ${TYPE_OPTIONS.map((t) => html`
-              <label class="opt ${draft.type === t.id ? 'is-on' : ''}">
-                <input class="radio" type="radio" name="ctype" data-act="type" data-id="${t.id}"
-                       ${raw(draft.type === t.id ? 'checked' : '')} />
-                <span><span class="opt-title">${t.label}</span><span class="opt-note">${t.note}</span></span>
-              </label>`)}
-          </div>`,
-        // FR-11 — channel is deliberately not here.
-        note: 'Channel is chosen in the Content step, not here — so the builder can hide components '
-          + 'that cannot render your questions at the moment you pick one.',
-      }))}
-    </section>`;
-}
-
-/* ==========================================================================
-   Step 3 — Audience (FR-12 … FR-18)
+   Step 2 — Audience (FR-12 … FR-18)
    ========================================================================== */
 const AUDIENCE_MODES = [
   { id: 'all', label: 'All users', note: 'Everyone who triggers the event.' },
@@ -409,7 +423,7 @@ function userListBody(draft) {
     ${raw(field)}`;
 }
 
-function step3(draft, issues) {
+function step2(draft, issues) {
   const { audience } = draft;
   const segments = store.state.segments;
   const { included, excluded, reach } = audienceReach(draft);
@@ -540,131 +554,124 @@ function step3(draft, issues) {
 }
 
 /* ==========================================================================
-   Step 5 — Schedule (FR-46 … FR-49)
+   Step 4 — Schedule, test & publish (FR-46 … FR-54)
+
+   The old steps 5 and 6. Setting a start date and publishing were never two
+   sittings: nobody schedules a campaign and then walks away from it, and the
+   summary panel that used to open step 6 existed largely to tell the reader
+   what they had just set on step 5. One step, one column, in the order the
+   decision is actually made — when it runs, what it is, prove it, send it —
+   with the phone preview alongside the whole of it rather than only the half
+   it used to sit beside.
    ========================================================================== */
-function step5(draft, issues) {
+function step4(draft, issues) {
   const s = draft.schedule;
-  const issue = (f) => issues.find((i) => i.field === f);
-  return html`
-    <section class="stack-lg" style="max-width:760px" aria-labelledby="s5">
-      <header>
-        <h2 class="t-h1" id="s5">Schedule</h2>
-        <p class="t-body fg-lighter" style="margin-top:2px">
-          When enrolment opens, and whether it ever closes.
-        </p>
-      </header>
-
-      ${raw(stepPanel({
-        title: 'Start',
-        required: true,
-        desc: 'When enrolment opens. The date and time are inert under Now.',
-        // FR-46 — Now or Later; the date and time inputs are disabled under Now.
-        body: html`
-          <div class="stack-sm">
-            <label class="row" style="cursor:pointer">
-              <input class="radio" type="radio" name="start" data-act="start-mode" data-id="now"
-                     ${raw(s.startMode === 'now' ? 'checked' : '')} />
-              <span class="t-sm" style="font-weight:500">Now</span>
-              <span class="hint">Enrolment opens the moment you publish.</span>
-            </label>
-            <label class="row" style="cursor:pointer">
-              <input class="radio" type="radio" name="start" data-act="start-mode" data-id="later"
-                     ${raw(s.startMode === 'later' ? 'checked' : '')} />
-              <span class="t-sm" style="font-weight:500">Later</span>
-            </label>
-            <div class="row" style="padding-left:25px">
-              <input class="input" type="date" style="width:170px" data-act="start-date" value="${s.startDate}"
-                     ${raw(s.startMode === 'now' ? 'disabled' : '')} aria-label="Start date" />
-              <input class="input" type="time" style="width:130px" data-act="start-time" value="${s.startTime}"
-                     ${raw(s.startMode === 'now' ? 'disabled' : '')} aria-label="Start time" />
-            </div>
-          </div>`,
-        error: ui.showIssues && issue('start') ? issue('start').message : '',
-      }))}
-
-      ${raw(stepPanel({
-        title: 'End',
-        required: true,
-        desc: 'Whether enrolment ever closes on its own. An end must fall after the start.',
-        // FR-47 — Never or End on; End must be after Start.
-        body: html`
-          <div class="stack-sm">
-            <label class="row" style="cursor:pointer">
-              <input class="radio" type="radio" name="end" data-act="end-mode" data-id="never"
-                     ${raw(s.endMode === 'never' ? 'checked' : '')} />
-              <span class="t-sm" style="font-weight:500">Never</span>
-              <span class="hint">Runs until you stop it manually.</span>
-            </label>
-            <label class="row" style="cursor:pointer">
-              <input class="radio" type="radio" name="end" data-act="end-mode" data-id="end-on"
-                     ${raw(s.endMode === 'end-on' ? 'checked' : '')} />
-              <span class="t-sm" style="font-weight:500">End on</span>
-            </label>
-            <div class="row" style="padding-left:25px">
-              <input class="input" type="date" style="width:170px" data-act="end-date" value="${s.endDate}"
-                     ${raw(s.endMode === 'never' ? 'disabled' : '')} aria-label="End date" />
-              <input class="input" type="time" style="width:130px" data-act="end-time" value="${s.endTime}"
-                     ${raw(s.endMode === 'never' ? 'disabled' : '')} aria-label="End time" />
-            </div>
-          </div>`,
-        // FR-48 — a Never campaign keeps enrolling until an explicit manual stop.
-        note: s.endMode === 'never'
-          ? 'With no end date this campaign runs indefinitely. Combined with rolling enrolment it '
-            + 'keeps enrolling users as they qualify, so it needs an explicit <strong>Stop</strong> — '
-            + "available on the campaign's insights page after publish."
-          : '',
-        error: ui.showIssues && issue('end') ? issue('end').message : '',
-      }))}
-
-      ${raw(stepPanel({
-        title: 'Re-entry',
-        desc: 'Whether a user who already responded can qualify again on a later trigger.',
-        // FR-49 / OD-2 — re-entry, reconciled against the per-user lock in FR-18.
-        rows: html`
-          <div class="srow srow-top">
-            <div class="srow-main">
-              <div class="srow-label">Allow users to re-enter this campaign</div>
-              <p class="srow-desc">
-                Off by default. A user is normally enrolled once and their variant locks at capture.
-                Turning this on lets a user who already responded qualify again on a later trigger —
-                they keep their original variant assignment, so re-entry adds responses without
-                re-bucketing anyone.
-              </p>
-            </div>
-            <div class="srow-ctl srow-ctl-auto">
-              <input class="switch" type="checkbox" data-act="reentry"
-                     ${raw(s.allowReentry ? 'checked' : '')} aria-label="Allow re-entry" />
-            </div>
-          </div>`,
-        note: s.allowReentry
-          ? 'Open decision <span class="mono">OD-2</span> — with re-entry on, one user can appear in '
-            + 'the response count more than once. Per-respondent figures on the insights page will '
-            + 'read higher than unique users.'
-          : '',
-      }))}
-    </section>`;
-}
-
-/* ==========================================================================
-   Step 6 — Test & Publish (FR-50 … FR-54)
-   ========================================================================== */
-function step6(draft) {
   const variant = draft.variants[0];
   const reach = audienceReach(draft);
+  const issue = (f) => issues.find((i) => i.field === f);
   return html`
-    <section class="stack-lg" aria-labelledby="s6">
+    <section class="stack-lg" aria-labelledby="s4">
       <header>
-        <h2 class="t-h1" id="s6">Test &amp; publish</h2>
+        <h2 class="t-h1" id="s4">Schedule &amp; publish</h2>
         <p class="t-body fg-lighter" style="margin-top:2px">
-          Check the configured content on device, send yourself a test, then publish.
+          When enrolment opens, whether it ever closes, and a last look at what you are
+          about to send.
         </p>
       </header>
 
       <div class="grid" style="grid-template-columns:minmax(0,1fr) 292px;gap:24px;align-items:start">
         <div class="stack-lg">
           ${raw(stepPanel({
+            title: 'Start',
+            required: true,
+            desc: 'When enrolment opens. The date and time are inert under Now.',
+            // FR-46 — Now or Later; the date and time inputs are disabled under Now.
+            body: html`
+              <div class="stack-sm">
+                <label class="row" style="cursor:pointer">
+                  <input class="radio" type="radio" name="start" data-act="start-mode" data-id="now"
+                         ${raw(s.startMode === 'now' ? 'checked' : '')} />
+                  <span class="t-sm" style="font-weight:500">Now</span>
+                  <span class="hint">Enrolment opens the moment you publish.</span>
+                </label>
+                <label class="row" style="cursor:pointer">
+                  <input class="radio" type="radio" name="start" data-act="start-mode" data-id="later"
+                         ${raw(s.startMode === 'later' ? 'checked' : '')} />
+                  <span class="t-sm" style="font-weight:500">Later</span>
+                </label>
+                <div class="row" style="padding-left:25px">
+                  <input class="input" type="date" style="width:170px" data-act="start-date" value="${s.startDate}"
+                         ${raw(s.startMode === 'now' ? 'disabled' : '')} aria-label="Start date" />
+                  <input class="input" type="time" style="width:130px" data-act="start-time" value="${s.startTime}"
+                         ${raw(s.startMode === 'now' ? 'disabled' : '')} aria-label="Start time" />
+                </div>
+              </div>`,
+            error: ui.showIssues && issue('start') ? issue('start').message : '',
+          }))}
+
+          ${raw(stepPanel({
+            title: 'End',
+            required: true,
+            desc: 'Whether enrolment ever closes on its own. An end must fall after the start.',
+            // FR-47 — Never or End on; End must be after Start.
+            body: html`
+              <div class="stack-sm">
+                <label class="row" style="cursor:pointer">
+                  <input class="radio" type="radio" name="end" data-act="end-mode" data-id="never"
+                         ${raw(s.endMode === 'never' ? 'checked' : '')} />
+                  <span class="t-sm" style="font-weight:500">Never</span>
+                  <span class="hint">Runs until you stop it manually.</span>
+                </label>
+                <label class="row" style="cursor:pointer">
+                  <input class="radio" type="radio" name="end" data-act="end-mode" data-id="end-on"
+                         ${raw(s.endMode === 'end-on' ? 'checked' : '')} />
+                  <span class="t-sm" style="font-weight:500">End on</span>
+                </label>
+                <div class="row" style="padding-left:25px">
+                  <input class="input" type="date" style="width:170px" data-act="end-date" value="${s.endDate}"
+                         ${raw(s.endMode === 'never' ? 'disabled' : '')} aria-label="End date" />
+                  <input class="input" type="time" style="width:130px" data-act="end-time" value="${s.endTime}"
+                         ${raw(s.endMode === 'never' ? 'disabled' : '')} aria-label="End time" />
+                </div>
+              </div>`,
+            // FR-48 — a Never campaign keeps enrolling until an explicit manual stop.
+            note: s.endMode === 'never'
+              ? 'With no end date this campaign runs indefinitely. Combined with rolling enrolment it '
+                + 'keeps enrolling users as they qualify, so it needs an explicit <strong>Stop</strong> — '
+                + "available on the campaign's insights page after publish."
+              : '',
+            error: ui.showIssues && issue('end') ? issue('end').message : '',
+          }))}
+
+          ${raw(stepPanel({
+            title: 'Re-entry',
+            desc: 'Whether a user who already responded can qualify again on a later trigger.',
+            // FR-49 / OD-2 — re-entry, reconciled against the per-user lock in FR-18.
+            rows: html`
+              <div class="srow srow-top">
+                <div class="srow-main">
+                  <div class="srow-label">Allow users to re-enter this campaign</div>
+                  <p class="srow-desc">
+                    Off by default. A user is normally enrolled once and their variant locks at capture.
+                    Turning this on lets a user who already responded qualify again on a later trigger —
+                    they keep their original variant assignment, so re-entry adds responses without
+                    re-bucketing anyone.
+                  </p>
+                </div>
+                <div class="srow-ctl srow-ctl-auto">
+                  <input class="switch" type="checkbox" data-act="reentry"
+                         ${raw(s.allowReentry ? 'checked' : '')} aria-label="Allow re-entry" />
+                </div>
+              </div>`,
+            note: s.allowReentry
+              ? 'Open decision <span class="mono">OD-2</span> — with re-entry on, one user can appear in '
+                + 'the response count more than once. Per-respondent figures on the insights page will '
+                + 'read higher than unique users.'
+              : '',
+          }))}
+          ${raw(stepPanel({
             title: 'Ready to publish',
-            desc: 'Everything the five steps before this one resolved to.',
+            desc: 'Everything the three steps before this one resolved to.',
             actions: `<span class="badge badge-mono">${esc(draft.campaignId)}</span>`,
             body: html`
             <div class="stack-sm">
@@ -752,7 +759,7 @@ function step6(draft) {
           ${raw(phonePreview(variant, { interactive: true, picked: ui.previewPick }))}
           <p class="hint" style="margin-top:8px;max-width:292px">
             Rendering ${templateOf(variant)?.name || 'no template'} on
-            ${variant.channel} with the questions configured in step 4.
+            ${variant.channel} with the questions configured in the Content step.
           </p>
         </aside>
       </div>
@@ -887,7 +894,7 @@ function markChangedSteps(root) {
     const { step: n, state } = step.dataset;
     next.set(n, state);
     // A first paint has no previous state: the stepper arrives with the page
-    // rather than changing, and animating all six would be a light show.
+    // rather than changing, and animating every step at once would be a light show.
     const before = stepStates.get(n);
     if (!REDUCED.matches && before !== undefined && before !== state) {
       step.dataset.changed = state;
@@ -982,10 +989,8 @@ function paintBuilder() {
   const body =
     step === 1 ? step1(draft, issues)
     : step === 2 ? step2(draft, issues)
-    : step === 3 ? step3(draft, issues)
-    : step === 4 ? renderContentStep(draft, issues)
-    : step === 5 ? step5(draft, issues)
-    : step6(draft);
+    : step === 3 ? renderContentStep(draft, issues)
+    : step4(draft, issues);
 
   root.innerHTML = html`
     <!-- OD-15 revisited — the wizard keeps its own head and footer, but the console
@@ -1018,7 +1023,7 @@ function paintBuilder() {
             : draft.lastSavedAt ? `Saved ${relativeTime(draft.lastSavedAt)}` : 'Nothing to save yet'}
         </div>
       </div>
-      <!-- FR-64 / FR-67 — all six visible at once, and the rail persists on scroll. -->
+      <!-- FR-64 / FR-67 — all four visible at once, and the rail persists on scroll. -->
       <div style="padding:0 12px 12px">${raw(stepper(draft))}</div>
     </header>
 
@@ -1044,13 +1049,13 @@ function paintBuilder() {
          one lands; a Back button beside it was a second, worse route to the
          same place, and the only one that could not skip. -->
     <footer class="builder-foot">
-      <span class="mono t-xs fg-muted">Step ${step} of 6 · ${STEPS[step - 1].label}</span>
+      <span class="mono t-xs fg-muted">Step ${step} of ${STEP_COUNT} · ${STEPS[step - 1].label}</span>
       <!-- Paired in one span so the footer's space-between still reads as three
            columns rather than four evenly spread ones. Save sits left of the
            action that moves you on, which is the only place it is ever wanted. -->
       <span class="row" style="gap:8px">
         <button class="btn btn-outline" data-act="save-draft">${raw(icon('save'))}Save draft</button>
-        ${raw(step < 6
+        ${raw(step < STEP_COUNT
           ? `<button class="btn btn-primary" data-act="next">Next${icon('right')}</button>`
           : `<button class="btn btn-primary" data-act="publish">${icon('rocket')}${
                draft.status === 'Live' ? 'Publish changes' : 'Publish campaign'}</button>`)}
@@ -1062,6 +1067,15 @@ function paintBuilder() {
   // travels, so saves and field edits repaint without moving.
   if (!mounted) { mounted = true; slideStep('fwd'); }
   markChangedSteps(root);
+
+  /* The blocked advance, announced. Scrolling the notice into view was the
+     whole of the previous feedback, which did nothing at all when the notice
+     was already on screen — pressing Next a second time on the same broken
+     step was indistinguishable from pressing a dead button. */
+  if (ui.shake) {
+    ui.shake = false;
+    if (!REDUCED.matches) $('.notice-danger', root)?.setAttribute('data-shake', '');
+  }
 
   wireDropdowns(root);
   wireRailCollapse(root, renderBuilder, 'builderNavCollapsed');
@@ -1139,6 +1153,11 @@ function wireCommon(root) {
     if (target > step && validateStep(d, step).length > 0) {
       ui.showIssues = true;
       ui.attention.add(step);
+      // Set for this paint only, and consumed by it. The notice is on screen
+      // for every repaint after the first block — including every keystroke in
+      // the field being fixed — and a shake wired to its presence rather than
+      // to the press would fire on all of them.
+      ui.shake = true;
       renderBuilder();
       $('.notice-danger')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
@@ -1357,7 +1376,7 @@ function wireCommon(root) {
     toast('Segment saved', `“${segment.name}” is in the shared library and selected here.`);
   });
 
-  /* Step 5 */
+  /* Schedule (final step, first half) */
   on(root, 'change', '[data-act="start-mode"]', (e, el) => setSchedule({ startMode: el.dataset.id }));
   on(root, 'change', '[data-act="end-mode"]', (e, el) => setSchedule({ endMode: el.dataset.id }));
   on(root, 'change', '[data-act="start-date"]', (e) => setSchedule({ startDate: e.target.value }));
@@ -1366,7 +1385,7 @@ function wireCommon(root) {
   on(root, 'change', '[data-act="end-time"]', (e) => setSchedule({ endTime: e.target.value }));
   on(root, 'change', '[data-act="reentry"]', (e) => setSchedule({ allowReentry: e.target.checked }));
 
-  /* Step 6 */
+  /* Test & publish (final step, second half) */
   on(root, 'change', '[data-act="test-account"]', (e) =>
     set({ test: { ...draft().test, account: e.target.value } }));
   on(root, 'input', '[data-act="test-user"]',
