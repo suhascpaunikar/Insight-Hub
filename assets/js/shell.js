@@ -40,7 +40,7 @@ export function navRail(active, collapsed) {
            ${raw(collapsed ? `title="${item.label}${item.badge ? ` · ${item.badge}` : ''}"` : '')}>
           ${raw(icon(item.icon))}
           <span class="rail-text truncate grow">${item.label}</span>
-          ${raw(item.badge && !collapsed
+          ${raw(item.badge
             ? `<span class="badge badge-ai badge-mono rail-text">${item.badge}</span>` : '')}
         </a>`)}
     </div>`);
@@ -154,7 +154,37 @@ export function renderShell(active) {
  */
 export function wireRailCollapse(root, rerender, key = 'navCollapsed') {
   $('[data-act="collapse"]', root)?.addEventListener('click', () => {
-    store.set({ [key]: !store.state[key] });
-    rerender();
+    const collapsed = !store.state[key];
+    store.set({ [key]: collapsed });
+
+    // Rebuilding the rail would replace the very node the width transition has
+    // to run on — the reason this never animated before. Everything that
+    // differs between the two states is small enough to update in place, and
+    // the content behind the rail did not change, so it does not repaint
+    // either. `rerender` stays the fallback for a rail that is not mounted.
+    const rail = $('.rail', root);
+    if (!rail) { rerender(); return; }
+    rail.dataset.collapsed = String(collapsed);
+    applyRailState(rail, collapsed);
   });
+}
+
+/**
+ * The parts of the rail that are markup rather than state: a collapsed link
+ * carries its label as a title, and the toggle names and draws the direction
+ * it will move next.
+ */
+function applyRailState(rail, collapsed) {
+  $$('.rail-link', rail).forEach((link) => {
+    if (!collapsed) { link.removeAttribute('title'); return; }
+    const label = $('.rail-text', link)?.textContent.trim() || '';
+    const badge = link.querySelector('.badge')?.textContent.trim();
+    link.setAttribute('title', badge ? `${label} · ${badge}` : label);
+  });
+
+  const toggle = $('[data-act="collapse"]', rail);
+  if (!toggle) return;
+  toggle.setAttribute('aria-label', collapsed ? 'Expand navigation' : 'Collapse navigation');
+  const glyph = toggle.querySelector('svg');
+  if (glyph) glyph.outerHTML = icon(collapsed ? 'panelOpen' : 'panelClose');
 }

@@ -1,213 +1,232 @@
 # Motion handover
 
-State of the dashboard motion work as of the merge of `claude/dashboard-microanimations-priority-m9nnpf`
-([PR #16](https://github.com/suhascpaunikar/Insight-Hub/pull/16)). Written so the next person can pick
-up mid-stream without re-deriving the analysis.
+Everything animated in InsightHub: what moves, why it moves that way, what is deliberately still,
+and what is left. Written to be read cold.
 
-The house rules live in **DESIGN.md → Motion**. That section is the authority; this file is the backlog.
+**`DESIGN.md` → Motion is the authority on the rules.** This file is the inventory and the backlog.
 
 ---
 
-## What shipped
+## Read this first
 
-Two commits: `4b6fc79` (the motion work) and `56f1faa` (the transitions.dev skills).
+Every screen repaints by replacing `innerHTML` — **14 sites across 8 files** (`assistant.js`,
+`builder.js`, `content-step.js`, `core.js`, `dashboard.js`, `insights.js`, `settings.js`,
+`shell.js`). Almost every non-obvious decision below traces back to it:
 
-| | Change | Where |
+1. **`transition:` cannot fire on a re-created node.** There is no previous value to move from. Any
+   rule written as a transition on something that gets repainted is dead code that *looks* correct.
+   This has bitten three separate components so far — the sparklines, the rail, and the stepper —
+   and in each case the symptom looked like a styling bug rather than an architectural one.
+2. **Entrance animations re-fire on every keystroke** unless gated, because a search keystroke and
+   a tab switch call the same render path.
+
+Two ways around it are already in the codebase, and new work should reuse them rather than
+reinventing:
+
+- **Replay** — remember the previous state, apply it to the new node, force a reflow, then flip to
+  the new one so the transition has somewhere to travel from. Used by `wireTabPill()`.
+- **Animate, don't transition** — a CSS `animation` runs on a fresh node. Mark only the elements
+  that actually changed and let the stylesheet animate them. Used by `markChangedSteps()` and
+  `growPlots()`.
+
+**The real fix is keyed reconciliation or FLIP in the render path.** It is the single
+highest-leverage refactor available here, it is what the last two backlog items are blocked on, and
+no animation library removes the need for it.
+
+---
+
+## What is live
+
+24 keyframes, 44 transition declarations, 54 of them on tokens. Six of the assistant's durations
+are deliberately hardcoded (see *Rules*).
+
+### Shell — every page
+
+| What | Trigger | Mechanism |
 | --- | --- | --- |
-| Tokens | `--motion-fast/base/slow`, `--ease-out` | `supabase.css:94-97`, documented in `DESIGN.md` |
-| P0-1 | Global `prefers-reduced-motion` guard | end of `supabase.css` |
-| P0-2 | Toast exits under its own animation | `core.js` `toast()` |
-| P0-3 | Dropdown menu entrance, origin-aware | `.dd-menu` + `@keyframes dd-in` |
-| P0-4 | Range switch crossfade + staggered regrow | `.chart-plot[data-swap]`, `dashboard.js` range handler |
-| — | `lazySection()` + shimmer skeletons | `core.js`, `dashboard.js`, `insights.js` |
+| Rail collapse | the toggle | width + label fade; `applyRailState()` in `shell.js` patches state **in place** rather than rebuilding |
+| Dropdown open / close | menu trigger | `dd-in` 180ms / `dd-out` 120ms; `closeMenu()` defers `hidden` so the exit can run |
+| Dialog + scrim | any dialog | `pop` / `fade` |
+| Toast | `toast()` | `slidein` in, 120ms out, and the stack collapses via a negative `margin-bottom` |
+| Tooltip | hover | 80ms intent delay in, instant out |
 
-**Why P0-1 mattered:** three `prefers-reduced-motion` blocks already existed, but each was scoped to a
-single assistant surface. The dialog, scrim and toast animations were unguarded. The new block at the
-foot of the stylesheet covers the rest of the product and must stay last so it wins.
+### Campaigns
 
-**Why P0-4 is a crossfade and not a height morph:** `RANGES` is 7d (7 points) and 30d (24 points).
-Different column counts, so there is no 1:1 mapping to tween between. The old plot leaves over
-`--motion-fast`, the new series grows from its own baseline at 8ms per column.
+| What | Trigger | Mechanism |
+| --- | --- | --- |
+| Skeleton → content | first visit per session | `lazySection()` + `.skel`, then `lazy-in` |
+| Sparkline entrance | content arriving | `growPlots()` sets `data-swap="in"` |
+| Range switch | range dropdown | plot crossfades out, new series grows back 8ms per column |
+| Headline figures | range switch only | `countUp()` — never on a keystroke |
+| Live status pulse | always, `Live` only | `pill-pulse`, a pseudo-element ring on transform/opacity |
+| Row hover | hover | background + 2px chevron lean |
+| Clone | confirm | `row-flash` on the source row |
 
-### Lazy sections
+### Insights
 
-A screen with data holds a shimmer skeleton for 1–1.5s, once per section per browser-tab session,
+Skeleton on the panel only — the header, filters and tab strip stay live, with the clicked tab
+already selected. Sliding tab marker via `wireTabPill()`. Chart tooltip rises 2px into place.
+
+### Builder
+
+No skeleton anywhere, by decision — a wizard step is a form being filled, not data arriving.
+
+| What | Trigger | Mechanism |
+| --- | --- | --- |
+| Step travel | `advance()` only | `step-fwd` / `step-back`; **not** wired to `renderBuilder()`, which also runs on saves and field edits |
+| Step arriving | state → `current` | marker wipes (`step-mark`), badge settles (`step-settle`) |
+| Step finishing | state → `complete` | badge pops (`step-done`), check draws (`step-check`) |
+| Reachability | `ready` ↔ `locked` | `step-unlock` / `step-lock` |
+
+`markChangedSteps()` marks only steps whose state actually changed. A first paint marks nothing —
+the stepper arrives with the page rather than changing.
+
+### Settings
+
+Skeleton on all three tabs; sliding tab marker; toasts on save and on every alert toggle.
+
+### Assistant
+
+Pre-existing and untouched: `asst-resolve`, `asst-blink`, `asst-rise`, `asst-beam-spin`,
+`asst-beam-hue`, `asst-dwell`. It has its own tuned motion and its own reduced-motion guards.
+
+---
+
+## Shared helpers
+
+| Helper | File | Does |
+| --- | --- | --- |
+| `lazySection({key, hasData, skeleton, paint})` | `core.js` | the 1–1.5s skeleton gate, cached per section per tab session |
+| `skel(width, height, extra)` | `core.js` | one placeholder block |
+| `countUp(node, from, to, format)` | `core.js` | tweens a number, respects reduced motion |
+| `wireTabPill(tabs, key)` | `core.js` | sliding tab marker with position replay |
+| `closeMenu(menu)` | `core.js` | animated dropdown close |
+| `growPlots(host)` / `countFigures(host, before)` | `dashboard.js` | chart + figure motion |
+| `markChangedSteps(root)` / `slideStep(dir)` | `builder.js` | stepper states + step travel |
+| `applyRailState(rail, collapsed)` | `shell.js` | in-place rail collapse |
+
+### Lazy sections, in detail
+
+A section with data holds a shimmer skeleton for 1–1.5s, once per section per browser-tab session,
 then the content fades up. The wait is synthetic — the prototype has no network — and exists so the
 screens demo what they will feel like against a real API.
 
-- **Cached in `sessionStorage`**, not a module flag: each screen is its own document, so a module
-  variable would not survive the walk from campaigns to insights and every trip back would reload.
+- **`sessionStorage`, not a module flag.** Each screen is its own document; a module variable would
+  not survive the walk from Campaigns to Insights, so every trip back would reload.
 - **Only where there is data.** An empty workspace and a campaign with `volumeOf(c) === 0` go
-  straight to their zero states. Settings panels are local forms and paint instantly, by decision.
-- **Chrome stays live throughout.** On an Insights tab switch only the panel below skeletons; the
-  header, filters and tab strip stay real with the clicked tab already selected. Blanking the control
-  someone just clicked reads as the click having failed.
-- **Skeleton blocks are measured, not guessed** — metric card 147px vs 147.1 real, toolbar 45 vs 45,
-  row 73 vs 73.1. The table header lands within ~1px of its loaded position. If you add a skeleton,
-  measure it the same way (recipe below) rather than eyeballing.
-- **Blocks are deliberately flat.** A skeleton that mimicked bars or a rating ramp would be fake data
-  on screen, and for the second it is up a reader cannot tell it from the real thing.
+  straight to their zero states.
+- **Chrome stays live throughout.** Blanking the control someone just clicked reads as the click
+  having failed.
+- **Blocks are measured, not guessed** — metric card 147px vs 147.1 real, toolbar 45 vs 45, row 73
+  vs 73.1; the table header lands within ~1px of its loaded position. Measure new ones the same way.
+- **Blocks are deliberately flat.** A skeleton mimicking bars or a rating ramp is fake data on
+  screen, and for the second it is up a reader cannot tell it from the real thing.
+
+**Demo note:** skeletons fire once per browser tab. Open a new tab or run `sessionStorage.clear()`
+before showing anyone.
 
 ---
 
-## The constraint that shapes everything left
+## Backlog
 
-Every screen repaints by replacing `innerHTML` — **14 sites across 8 files**
-(`assistant.js`, `builder.js`, `content-step.js`, `core.js`, `dashboard.js`, `insights.js`,
-`settings.js`, `shell.js`). Two consequences that keep recurring:
+### Worth doing — cheap, each marks a state change the user caused
 
-1. **Entrance animations re-fire on every keystroke** unless gated. Search input calls the same
-   render path as a tab switch. This is why `lazySection` keys on section identity rather than
-   firing per render.
-2. **`transition:` never runs on re-created nodes.** There is no previous state to animate from.
-   `.chart-seg { transition: height .3s }` (`supabase.css:982`) is dead code on the dashboard for
-   exactly this reason — left in place because it is live on the insights charts.
+1. **Settings save footer** (`settings.js:111`) — the best remaining item in the app. A panel going
+   dirty makes a Cancel button *appear* and Save change state, currently a hard pop-in.
+2. **Insights figure count-up** (`insights.js:220`) — the dashboard's figures count and Insights'
+   do not, so the same gesture behaves differently on two screens. The inconsistency is the problem
+   more than the missing motion. `countUp()` already exists.
+3. **Insights distribution bars** (`insights.js:285`) — `.bar-fill` has a width transition that is
+   **dead code**, same cause as the old `.chart-seg`. Fix it the way the sparklines were fixed:
+   fire on `entering`.
+4. **Validation shake** (`builder.js:534`) — the error notice appears and scrolls into view but
+   does not announce itself.
+5. **Star / rating press feedback** (`content-step.js:310`) — this is the widget your *end users*
+   tap, and it has no press state at all.
 
-Anything that needs old and new state on screen at once — row enter/exit, a true skeleton→content
-crossfade — is blocked behind this until the render path does keyed reconciliation or FLIP.
-**That is the single highest-leverage refactor available**, and no animation library removes the
-need for it.
+### Blocked on the render path
 
----
+6. **Row enter/exit on filter.** Needs keyed reconciliation or FLIP. `@formkit/auto-animate` looks
+   tailor-made and will not work: it observes a parent's children, and replacing `innerHTML`
+   destroys the `<tbody>` and the observer with it.
+7. **Skeleton → content crossfade.** Needs both layers in the DOM at once. The current `lazy-in`
+   fade-up is a reasonable substitute; the gain does not justify the refactor on its own.
 
-## Remaining work
+### Considered and rejected
 
-### Tier 1 — cheap, no architectural change
-
-1. **Tokenize the rest of the stylesheet.** 38 `transition:` declarations, 53 hardcoded duration
-   values, only 7 using the new tokens. `.12s` and `120ms` are the same number written two ways
-   **34 times**. This is the drift the tokens exist to stop, and only the rules touched in `4b6fc79`
-   were converted. Use `transitions review` (below) to enumerate, but map onto **our** scale.
-
-2. **Tooltip intent delay.** `.tip::after` (`supabase.css:523`) fades at `.12s` with no
-   `transition-delay`, so dragging the cursor across the toolbar flashes three tooltips in a row.
-   Wants ~80ms delay in, instant out.
-
-3. **Open/close asymmetry.** A close should be quicker than its open. Today the toast is symmetric
-   at `--motion-base` both directions, and `.dd-menu` has no close animation at all — it goes
-   straight to `hidden`. Both are one-line fixes.
-
-4. **Table row hover.** `.table tbody tr:hover td` (`supabase.css:403`) is an instant background
-   swap. Wants `transition: background-color .1s`, plus a 2px `translateX` on the Open chevron —
-   the pattern already exists at `supabase.css:846` for `.srow-chev`, so this is consistency, not
-   invention.
-
-5. **Live status dot pulse.** `.pill[data-status="Live"] .dot` (`supabase.css:369`) already carries
-   a static ring. Animate its scale/opacity on a ~2s loop, `Live` only. It is the one thing on
-   screen that genuinely is happening right now. Keep it CSS — a JS-driven infinite animation holds
-   the main thread awake for the life of the tab.
-
-### Tier 2 — worth doing, some effort
-
-6. **Count-up on the headline figures** (`dashboard.js:212`, the Responses collected / Completion
-   rate pair). Fire on range change only, never on a search keystroke. `.metric-value`
-   (`supabase.css:951`) already sets `tabular-nums`, so no width jitter. This finishes P0-4: right
-   now the chart animates and the number it belongs to hard-cuts. See `02-number-pop-in` in the
-   skill — but cut its 500ms to ~250ms and drop the blur.
-
-7. **Sliding tab indicator.** Insights (`insights.js`) and Settings (`settings.js`) both hard-swap
-   a `border-bottom`. `16-tabs-sliding` in the skill has the correct wire-up including the part
-   people get wrong: suspend the transition on first paint and on resize so the pill snaps into
-   position instead of flying in from zero.
-
-8. **Sparkline entrance on first paint.** Bars grow from baseline, ~20ms stagger, gated strictly to
-   first paint. Keep total stagger under ~300ms.
-
-9. **Clone flow.** `dashboard.js:558` already burns `setTimeout(…, 350)` of dead time before
-   navigating. Fill it — a brand-tinted flash on the source row.
-
-### Tier 3 — blocked or low value
-
-10. **Row enter/exit on filter.** Blocked on the `innerHTML` constraint. Needs keyed reconciliation
-    or a FLIP pass. `@formkit/auto-animate` looks tailor-made and will not work: it observes a
-    parent's children, and replacing `innerHTML` destroys the `<tbody>` and the observer with it.
-11. **Skeleton→content crossfade.** `14-skeleton-reveal` needs both layers in the DOM at once.
-    Same wall. Current `lazy-in` fade-up is a reasonable substitute; the gain does not justify the
-    refactor on its own.
-12. **`.chart-tip`** (`supabase.css:998`) fades at `.1s`; a 2px rise would make it read as attached
-    to its column.
-13. **Rail collapse.** `.rail` width animates over `.18s` but `.rail-text { display: none }`
-    (`supabase.css:550`) snaps, so labels pop while the panel glides. Fade + width, or decide the
-    snap is deliberate.
-14. **`a.metric:hover` (`supabase.css:942`) is dead code** — `metricCard` renders a `<div>`, so the
-    rule never matches. Either make the cards interactive or delete it. Do not build hover motion
-    on top of it.
+Card entrance staggers, avatar hover, empty-state entrances, device tilt, page-to-page transitions.
+These animate things that do not change meaning. `DESIGN.md` says nothing overshoots and nothing
+loops unless something is genuinely happening — decorating rather than marking state is how a
+console starts feeling like a toy.
 
 ---
 
-## The transitions.dev skills
+## Needs a product decision
 
-Installed via `npx skills add Jakubantalik/transitions.dev` → `.agents/skills/`, symlinked into
-`.claude/skills/`, pinned by `skills-lock.json`. Documentation only, no executables, nothing ships
-to the browser.
+**The stepper's `attention` state cannot render.** `stepper()` computes
+`needsAttention = ui.attention.has(s.n) && !isCurrent`, so a step never shows attention while it is
+current. But `ui.attention` is only ever *added* for the current step, on a blocked forward
+advance — and `advance()` **deletes** it on the one path that would stop that step being current.
+The flag is always cleared before it could render. Verified by walking the path: fill a name, clear
+it, hit a blocked advance, navigate away — the step comes back `ready`, never `attention`.
 
-- **`transitions-dev`** — 32 portable CSS transitions, `t-*` namespaced, each with its own
-  `prefers-reduced-motion` guard.
-- **`transitions-polish`** — audits motion that already exists. `transitions review` reports and
-  writes nothing; `transitions polish` asks before editing.
+So `.step[data-state="attention"]` and its three CSS rules are unreachable in normal use. No
+animation was added for it, because shipping motion for a state that never renders is the same dead
+code as the `a.metric:hover` rule that was removed for exactly that reason.
 
-### Read this before running `transitions polish`
-
-**Its token scale is not ours.**
-
-| Purpose | Ours (DESIGN.md) | Theirs |
-| --- | --- | --- |
-| Quick feedback | `--motion-fast: 120ms` | `--duration-quick: 150ms` |
-| Standard | `--motion-base: 180ms` | `--duration-fast: 250ms` |
-| Easing | `cubic-bezier(0.22, 0.61, 0.36, 1)` | `cubic-bezier(0.22, 1, 0.36, 1)` |
-| Hover-out | — | `--ease-bounce-strong: cubic-bezier(0.34, 3.85, 0.64, 1)` |
-
-That last row directly contradicts DESIGN.md: *nothing overshoots*. Their scale also runs roughly
-2× slower than a console wants, and leans on `filter: blur()` almost everywhere — fine on one modal,
-expensive across a 24-column chart or a 20-row table.
-
-**Use it as an auditor, not an authority.** The scan is genuinely good at finding ad-hoc values;
-map the findings onto our scale.
-
-Skip for this product: card tilt, like button, success check, matrix loader, spinning counter,
-avatar hover, plus-menu morph. Consumer motion — in an admin console it reads as unserious.
-
-**Licensing:** the repo has **no LICENSE file**, so formally all rights reserved. The intent is
-plainly "copy this" (copy buttons, a CLI, an installable skill), and CSS timing values are largely
-uncopyrightable, but for anything client-facing prefer using it as reference for *values* over
-pasting blocks verbatim.
+Two ways out, both product calls rather than motion ones: delete the state and its styles, or stop
+clearing the flag on a backward `goto` so a step you left broken stays marked. The inline
+`.notice-danger` already carries the error for the current step, so the state may simply be
+redundant.
 
 ---
 
 ## How to verify a change
 
-No test suite. Everything so far was verified by driving real Chromium. The recipe:
+No test suite. Everything here was verified by driving real Chromium.
 
 ```bash
-python3 -m http.server 8099          # serve the repo root
+python3 -m http.server 8099        # serve the repo root
 ```
 
 Then Playwright against the pre-installed browser
-(`/opt/pw-browsers/chromium-1194/chrome-linux/chrome`), with two gotchas that cost real time:
+(`/opt/pw-browsers/chromium-1194/chrome-linux/chrome`). **Three gotchas, each of which cost real
+time:**
 
-1. **Block the font CDN** (`page.route('**fonts.g**', r => r.abort())`). It is unreachable in some
+1. **Block the font CDN** — `page.route('**fonts.g**', r => r.abort())`. It is unreachable in some
    environments and holds the `load` event open for seconds.
-2. **Use `waitUntil: 'commit'`**, not the default. `goto` otherwise resolves *after* a 1–1.5s
-   skeleton has already finished, and you will conclude the skeleton never rendered.
+2. **Use `waitUntil: 'commit'`.** The default resolves *after* a 1–1.5s skeleton has already
+   finished, and you will conclude the skeleton never rendered.
+3. **Scroll the target into view before hovering.** The insights chart sits at y≈779, below a
+   720px viewport, so a synthetic mouse never reaches it and the component looks broken. If
+   `document.elementFromPoint()` returns `none`, that is the tell.
 
-To measure a skeleton against real content, capture `getBoundingClientRect().height` for both states
-and diff them — that is how the current blocks were tuned to ~1px.
+To measure a skeleton against real content, capture `getBoundingClientRect().height` for both
+states and diff them — that is how the current blocks were tuned to ~1px.
 
-Worth checking on any motion change: reduced-motion (`newContext({ reducedMotion: 'reduce' })`),
-that typing in search does not re-trigger a load, and that all four pages stay free of console
-errors.
+Check on every motion change: reduced motion (`newContext({ reducedMotion: 'reduce' })`), that
+typing in search does not re-trigger a load, and that all four pages stay free of console errors.
 
 ---
 
-## Decisions already made — do not silently reverse
+## Rules that must not be silently broken
 
-- **No animation library.** Motion/GSAP/anime were evaluated and rejected: this is a zero-build,
-  zero-dependency static prototype (`netlify.toml`: *"Static prototype — no build step"*), and its
-  only external resource, Google Fonts, is loaded non-blocking specifically so a slow CDN cannot
-  delay the page. A bundler-less `import` from a CDN sits in the module graph and would contradict
-  that. If a library is ever adopted, **vendor it** into `assets/vendor/`.
-- **Builder wizard steps are excluded** from lazy loading. A 1–1.5s wait between steps of a form
-  someone is filling reads as lag, not loading.
-- **Settings panels paint instantly** — local forms, not records being fetched.
-- **The lazy cache is per browser-tab session.** A demo re-run needs a new tab (or
-  `sessionStorage.clear()`) to show the skeletons again.
+- **No animation library.** Motion, GSAP and anime were evaluated and rejected: this is a
+  zero-build static prototype (`netlify.toml`: *"Static prototype — no build step"*), and its only
+  external resource is loaded non-blocking specifically so a slow CDN cannot delay the page. A
+  bundler-less CDN `import` sits in the module graph and would contradict that. If one is ever
+  adopted, **vendor it** into `assets/vendor/`.
+- **The global `prefers-reduced-motion` block stays last in the stylesheet** so it wins. Three
+  earlier blocks are assistant-scoped; the last one covers the rest of the product. Every new
+  animation goes in it.
+- **Six assistant durations stay hardcoded** (400/500/600ms and the card's own `cubic-bezier`).
+  They are ambient, deliberately tuned, and match no token usage. Forcing them onto the three-token
+  scale would break motion someone already got right.
+- **`transitions-dev` / `transitions-polish` are auditors, not authorities.** Both skills are
+  installed (`.agents/skills/`, pinned by `skills-lock.json`) and their scan is genuinely good at
+  finding ad-hoc values — but their token scale is **not ours**: `--duration-quick` is 150ms against
+  our 120ms, `--duration-fast` 250ms against our 180ms, and `--ease-bounce-strong` directly
+  contradicts DESIGN.md's *nothing overshoots*. Map their findings onto our scale. Note the repo has
+  **no LICENSE file**, so prefer using it as reference for values over pasting blocks verbatim.
+- **The builder gets no skeleton**, and step travel is wired to `advance()` only.
+- **Settings panels do load** — workspace config is as much a fetch as campaigns are.

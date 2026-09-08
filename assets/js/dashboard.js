@@ -5,7 +5,7 @@
 import {
   html, raw, esc, icon, $, $$, on, count, percent, relativeTime, absoluteTime,
   ratingValue, ratingColor, dropdown, wireDropdowns, toast, dialog, wireOnce, keepScroll,
-  lazySection, skel,
+  lazySection, skel, countUp,
 } from './core.js';
 import { store } from './store.js';
 import {
@@ -39,6 +39,39 @@ const FIELD_LABEL = { name: 'campaign name', id: 'campaign ID', trigger: 'trigge
 /** Matches --motion-fast in supabase.css: how long the old plot takes to leave. */
 const SWAP_OUT = 120;
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)');
+
+/** How each headline figure renders mid-tween. */
+const FIGURE_FORMAT = {
+  responses: (v) => count(Math.round(v)),
+  completion: (v) => percent(v),
+};
+
+/**
+ * Grow every sparkline from its own baseline, one column just behind the last.
+ * These are always freshly rendered nodes, so setting the attribute is itself
+ * what starts the animation — there is no previous state to transition from.
+ */
+function growPlots(host) {
+  if (REDUCED.matches) return;
+  $$('.chart-plot', host).forEach((plot) => {
+    [...plot.children].forEach((col, i) => col.style.setProperty('--i', i));
+    plot.dataset.swap = 'in';
+  });
+}
+
+/** The figures as they stand right now, so the next render can tween from them. */
+const readFigures = (host) => Object.fromEntries(
+  $$('[data-figure]', host).map((n) => [n.dataset.figure, Number(n.dataset.value)]));
+
+/** Tween each figure from where it was to where this render put it. */
+function countFigures(host, before) {
+  $$('[data-figure]', host).forEach((node) => {
+    const from = before[node.dataset.figure];
+    const to = Number(node.dataset.value);
+    if (from === undefined || Number.isNaN(from)) return;
+    countUp(node, from, to, FIGURE_FORMAT[node.dataset.figure]);
+  });
+}
 
 /* ---------- Row pieces ---------- */
 
@@ -209,11 +242,11 @@ function activityStrip(campaigns) {
       <div class="row-between wrap" style="margin-bottom:10px">
         <div class="row wrap" style="gap:20px">
           <span class="row" style="gap:7px">
-            <span class="num t-h1">${count(completed)}</span>
+            <span class="num t-h1" data-figure="responses" data-value="${completed}">${count(completed)}</span>
             <span class="t-body fg-lighter">Responses collected</span>
           </span>
           <span class="row" style="gap:7px">
-            <span class="num t-h1">${percent(completionRate)}</span>
+            <span class="num t-h1" data-figure="completion" data-value="${completionRate}">${percent(completionRate)}</span>
             <span class="t-body fg-lighter">Completion rate</span>
           </span>
         </div>
@@ -487,7 +520,12 @@ function paintDashboard(host, { pending = false, entering = false } = {}) {
 
   // Only what replaced a skeleton fades up. The page header was on screen
   // throughout the wait, and animating it would make it flicker for no reason.
-  if (entering) $$('[data-enter]', host).forEach((node) => node.classList.add('lazy-in'));
+  if (entering) {
+    $$('[data-enter]', host).forEach((node) => node.classList.add('lazy-in'));
+    // The sparklines draw themselves in as the strip arrives, so the figures
+    // and their shapes land as one event rather than two.
+    growPlots(host);
+  }
 
   wireDropdowns(host);
   wireOnce(host, 'dashWired', wire);
@@ -554,6 +592,9 @@ function wire(host) {
     });
     if (!go) return;
     store.cloneCampaign(campaign.id);
+    // The row the copy came from, marked for the beat before the builder opens
+    // — the clone is traceable to its source rather than appearing from nowhere.
+    $(`tr[data-id="${campaign.id}"]`, host)?.setAttribute('data-flash', '');
     toast('Campaign cloned', 'Content, audience and trigger copied. Schedule and responses were not.');
     setTimeout(() => { location.href = 'builder.html'; }, 350);
   });
@@ -583,18 +624,17 @@ function wire(host) {
     if (view.range === btn.dataset.key) return;
     view.range = btn.dataset.key;
 
+    // Captured before the repaint replaces the nodes holding them.
+    const figures = readFigures(host);
     if (!REDUCED.matches) {
       $$('.chart-plot', host).forEach((plot) => { plot.dataset.swap = 'out'; });
       await new Promise((done) => setTimeout(done, SWAP_OUT));
     }
     rerender();
-    if (REDUCED.matches) return;
-    // These are new nodes, so setting the attribute is itself what starts the
-    // animation — there is no previous state for a transition to run from.
-    $$('.chart-plot', host).forEach((plot) => {
-      [...plot.children].forEach((col, i) => col.style.setProperty('--i', i));
-      plot.dataset.swap = 'in';
-    });
+    // The figures count to their new window while the series grows back, so
+    // the number and the shape it belongs to change as one event.
+    countFigures(host, figures);
+    growPlots(host);
   });
   on(host, 'click', '[data-act="toggle-col"]', (event, btn) => {
     view.columns[btn.dataset.key] = !view.columns[btn.dataset.key];

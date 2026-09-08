@@ -196,7 +196,7 @@ img { max-width: 100%; }
   height: 30px; padding: 0 12px;
   border: 1px solid transparent; border-radius: var(--radius-sm);
   font-size: 13px; font-weight: 500; line-height: 1; white-space: nowrap;
-  transition: background-color .12s ease, border-color .12s ease, color .12s ease;
+  transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
 }
 .btn:disabled, .btn[aria-disabled="true"] { opacity: .5; cursor: not-allowed; pointer-events: none; }
 .btn svg { width: 14px; height: 14px; flex: none; }
@@ -237,7 +237,7 @@ img { max-width: 100%; }
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   color: var(--foreground-default); font-size: 13px;
-  transition: border-color .12s ease, background-color .12s ease;
+  transition: border-color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out);
 }
 .input::placeholder, .textarea::placeholder { color: var(--foreground-muted); }
 .input:hover, .textarea:hover, .select:hover { border-color: var(--border-overlay); }
@@ -270,7 +270,7 @@ img { max-width: 100%; }
 .check, .radio {
   appearance: none; flex: none; width: 15px; height: 15px; margin: 0;
   background: var(--background-200); border: 1px solid var(--border-overlay);
-  cursor: pointer; transition: background-color .12s ease, border-color .12s ease;
+  cursor: pointer; transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
 }
 .check { border-radius: var(--radius-xs); }
 .radio { border-radius: var(--radius-full); }
@@ -287,7 +287,7 @@ img { max-width: 100%; }
   display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; cursor: pointer;
   text-align: left;
   background: var(--background-100); border: 1px solid var(--border-default);
-  border-radius: var(--radius-md); transition: background-color .12s ease, border-color .12s ease;
+  border-radius: var(--radius-md); transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
 }
 .opt:hover { background: var(--surface-100); border-color: var(--border-strong); }
 .opt.is-on { background: var(--surface-100); border-color: var(--brand-400); box-shadow: inset 0 0 0 1px var(--brand-200); }
@@ -312,11 +312,11 @@ img { max-width: 100%; }
 .switch {
   appearance: none; position: relative; flex: none; width: 34px; height: 19px; margin: 0;
   background: var(--surface-300); border: 1px solid var(--border-overlay);
-  border-radius: var(--radius-full); cursor: pointer; transition: background-color .15s ease, border-color .15s ease;
+  border-radius: var(--radius-full); cursor: pointer; transition: background-color var(--motion-base) var(--ease-out), border-color var(--motion-base) var(--ease-out);
 }
 .switch::after {
   content: ""; position: absolute; top: 2px; left: 2px; width: 13px; height: 13px;
-  background: var(--foreground-light); border-radius: var(--radius-full); transition: transform .15s ease, background-color .15s ease;
+  background: var(--foreground-light); border-radius: var(--radius-full); transition: transform var(--motion-base) var(--ease-out), background-color var(--motion-base) var(--ease-out);
 }
 .switch:checked { background: var(--brand-default); border-color: var(--brand-600); }
 .switch:checked::after { transform: translateX(15px); background: var(--on-brand); }
@@ -366,7 +366,20 @@ img { max-width: 100%; }
 .pill[data-status="Paused"] { color: var(--warning-fg); border-color: var(--warning-400); background: var(--warning-200); }
 .pill[data-status="Completed"] { color: var(--foreground-light); }
 .pill[data-status="Stopped"] { color: var(--destructive-fg); border-color: var(--destructive-400); background: var(--destructive-200); }
-.pill[data-status="Live"] .dot { box-shadow: 0 0 0 3px var(--brand-200); }
+/* Live is the one status still happening, so it is the one that moves. The
+   ring is a pseudo-element animating transform and opacity rather than the
+   dot's own box-shadow: a shadow animation repaints every frame, this one
+   composites, and it runs for as long as the tab is open. */
+.pill[data-status="Live"] .dot { position: relative; box-shadow: 0 0 0 3px var(--brand-200); }
+.pill[data-status="Live"] .dot::after {
+  content: ""; position: absolute; inset: 0; border-radius: var(--radius-full);
+  box-shadow: 0 0 0 3px var(--brand-400);
+  animation: pill-pulse 2.4s var(--ease-out) infinite;
+}
+@keyframes pill-pulse {
+  0%       { transform: scale(.7); opacity: .8; }
+  70%,100% { transform: scale(2.1); opacity: 0; }
+}
 
 .chip {
   display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 4px 0 10px;
@@ -400,7 +413,12 @@ img { max-width: 100%; }
   letter-spacing: .03em; text-transform: uppercase; white-space: nowrap;
 }
 .table td { padding: 9px 12px; border-bottom: 1px solid var(--border-muted); font-size: 12.5px; vertical-align: middle; }
+.table td { transition: background-color var(--motion-fast) var(--ease-out); }
 .table tbody tr:hover td { background: var(--surface-100); }
+/* The chevron leans toward its destination on hover — the same two pixels the
+   settings rows already use, so the gesture means one thing product-wide. */
+.table tbody .btn-default svg { transition: transform var(--motion-fast) var(--ease-out); }
+.table tbody tr:hover .btn-default svg { transform: translateX(2px); }
 .table tbody tr:last-child td { border-bottom: 0; }
 .table .ta-r { text-align: right; }
 .table-scroll { overflow-x: auto; }
@@ -411,10 +429,20 @@ img { max-width: 100%; }
   position: relative; padding: 8px 12px; margin-bottom: -1px;
   border-bottom: 2px solid transparent;
   font-size: 12.5px; font-weight: 500; color: var(--foreground-lighter);
-  transition: color .12s ease, border-color .12s ease;
+  transition: color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
 }
 .tab:hover { color: var(--foreground-default); }
 .tab[aria-selected="true"] { color: var(--foreground-default); border-bottom-color: var(--brand-default); }
+/* Where the marker slides, the static underline would be a second indicator
+   sitting under the first — so the tab gives its border up to the pill. */
+.tabs-pilled .tab[aria-selected="true"] { border-bottom-color: transparent; }
+.tabs-pilled { position: relative; }
+.tab-pill {
+  position: absolute; left: 0; bottom: -1px; height: 2px; width: 0;
+  background: var(--brand-default); pointer-events: none;
+  transition: transform var(--motion-base) var(--ease-out),
+              width var(--motion-base) var(--ease-out);
+}
 /* FR-70 — variant tabs read a level below the step rail. */
 .tabs-sub { gap: 4px; border-bottom: 1px solid var(--border-default); }
 .tabs-sub .tab {
@@ -435,7 +463,7 @@ img { max-width: 100%; }
   position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
   display: grid; place-items: center; width: 17px; height: 17px;
   border-radius: var(--radius-sm); color: var(--foreground-lighter); cursor: pointer;
-  opacity: 0; transition: opacity .12s ease, background-color .12s ease, color .12s ease;
+  opacity: 0; transition: opacity var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
 }
 .tab-del svg { width: 11px; height: 11px; }
 .tab-wrap:hover .tab-del, .tab-wrap:focus-within .tab-del { opacity: 1; }
@@ -447,13 +475,17 @@ img { max-width: 100%; }
   position: absolute; z-index: 60; top: calc(100% + 4px); min-width: 190px; padding: 4px;
   background: var(--background-100); border: 1px solid var(--border-overlay);
   border-radius: var(--radius-md); box-shadow: var(--shadow-3);
-  animation: dd-in var(--motion-fast) var(--ease-out);
+  animation: dd-in var(--motion-base) var(--ease-out);
 }
 /* Scaled from the corner it is anchored to, so the menu reads as opening out
    of its own trigger rather than arriving from nowhere. */
 .dd-menu[data-align="end"] { right: 0; transform-origin: top right; }
 .dd-menu[data-align="start"] { left: 0; transform-origin: top left; }
 @keyframes dd-in { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
+/* A close is not an open played backwards: quicker, travelling less, scaling
+   less far. The menu should get out of the way rather than perform. */
+.dd-menu[data-closing="1"] { animation: dd-out var(--motion-fast) var(--ease-out) both; }
+@keyframes dd-out { to { opacity: 0; transform: translateY(-2px) scale(.99); } }
 .dd-label { padding: 6px 8px 4px; font-size: 10px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; color: var(--foreground-muted); }
 .dd-sep { height: 1px; margin: 4px 0; background: var(--border-default); }
 .dd-item {
@@ -468,7 +500,7 @@ img { max-width: 100%; }
 .scrim {
   position: fixed; inset: 0; z-index: 100; display: grid; place-items: center;
   background: rgba(0, 0, 0, 0.6); padding: var(--sp-xl);
-  animation: fade .12s ease;
+  animation: fade var(--motion-fast) var(--ease-out);
 }
 /* A column, not a single scrolling box: the head and the foot hold their
    place while only the body moves, so the title's hairline stays put over a
@@ -478,7 +510,7 @@ img { max-width: 100%; }
   width: 100%; max-width: 480px; max-height: 85vh; overflow: hidden;
   background: var(--background-100); border: 1px solid var(--border-overlay);
   border-radius: var(--radius-md); box-shadow: var(--shadow-3);
-  animation: pop .14s ease;
+  animation: pop var(--motion-base) var(--ease-out);
 }
 .dialog-lg { max-width: 720px; }
 .dialog-xl { max-width: 900px; }
@@ -502,7 +534,7 @@ img { max-width: 100%; }
   padding: 11px 13px; background: var(--background-100);
   border: 1px solid var(--border-overlay); border-left: 2px solid var(--brand-default);
   border-radius: var(--radius-md); box-shadow: var(--shadow-3);
-  animation: slidein .16s ease;
+  animation: slidein var(--motion-base) var(--ease-out);
 }
 .toast[data-kind="warning"] { border-left-color: var(--warning); }
 .toast[data-kind="danger"] { border-left-color: var(--destructive); }
@@ -514,8 +546,9 @@ img { max-width: 100%; }
    the same two properties. */
 .toast[data-leaving="true"] {
   animation: none; opacity: 0; transform: translateX(14px);
-  transition: opacity var(--motion-base) var(--ease-out),
-              transform var(--motion-base) var(--ease-out);
+  transition: opacity var(--motion-fast) var(--ease-out),
+              transform var(--motion-fast) var(--ease-out),
+              margin-bottom var(--motion-base) var(--ease-out);
 }
 
 /* ---------- Tooltip ---------- */
@@ -525,9 +558,9 @@ img { max-width: 100%; }
   transform: translateX(-50%); padding: 4px 8px; white-space: nowrap;
   background: var(--surface-200); border: 1px solid var(--border-overlay);
   border-radius: var(--radius-xs); font-size: 11px; color: var(--foreground-default);
-  opacity: 0; pointer-events: none; transition: opacity .12s ease; box-shadow: var(--shadow-2);
+  opacity: 0; pointer-events: none; transition: opacity var(--motion-fast) var(--ease-out); box-shadow: var(--shadow-2);
 }
-.tip:hover::after, .tip:focus-visible::after { opacity: 1; }
+.tip:hover::after, .tip:focus-visible::after { opacity: 1; transition-delay: 80ms; }
 
 /* ---------- Empty / zero state ---------- */
 .zero { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 56px var(--sp-xl); }
@@ -544,10 +577,15 @@ img { max-width: 100%; }
 .rail {
   display: flex; flex-direction: column; flex: none; width: var(--rail-w);
   background: var(--background-100); border-right: 1px solid var(--border-default);
-  transition: width .18s ease;
+  overflow: hidden;
+  transition: width var(--motion-base) var(--ease-out);
 }
+.rail-text { white-space: nowrap; transition: opacity var(--motion-fast) var(--ease-out); }
 .rail[data-collapsed="true"] { width: var(--rail-w-collapsed); }
-.rail[data-collapsed="true"] .rail-text { display: none; }
+/* The labels fade while the rail narrows rather than disappearing on the frame
+   the width starts moving. They stay in flow and are clipped by the rail's own
+   overflow, so the icons hold their place while the text is on its way out. */
+.rail[data-collapsed="true"] .rail-text { opacity: 0; pointer-events: none; }
 .rail-brand { display: flex; align-items: center; gap: 8px; height: var(--bar-h); padding: 0 12px; border-bottom: 1px solid var(--border-default); }
 .rail-mark {
   display: grid; place-items: center; flex: none; width: 22px; height: 22px;
@@ -559,7 +597,7 @@ img { max-width: 100%; }
 .rail-link {
   display: flex; align-items: center; gap: 10px; margin: 1px 8px; padding: 6px 8px;
   border-radius: var(--radius-sm); font-size: 12.5px; font-weight: 500; color: var(--foreground-lighter);
-  transition: background-color .12s ease, color .12s ease;
+  transition: background-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
 }
 .rail-link:hover { background: var(--surface-100); color: var(--foreground-default); }
 /* FR-58 — active is distinct through background, weight and a marker, not colour alone. */
@@ -595,10 +633,11 @@ img { max-width: 100%; }
 /* ---------- Stepper (FR-64 … FR-69) ---------- */
 .stepper { display: flex; gap: 4px; }
 .step {
+  position: relative;
   display: flex; align-items: center; gap: 9px; flex: 1 1 0; min-width: 0; padding: 7px 10px;
   border: 1px solid var(--border-default); border-radius: var(--radius-sm);
   background: var(--background-100); text-align: left;
-  transition: background-color .12s ease, border-color .12s ease;
+  transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
 }
 .step:hover:not(:disabled) { background: var(--surface-100); border-color: var(--border-strong); }
 .step-num {
@@ -610,7 +649,13 @@ img { max-width: 100%; }
 .step-label { display: block; font-size: 12px; font-weight: 500; color: var(--foreground-light); }
 .step-state { display: block; font-family: var(--font-mono); font-size: 9px; letter-spacing: .05em; text-transform: uppercase; color: var(--foreground-muted); }
 /* Legible in greyscale (FR-65): fill, weight and glyph carry the state, not hue. */
-.step[data-state="current"] { background: var(--surface-200); border-color: var(--border-overlay); box-shadow: inset 0 -2px 0 0 var(--brand-default); }
+.step[data-state="current"] { background: var(--surface-200); border-color: var(--border-overlay); }
+/* The current marker is a real element rather than an inset shadow: same 2px
+   bar in the same place, but a shadow cannot wipe and an element can. */
+.step[data-state="current"]::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+  background: var(--brand-default); border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
 .step[data-state="current"] .step-num { background: var(--foreground-default); border-color: var(--foreground-default); color: var(--background-200); font-weight: 600; }
 .step[data-state="current"] .step-label { color: var(--foreground-default); font-weight: 600; }
 .step[data-state="complete"] .step-num { background: var(--surface-300); border-color: var(--border-overlay); color: var(--foreground-default); }
@@ -619,6 +664,35 @@ img { max-width: 100%; }
 .step[data-state="attention"] { border-color: var(--destructive-400); background: var(--destructive-200); }
 .step[data-state="attention"] .step-num { border-color: var(--destructive); color: var(--destructive-fg); }
 .step[data-state="attention"] .step-state { color: var(--destructive-fg); }
+
+/* ---------- Step state changes ----------
+   Only the steps that actually changed animate, and each state gets the motion
+   its meaning asks for. The stepper is rebuilt on every repaint, so these are
+   animations rather than transitions — a fresh node has no previous value for
+   a transition to run from. builder.js decides which steps are marked. */
+
+/* Arriving: the marker wipes out from the centre, the badge settles in. */
+.step[data-changed="current"]::after { animation: step-mark var(--motion-base) var(--ease-out); }
+.step[data-changed="current"] .step-num { animation: step-settle var(--motion-base) var(--ease-out); }
+@keyframes step-mark   { from { transform: scaleX(0); } }
+@keyframes step-settle { from { transform: scale(.88); } }
+
+/* Finishing: the badge trades its number for a check, so the swap is marked. */
+.step[data-changed="complete"] .step-num { animation: step-done var(--motion-base) var(--ease-out); }
+.step[data-changed="complete"] .step-num svg { animation: step-check var(--motion-slow) var(--ease-out) both; }
+@keyframes step-done  { from { transform: scale(.82); } }
+@keyframes step-check { from { opacity: 0; transform: scale(.55); } }
+
+/* Reachability, both directions: clearing a required field can put later steps
+   back out of reach, and that is worth seeing as much as unlocking them is. */
+.step[data-changed="ready"]  { animation: step-unlock var(--motion-base) var(--ease-out); }
+.step[data-changed="locked"] { animation: step-lock   var(--motion-base) var(--ease-out); }
+@keyframes step-unlock { from { opacity: .55; } }
+@keyframes step-lock   { from { opacity: 1; } }
+
+/* No rule for [data-changed="attention"]: the stepper hides that state while a
+   step is current, and advance() clears the flag on the same path that would
+   stop it being current — so it never renders. See docs/motion-handover.md. */
 
 /* ---------- Rating ramp (FR-89) ---------- */
 .legend { display: inline-flex; align-items: center; gap: 10px; padding: 5px 10px; background: var(--background-100); border: 1px solid var(--border-default); border-radius: var(--radius-sm); }
@@ -633,7 +707,7 @@ img { max-width: 100%; }
   display: block; position: relative; height: 8px; background: var(--surface-200);
   border-radius: var(--radius-full); overflow: hidden;
 }
-.bar-fill { display: block; height: 100%; border-radius: var(--radius-full); transition: width .3s ease; }
+.bar-fill { display: block; height: 100%; border-radius: var(--radius-full); transition: width var(--motion-slow) var(--ease-out); }
 .dist { display: flex; flex-direction: column; gap: 6px; }
 .dist-row { display: grid; grid-template-columns: 44px 1fr 108px; align-items: center; gap: 10px; }
 
@@ -655,7 +729,7 @@ img { max-width: 100%; }
 
 .spark { display: flex; align-items: flex-end; gap: 3px; height: 92px; }
 .spark-col { position: relative; flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; min-width: 0; }
-.spark-seg { border-radius: 2px 2px 0 0; transition: height .3s ease; }
+.spark-seg { border-radius: 2px 2px 0 0; transition: height var(--motion-slow) var(--ease-out); }
 .spark-boundary { position: relative; width: 0; border-left: 1px dashed var(--ai-400); align-self: stretch; }
 
 /* ---------- Template picker (FR-26 … FR-33) ---------- */
@@ -663,7 +737,7 @@ img { max-width: 100%; }
 .tpl-card {
   position: relative; overflow: hidden; padding: 10px;
   background: var(--background-100); border: 1px solid var(--border-default);
-  border-radius: var(--radius-md); text-align: left; transition: border-color .12s ease;
+  border-radius: var(--radius-md); text-align: left; transition: border-color var(--motion-fast) var(--ease-out);
 }
 .tpl-card:hover { border-color: var(--brand-400); }
 .tpl-card.is-on { border-color: var(--brand-default); box-shadow: inset 0 0 0 1px var(--brand-400); }
@@ -676,7 +750,7 @@ img { max-width: 100%; }
 /* FR-32 — hover reveals the primary action over the preview. */
 .tpl-hover {
   position: absolute; inset: 0; display: grid; place-items: center;
-  background: rgba(18, 18, 18, 0.82); opacity: 0; transition: opacity .12s ease;
+  background: rgba(18, 18, 18, 0.82); opacity: 0; transition: opacity var(--motion-fast) var(--ease-out);
 }
 .tpl-card:hover .tpl-hover, .tpl-card:focus-visible .tpl-hover { opacity: 1; }
 .tpl-group-head { display: flex; align-items: center; gap: 10px; margin: var(--sp-lg) 0 var(--sp-sm); }
@@ -836,13 +910,13 @@ img { max-width: 100%; }
 /* A row that navigates. The whole row is the target, the chevron says so. */
 .srow-link {
   width: 100%; text-align: left; cursor: pointer;
-  transition: background-color .12s ease;
+  transition: background-color var(--motion-fast) var(--ease-out);
 }
 .srow-link:hover { background: var(--surface-100); }
 /* The link row's right side is a status beside its chevron, not stacked above
    it — `.srow-ctl` is a column by default and would otherwise win on order. */
 .srow-link .srow-ctl { flex-direction: row; align-items: center; gap: 10px; }
-.srow-link .srow-chev { color: var(--foreground-muted); transition: color .12s ease, transform .12s ease; }
+.srow-link .srow-chev { color: var(--foreground-muted); transition: color var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out); }
 .srow-link:hover .srow-chev { color: var(--foreground-default); transform: translateX(2px); }
 .srow-chev svg { width: 15px; height: 15px; }
 
@@ -897,7 +971,7 @@ img { max-width: 100%; }
   gap: 6px; width: 100%; padding: var(--sp-xl) var(--sp-lg); text-align: center;
   background: var(--background-200); border: 1px dashed var(--border-strong);
   border-radius: var(--radius-md); cursor: pointer;
-  transition: border-color .12s ease, background-color .12s ease;
+  transition: border-color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out);
 }
 .drop:hover, .drop.is-over { border-color: var(--brand-400); background: var(--surface-100); }
 .drop svg { width: 18px; height: 18px; color: var(--foreground-muted); }
@@ -937,9 +1011,8 @@ img { max-width: 100%; }
   display: flex; flex-direction: column; padding: var(--sp-md) var(--sp-lg) 10px;
   background: var(--background-100); border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
-  transition: border-color .12s ease, background-color .12s ease;
+  transition: border-color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out);
 }
-a.metric:hover, button.metric:hover { border-color: var(--border-strong); background: var(--surface-100); }
 .metric-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-sm); }
 .metric-name { font-size: 10px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--foreground-lighter); }
 .metric-legend { display: flex; align-items: center; gap: 10px; }
@@ -979,7 +1052,7 @@ a.metric:hover, button.metric:hover { border-color: var(--border-strong); backgr
 .chart-col { position: relative; flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; min-width: 0; cursor: default; }
 .chart-col::before { content: ""; position: absolute; inset: 0; }
 .chart-col:hover::before { background: var(--surface-100); opacity: .5; border-radius: 2px; }
-.chart-seg { position: relative; border-radius: 2px 2px 0 0; transition: height .3s ease; }
+.chart-seg { position: relative; border-radius: 2px 2px 0 0; transition: height var(--motion-slow) var(--ease-out); }
 
 /* A range change replaces the columns rather than resizing them: 7 days and
    30 days are not the same number of bars, so there is no height to morph
@@ -999,9 +1072,13 @@ a.metric:hover, button.metric:hover { border-color: var(--border-strong); backgr
   position: absolute; z-index: 40; min-width: 190px; padding: 9px 11px;
   background: var(--background-200); border: 1px solid var(--border-overlay);
   border-radius: var(--radius-md); box-shadow: var(--shadow-3);
-  pointer-events: none; opacity: 0; transition: opacity .1s ease;
+  pointer-events: none; opacity: 0; transform: translateY(2px);
+  transition: opacity var(--motion-fast) var(--ease-out),
+              transform var(--motion-fast) var(--ease-out);
 }
-.chart-tip[data-open="true"] { opacity: 1; }
+/* Rises the last two pixels into place so it reads as belonging to the column
+   under it rather than floating above the plot. */
+.chart-tip[data-open="true"] { opacity: 1; transform: none; }
 .chart-tip-row { display: flex; align-items: center; gap: var(--sp-md); }
 .chart-tip-row + .chart-tip-row { margin-top: 5px; }
 .chart-tip-row i { width: 8px; height: 8px; border-radius: var(--radius-full); flex: none; }
@@ -1030,6 +1107,19 @@ a.metric:hover, button.metric:hover { border-color: var(--border-strong); backgr
   animation: skel-sweep 1.4s ease-in-out infinite;
 }
 @keyframes skel-sweep { to { transform: translateX(100%); } }
+
+/* Builder steps travel in the direction you moved through the wizard: forward
+   enters from the right, back from the left. Enter-only — the outgoing step is
+   gone the moment the builder repaints, so there is nothing to animate out. */
+[data-step-page][data-enter-dir="fwd"]  { animation: step-fwd  var(--motion-base) var(--ease-out) both; }
+[data-step-page][data-enter-dir="back"] { animation: step-back var(--motion-base) var(--ease-out) both; }
+/* The row a clone was taken from, so the copy is traceable to its source in
+   the beat before the builder opens. */
+.table tbody tr[data-flash] td { animation: row-flash var(--motion-slow) var(--ease-out); }
+@keyframes row-flash { from { background: var(--brand-200); } }
+
+@keyframes step-fwd  { from { opacity: 0; transform: translateX(14px); } }
+@keyframes step-back { from { opacity: 0; transform: translateX(-14px); } }
 
 /* Real content arriving after the wait: it fades up rather than snapping in,
    which is the difference between "loaded" and "flickered". */
@@ -1088,7 +1178,7 @@ body:has(.builder-foot) .asst {
   background: transparent;        /* the orb paints its own ground */
   box-shadow: var(--shadow-2);
   cursor: pointer;
-  transition: transform 120ms ease, border-color 120ms ease, box-shadow 400ms ease;
+  transition: transform var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out), box-shadow 400ms ease;
 }
 .asst-bubble:hover { border-color: var(--ai-fg); transform: translateY(-1px); }
 
@@ -1135,7 +1225,7 @@ body:has(.builder-foot) .asst {
   width: 22px; height: 22px; flex: none;
   border: 0; border-radius: var(--radius-sm);
   background: transparent; color: var(--foreground-muted);
-  cursor: pointer; transition: background 100ms ease, color 100ms ease;
+  cursor: pointer; transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
 }
 .asst-icon-btn:hover { background: var(--surface-200); color: var(--foreground-default); }
 .asst-icon-btn svg { width: 13px; height: 13px; }
@@ -1179,7 +1269,7 @@ body:has(.builder-foot) .asst {
   background: transparent; color: var(--foreground-light);
   font: inherit; font-size: 12px; text-align: left; cursor: pointer;
   animation: asst-rise 350ms cubic-bezier(0.23, 1, 0.32, 1) both;
-  transition: background 100ms ease, color 100ms ease;
+  transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
 }
 .asst-follow-btn:hover { background: var(--surface-100); color: var(--foreground-default); }
 .asst-follow-btn svg { flex: none; color: var(--ai-fg); }
@@ -1468,7 +1558,7 @@ body[data-asst-thinking="true"] .asst-card::before { opacity: 0.36; transition: 
   transform: rotate(-90deg);
   fill: none;
   opacity: 0;
-  transition: opacity 120ms ease;
+  transition: opacity var(--motion-fast) var(--ease-out);
 }
 .asst-pointer[data-dwelling="true"] .asst-pointer-ring { opacity: 1; }
 .asst-pointer-track { stroke: var(--ai-400); stroke-width: 2.5; }
@@ -1485,7 +1575,7 @@ body[data-asst-pointer="true"] [data-insight] {
   outline: 1px dashed var(--ai-400);
   outline-offset: 2px;
   border-radius: var(--radius-lg);
-  transition: outline-color 120ms ease, background 120ms ease;
+  transition: outline-color var(--motion-fast) var(--ease-out), background var(--motion-fast) var(--ease-out);
 }
 body[data-asst-pointer="true"] [data-insight][data-insight-armed] {
   outline: 2px solid var(--ai-fg);
@@ -1529,6 +1619,17 @@ body[data-asst-pointer="true"] [data-insight][data-insight-armed] {
    ========================================================================== */
 @media (prefers-reduced-motion: reduce) {
   .scrim, .dialog, .toast, .dd-menu, .lazy-in { animation: none; }
+  .dd-menu[data-closing="1"] { animation: none; }
+  [data-step-page][data-enter-dir] { animation: none; }
+  .step[data-changed], .step[data-changed]::after,
+  .step[data-changed] .step-num, .step[data-changed] .step-num svg { animation: none; }
+  .table tbody tr[data-flash] td { animation: none; }
+  .chart-tip, .rail-text { transition: none; }
+  .chart-tip[data-open="true"] { transform: none; }
+  .tab-pill { transition: none; }
+  .pill[data-status="Live"] .dot::after { animation: none; opacity: 0; }
+  .tip:hover::after, .tip:focus-visible::after { transition-delay: 0s; }
+  .table tbody tr:hover .btn-default svg { transform: none; }
   .skel::after { animation: none; }
   .toast[data-leaving="true"] { transform: none; transition: opacity var(--motion-fast) ease; }
   .chart-plot[data-swap="in"] .chart-col { animation: none; }

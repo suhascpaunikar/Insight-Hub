@@ -130,6 +130,76 @@ export function lazySection({ key, hasData, skeleton, paint }) {
   }, LAZY_MIN + Math.random() * (LAZY_MAX - LAZY_MIN));
 }
 
+/* ==========================================================================
+   Counting a figure up
+
+   A number that changes meaning at the same moment as the chart behind it
+   should move with it. Only ever driven by a deliberate change of window —
+   never a keystroke, which would leave the figures permanently in flight.
+   ========================================================================== */
+
+const REDUCED_MOTION = matchMedia('(prefers-reduced-motion: reduce)');
+
+/**
+ * Tween `node`'s text from `from` to `to`, rendering each frame through
+ * `format`. Reduced motion writes the final value and stops.
+ */
+export function countUp(node, from, to, format, duration = 260) {
+  if (!node) return;
+  if (REDUCED_MOTION.matches || from === to) { node.textContent = format(to); return; }
+  const started = performance.now();
+  const step = (now) => {
+    const t = Math.min(1, (now - started) / duration);
+    // Cubic ease-out: fast off the mark, settling onto the real figure rather
+    // than arriving at it abruptly.
+    const eased = 1 - (1 - t) ** 3;
+    node.textContent = format(from + (to - from) * eased);
+    if (t < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+/* ==========================================================================
+   Sliding tab indicator
+
+   The marker travels between tabs instead of jumping. Every screen here
+   repaints by replacing innerHTML, so the marker is a new node on every
+   render with no position to travel from — the last position is remembered
+   per tab strip and replayed, which is what makes the move readable.
+   ========================================================================== */
+
+const pillMemory = new Map();
+
+export function wireTabPill(tabs, key) {
+  if (!tabs) return;
+  const active = tabs.querySelector('[role="tab"][aria-selected="true"]');
+  if (!active) return;
+
+  tabs.classList.add('tabs-pilled');
+  const pill = document.createElement('span');
+  pill.className = 'tab-pill';
+  pill.setAttribute('aria-hidden', 'true');
+  tabs.appendChild(pill);
+
+  const to = { left: active.offsetLeft, width: active.offsetWidth };
+  const from = pillMemory.get(key);
+  pillMemory.set(key, to);
+  if (REDUCED_MOTION.matches || !from) {
+    // Nothing to travel from: first paint lands in place rather than flying
+    // in from the left edge.
+    pill.style.transform = `translateX(${to.left}px)`;
+    pill.style.width = `${to.width}px`;
+    return;
+  }
+  pill.style.transition = 'none';
+  pill.style.transform = `translateX(${from.left}px)`;
+  pill.style.width = `${from.width}px`;
+  void pill.offsetWidth;            // commit the start position
+  pill.style.transition = '';
+  pill.style.transform = `translateX(${to.left}px)`;
+  pill.style.width = `${to.width}px`;
+}
+
 /** Event delegation: on(root, 'click', '[data-act="x"]', handler). */
 export function on(root, type, selector, handler) {
   const node = typeof root === 'string' ? $(root) : root;
@@ -367,6 +437,12 @@ export function toast(title, description = '', kind = 'success') {
     if (leaving) return;
     leaving = true;
     node.dataset.leaving = 'true';
+    // The stack closes the gap rather than snapping shut under the departing
+    // toast. Reading offsetHeight after setting the flag forces the style
+    // recalc that makes the transition live, so the margin animates instead
+    // of jumping. The 8px matches the .toasts flex gap.
+    const height = node.offsetHeight;
+    node.style.marginBottom = `-${height + 8}px`;
     // transitionend fires once per property, and not at all if the node is
     // already hidden. The timer is what actually guarantees removal; the
     // listener just usually gets there first.
@@ -374,7 +450,12 @@ export function toast(title, description = '', kind = 'success') {
     // Filtered by target because the toast holds a button with transitions of
     // its own, and those bubble: moving the cursor off the close control mid
     // dismissal would otherwise cut the toast's own exit short.
-    const done = (event) => { if (!event || event.target === node) node.remove(); };
+    // Keyed to the longest property: opacity finishes first, and removing on
+    // it would cut the collapse short and make the stack jump after all.
+    const done = (event) => {
+      if (event && !(event.target === node && event.propertyName === 'margin-bottom')) return;
+      node.remove();
+    };
     node.addEventListener('transitionend', done);
     setTimeout(done, 400);
   };
@@ -479,6 +560,32 @@ export function stepPanel({
  * each toggle the same menu on one click and cancel out.
  */
 let closerBound = false;
+/* A menu leaves under an animation, so `hidden` cannot be set on the same
+   frame: `[hidden]` is `display:none !important`, which would cut the exit off
+   before its first frame. The flag goes on now and the attribute follows once
+   the animation has had its --motion-fast. */
+const DD_CLOSE = 120;
+
+function closeMenu(menu) {
+  if (menu.hidden || menu.dataset.closing === '1') return;
+  menu.dataset.closing = '1';
+  setTimeout(() => {
+    // Re-opened while it was leaving — openMenu cleared the flag, so this
+    // timer belongs to a close that no longer applies.
+    if (menu.dataset.closing !== '1') return;
+    delete menu.dataset.closing;
+    menu.hidden = true;
+  }, DD_CLOSE);
+}
+
+function openMenu(menu) {
+  delete menu.dataset.closing;
+  menu.hidden = false;
+}
+
+/** Open means visible and not on its way out. */
+const menuIsOpen = (menu) => !menu.hidden && menu.dataset.closing !== '1';
+
 export function wireDropdowns(root = document) {
   const node = typeof root === 'string' ? $(root) : root;
   if (!node || node.dataset.ddWired === '1') return;
@@ -491,20 +598,21 @@ export function wireDropdowns(root = document) {
     $$('.dd-menu', node).forEach((menu) => {
       const owner = menu.closest('.dd');
       const isOwn = trigger && owner && owner.contains(trigger);
-      if (!isOwn && !(insideMenu && menu.contains(event.target))) menu.hidden = true;
+      if (!isOwn && !(insideMenu && menu.contains(event.target))) closeMenu(menu);
     });
     if (trigger) {
       const menu = trigger.closest('.dd')?.querySelector('.dd-menu');
       if (menu) {
-        menu.hidden = !menu.hidden;
-        trigger.setAttribute('aria-expanded', String(!menu.hidden));
+        const wasOpen = menuIsOpen(menu);
+        if (wasOpen) closeMenu(menu); else openMenu(menu);
+        trigger.setAttribute('aria-expanded', String(!wasOpen));
       }
     }
   });
 
   if (closerBound) return;
   closerBound = true;
-  const closeAll = () => $$('.dd-menu').forEach((m) => { m.hidden = true; });
+  const closeAll = () => $$('.dd-menu').forEach(closeMenu);
   document.addEventListener('click', (event) => {
     if (!event.target.closest('[data-dd-wired="1"]')) closeAll();
   });

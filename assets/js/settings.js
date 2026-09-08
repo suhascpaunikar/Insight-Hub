@@ -12,7 +12,8 @@
    Cancel drops the panel's keys and the rows re-read the stored values.
    ========================================================================== */
 import {
-  html, raw, esc, icon, $, on, count, dropdown, wireDropdowns, toast, dialog, wireOnce, keepScroll,
+  html, raw, esc, icon, $, $$, on, count, dropdown, wireDropdowns, toast, dialog, wireOnce, keepScroll,
+  lazySection, skel, wireTabPill,
 } from './core.js';
 import { store } from './store.js';
 
@@ -358,12 +359,41 @@ export function renderSettings(host) {
   // Ticking a switch two panels down repaints the screen; without this the
   // reader is returned to the top of it. The tab is the key — a new tab is a
   // new screen and opens at the top. See keepScroll() in core.js.
-  keepScroll(() => host, view.tab, () => paintSettings(host));
+  lazySection({
+    key: `settings:${view.tab}`,
+    // Every panel has values to show, so unlike the campaign list there is no
+    // empty case to skip — a settings tab is never "nothing to load".
+    hasData: true,
+    skeleton: () => paintSettings(host, { pending: true }),
+    paint: (entering) => keepScroll(() => host, view.tab, () => paintSettings(host, { entering })),
+  });
 }
 
-function paintSettings(host) {
-  const body =
-    view.tab === 'general' ? generalTab()
+/**
+ * The loading shape of a settings tab: a section heading over a panel of rows,
+ * each row a label and its explanation on the left with one control on the
+ * right — the same skeleton every panel in the product resolves into.
+ */
+function tabSkeleton() {
+  const row = html`
+    <div class="srow">
+      <div class="srow-main">
+        ${raw(skel('158px', 12, 'margin:3px 0'))}
+        ${raw(skel('380px', 10, 'margin:7px 0 3px'))}
+      </div>
+      <div class="srow-ctl">${raw(skel('100%', 32))}</div>
+    </div>`;
+  return html`
+    <div class="section-head">
+      ${raw(skel('128px', 15, 'margin:3px 0'))}
+      ${raw(skel('330px', 11, 'margin:7px 0 3px'))}
+    </div>
+    <section class="spanel">${raw(row.repeat(3))}</section>`;
+}
+
+function paintSettings(host, { pending = false, entering = false } = {}) {
+  const body = pending ? tabSkeleton()
+    : view.tab === 'general' ? generalTab()
     : view.tab === 'delivery' ? deliveryTab()
     : alertsTab();
 
@@ -389,8 +419,12 @@ function paintSettings(host) {
 
       <div class="tabs page-tabs" role="tablist">${tabs}</div>
 
-      <div style="margin-top:var(--sp-xl)">${raw(body)}</div>
+      <div data-enter style="margin-top:var(--sp-xl)">${raw(body)}</div>
     </div>`;
+
+  // Only the panel fades up; the header and tab strip never left.
+  if (entering) $$('[data-enter]', host).forEach((node) => node.classList.add('lazy-in'));
+  wireTabPill($('.tabs', host), 'settings');
 
   wireDropdowns(host);
   wireOnce(host, 'settingsWired', wire);
