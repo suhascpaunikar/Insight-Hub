@@ -31,13 +31,14 @@ const APPS = ['InsightHub', 'Engage', 'CPaaS', 'CDP'];
 
 /** Exported so the builder can mount the same rail beside its own chrome. */
 export function navRail(active, collapsed) {
+  // No `title` on a collapsed item: the browser's own tooltip is unstyled, opens
+  // on its own schedule and cannot be positioned. wireRailTips() draws the label.
   const groups = NAV_GROUPS.map((group) => html`
     <div class="rail-group">
       ${group.map((item) => html`
         <a class="rail-link" href="${item.href}"
            ${raw(item.key === active ? 'aria-current="page"' : '')}
-           ${raw(item.act ? `data-act="${item.act}"` : '')}
-           ${raw(collapsed ? `title="${item.label}${item.badge ? ` · ${item.badge}` : ''}"` : '')}>
+           ${raw(item.act ? `data-act="${item.act}"` : '')}>
           ${raw(icon(item.icon))}
           <span class="rail-text truncate grow">${item.label}</span>
           ${raw(item.badge
@@ -166,22 +167,116 @@ export function wireRailCollapse(root, rerender, key = 'navCollapsed') {
     if (!rail) { rerender(); return; }
     rail.dataset.collapsed = String(collapsed);
     applyRailState(rail, collapsed);
+    hideRailTip();
   });
+
+  const rail = $('.rail', root);
+  if (rail) wireRailTips(rail);
+}
+
+/* ==========================================================================
+   Collapsed rail tooltips
+
+   A collapsed item is an icon with no label, so the tooltip is not a hint
+   about a control that already reads — it is the only place the name of the
+   screen appears. That is why it waits 1.5s rather than the 80ms every other
+   tooltip in the product waits: the strip is eight items tall and a cursor
+   crossing it on the way to the page below would otherwise pull the whole
+   column open behind it. Leaving is instant, as everywhere else here.
+
+   It is a body-level node rather than the `.tip` pseudo-element because the
+   rail clips its own overflow — that is what hides the labels while it
+   narrows — and the nav list scrolls inside it, so anything drawn on the item
+   would be cut off at the strip's edge. Positioned in JS against the item, the
+   way the Insights chart readout is.
+   ========================================================================== */
+
+const RAIL_TIP_DELAY = 1500;
+const RAIL_TIP_ITEMS = '.rail-link, .rail-collapse';
+
+let railTip = null;
+let railTipTimer = null;
+
+function hideRailTip() {
+  clearTimeout(railTipTimer);
+  railTipTimer = null;
+  if (railTip) railTip.dataset.open = 'false';
+}
+
+/** The label as the expanded rail would have read it, badge included. */
+function railTipLabel(item) {
+  const label = $('.rail-text:not(.badge)', item)?.textContent.trim() || '';
+  const badge = $('.badge', item)?.textContent.trim();
+  return badge ? `${label} · ${badge}` : label;
+}
+
+function showRailTip(item) {
+  const text = railTipLabel(item);
+  if (!text) return;
+  if (!railTip) {
+    railTip = document.createElement('div');
+    railTip.className = 'rail-tip';
+    railTip.setAttribute('role', 'tooltip');
+    document.body.appendChild(railTip);
+  }
+  railTip.textContent = text;
+
+  // Measured with the text already in, so a tooltip beside the last item can be
+  // held inside the viewport rather than opening half off the bottom of it.
+  // Clear of the rail rather than of the item: a 30px square sits 15px inside a
+  // 60px strip, and a tooltip hung off the square would start under the border.
+  const box = item.getBoundingClientRect();
+  const strip = item.closest('.rail').getBoundingClientRect();
+  const height = railTip.offsetHeight;
+  const top = Math.min(Math.max(box.top + (box.height - height) / 2, 8),
+                       innerHeight - height - 8);
+  railTip.style.left = `${Math.round(strip.right + 8)}px`;
+  railTip.style.top = `${Math.round(top)}px`;
+  railTip.dataset.open = 'true';
 }
 
 /**
- * The parts of the rail that are markup rather than state: a collapsed link
- * carries its label as a title, and the toggle names and draws the direction
- * it will move next.
+ * The rail is rebuilt on every repaint, so this is re-bound with it; the
+ * tooltip node itself lives on the body and is reused.
  */
-function applyRailState(rail, collapsed) {
-  $$('.rail-link', rail).forEach((link) => {
-    if (!collapsed) { link.removeAttribute('title'); return; }
-    const label = $('.rail-text', link)?.textContent.trim() || '';
-    const badge = link.querySelector('.badge')?.textContent.trim();
-    link.setAttribute('title', badge ? `${label} · ${badge}` : label);
+function wireRailTips(rail) {
+  const collapsed = () => rail.dataset.collapsed === 'true';
+
+  const queue = (item, delay) => {
+    hideRailTip();
+    if (!collapsed() || !item) return;
+    railTipTimer = setTimeout(() => showRailTip(item), delay);
+  };
+
+  rail.addEventListener('pointerover', (event) => {
+    // Touch has no hover to gate, and a tooltip that opened a second and a half
+    // after a tap would arrive on whatever screen the tap opened.
+    if (event.pointerType === 'touch') return;
+    queue(event.target.closest(RAIL_TIP_ITEMS), RAIL_TIP_DELAY);
+  });
+  rail.addEventListener('pointerout', (event) => {
+    const item = event.target.closest(RAIL_TIP_ITEMS);
+    if (item && item.contains(event.relatedTarget)) return;
+    hideRailTip();
   });
 
+  // Keyboard focus is already a deliberate arrival — there is no cursor merely
+  // passing through to gate — so it opens on the spot.
+  rail.addEventListener('focusin', (event) => queue(event.target.closest(RAIL_TIP_ITEMS), 0));
+  rail.addEventListener('focusout', hideRailTip);
+
+  // Anything that moves the item out from under its own tooltip.
+  rail.addEventListener('click', hideRailTip);
+  $('.rail-groups', rail)?.addEventListener('scroll', hideRailTip, { passive: true });
+}
+
+/**
+ * The one part of the rail that is markup rather than state: the toggle names
+ * and draws the direction it will move next. The labels themselves need
+ * nothing — collapsed they are read out by wireRailTips(), and the link keeps
+ * its text in the DOM either way, so the accessible name never changes.
+ */
+function applyRailState(rail, collapsed) {
   const toggle = $('[data-act="collapse"]', rail);
   if (!toggle) return;
   toggle.setAttribute('aria-label', collapsed ? 'Expand navigation' : 'Collapse navigation');

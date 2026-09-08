@@ -5,7 +5,7 @@
 import {
   html, raw, esc, icon, $, $$, on, count, percent, relativeTime, absoluteTime,
   ratingValue, ratingColor, dropdown, wireDropdowns, toast, dialog, wireOnce, keepScroll,
-  lazySection, skel, countUp,
+  lazySection, skel, countUp, growPlots, navigate,
 } from './core.js';
 import { store } from './store.js';
 import {
@@ -45,19 +45,6 @@ const FIGURE_FORMAT = {
   responses: (v) => count(Math.round(v)),
   completion: (v) => percent(v),
 };
-
-/**
- * Grow every sparkline from its own baseline, one column just behind the last.
- * These are always freshly rendered nodes, so setting the attribute is itself
- * what starts the animation — there is no previous state to transition from.
- */
-function growPlots(host) {
-  if (REDUCED.matches) return;
-  $$('.chart-plot', host).forEach((plot) => {
-    [...plot.children].forEach((col, i) => col.style.setProperty('--i', i));
-    plot.dataset.swap = 'in';
-  });
-}
 
 /** The figures as they stand right now, so the next render can tween from them. */
 const readFigures = (host) => Object.fromEntries(
@@ -556,7 +543,7 @@ function wire(host) {
 
   on(host, 'click', '[data-act="new"]', () => {
     store.startNew(null);
-    location.href = 'builder.html';
+    navigate('builder.html');
   });
 
   on(host, 'click', '[data-act="open"]', (event, btn) => {
@@ -565,9 +552,9 @@ function wire(host) {
     // FR-82 — Draft and Scheduled reopen the builder; everything else opens insights.
     if (campaign.status === 'Draft' || campaign.status === 'Scheduled') {
       store.resumeCampaign(campaign.id);
-      location.href = 'builder.html';
+      navigate('builder.html');
     } else {
-      location.href = `insights.html?id=${encodeURIComponent(campaign.id)}`;
+      navigate(`insights.html?id=${encodeURIComponent(campaign.id)}`);
     }
   });
 
@@ -596,7 +583,7 @@ function wire(host) {
     // — the clone is traceable to its source rather than appearing from nowhere.
     $(`tr[data-id="${campaign.id}"]`, host)?.setAttribute('data-flash', '');
     toast('Campaign cloned', 'Content, audience and trigger copied. Schedule and responses were not.');
-    setTimeout(() => { location.href = 'builder.html'; }, 350);
+    setTimeout(() => { navigate('builder.html'); }, 350);
   });
 
   on(host, 'input', '[data-act="search"]', (event) => {

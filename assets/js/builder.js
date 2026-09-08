@@ -8,7 +8,7 @@
    ========================================================================== */
 import {
   html, raw, esc, icon, $, $$, on, uid, count, relativeTime, dropdown, wireDropdowns,
-  confirmDestructive, dialog, toast, wireOnce, stepPanel, keepScroll,
+  confirmDestructive, dialog, toast, wireOnce, stepPanel, keepScroll, navigate,
 } from './core.js';
 import {
   store, createVariant, reconcileVariants, validateStep, furthestReachableStep,
@@ -899,13 +899,59 @@ function markChangedSteps(root) {
 /**
  * The step body enters from the side it travelled from — forward from the
  * right, back from the left — so the direction says which way you moved
- * through the wizard. Enter-only: the outgoing step is gone the instant the
- * builder repaints, so there is nothing left to animate out.
+ * through the wizard.
  */
 function slideStep(direction) {
   if (REDUCED.matches) return;
   const page = $('[data-step-page]');
   if (page) page.dataset.enterDir = direction;
+}
+
+/**
+ * The step being left, travelling the other way at the same moment.
+ *
+ * The wizard repaints by replacing #app wholesale, so by the time the next
+ * step exists the previous one has already been destroyed — which is why this
+ * was enter-only, and why the step swap read as an arrival rather than as a
+ * move. The way out is to take the outgoing step out of the tree *before* the
+ * repaint: it is moved, not copied, so the fields the user just filled in are
+ * still filled in for the beat it is still on screen, and a clone's empty
+ * inputs never flash.
+ *
+ * It travels inside a fixed box cut to the scroller's own rect, with the page
+ * offset by the scroll position it had. Without the box a long step would hang
+ * over the header and the footer on its way out; without the offset it would
+ * jump back to its top on the frame it started leaving.
+ *
+ * Must be called before the repaint. Exit is --motion-fast against the
+ * entrance's --motion-base, so the step arriving is what the eye follows.
+ */
+function exitStep(direction) {
+  $$('[data-step-ghost]').forEach((stale) => stale.remove());
+  if (REDUCED.matches) return;
+
+  const page = $('[data-step-page]');
+  const scroller = page && page.closest('.scroll');
+  if (!scroller) return;
+  const box = scroller.getBoundingClientRect();
+  if (!box.height) return;
+
+  const ghost = document.createElement('div');
+  ghost.dataset.stepGhost = '';
+  ghost.dataset.exitDir = direction;
+  ghost.style.cssText =
+    `left:${box.left}px;top:${box.top}px;width:${box.width}px;height:${box.height}px`;
+
+  page.removeAttribute('data-step-page');
+  page.style.marginTop = `${-scroller.scrollTop}px`;
+  ghost.appendChild(page);
+  document.body.appendChild(ghost);
+
+  // Both, because a ghost on a page that never got a frame — a tab hidden
+  // mid-advance — would otherwise sit over the wizard until it came back.
+  const drop = () => ghost.remove();
+  ghost.addEventListener('animationend', drop, { once: true });
+  setTimeout(drop, 400);
 }
 
 export function renderBuilder() {
@@ -1099,10 +1145,16 @@ function wireCommon(root) {
     }
     ui.showIssues = false;
     ui.attention.delete(step);
+    // Clicking the step you are already on is not a move, and travelling for it
+    // would read as the wizard having lost your place.
+    if (target === step) { renderBuilder(); return; }
+
     // Read before setStep, and only ever on a step that actually moved: a
-    // blocked advance returned above, and renderBuilder() also runs on saves
-    // and field edits, which must not travel.
+    // blocked advance returned above, the no-op returned just now, and
+    // renderBuilder() also runs on saves and field edits, which must not travel.
     const direction = target > step ? 'fwd' : 'back';
+    // Before the repaint — this is the last moment the outgoing step exists.
+    exitStep(direction);
     store.setStep(target);
     renderBuilder();
     slideStep(direction);
@@ -1135,8 +1187,8 @@ function wireCommon(root) {
         { label: 'Save & exit', kind: 'primary', value: 'save' },
       ],
     });
-    if (choice === 'save') { store.saveDraft(); location.href = destination; }
-    if (choice === 'leave') { store.discardDraft(); location.href = destination; }
+    if (choice === 'save') { store.saveDraft(); navigate(destination); }
+    if (choice === 'leave') { store.discardDraft(); navigate(destination); }
   };
 
   on(root, 'click', '[data-act="exit"]', () => confirmLeave('index.html'));
@@ -1184,7 +1236,7 @@ function wireCommon(root) {
       result.wasLive ? `Version ${result.version} is live. Responses are split at this boundary.`
         : result.status === 'Scheduled' ? 'Enrolment opens at the scheduled start time.'
         : 'Enrolment is open and rolling.');
-    setTimeout(() => { location.href = 'index.html'; }, 600);
+    setTimeout(() => { navigate('index.html'); }, 600);
   });
 
   /* A keystroke re-renders the whole wizard, so the field being typed into has

@@ -37,18 +37,30 @@ no animation library removes the need for it.
 
 ## What is live
 
-24 keyframes, 44 transition declarations, 54 of them on tokens. Six of the assistant's durations
-are deliberately hardcoded (see *Rules*).
+28 keyframes and 50 transition declarations, carrying 88 references to the three motion tokens.
+Every duration outside the assistant is a token; the two that are not are the 8ms stagger the
+sparkline columns and distribution bars count on, and the 1.5s the collapsed rail's tooltip waits,
+both of which are gaps between things rather than the length of anything. Six of the assistant's
+durations are deliberately hardcoded (see *Rules*).
 
 ### Shell — every page
 
 | What | Trigger | Mechanism |
 | --- | --- | --- |
-| Rail collapse | the toggle | width + label fade; `applyRailState()` in `shell.js` patches state **in place** rather than rebuilding |
+| Page to page | any in-app link or `navigate()` | outgoing `body[data-leaving]` fades over 120ms and holds the jump; arriving `.app` runs `page-in` |
+| Rail collapse | the toggle | width + label fade + items closing to a 30px square; `applyRailState()` in `shell.js` patches state **in place** rather than rebuilding |
+| Rail tooltip | hover / focus on a **collapsed** item | 1.5s intent gate, instant out; a body-level node positioned in JS by `wireRailTips()` |
 | Dropdown open / close | menu trigger | `dd-in` 180ms / `dd-out` 120ms; `closeMenu()` defers `hidden` so the exit can run |
 | Dialog + scrim | any dialog | `pop` / `fade` |
 | Toast | `toast()` | `slidein` in, 120ms out, and the stack collapses via a negative `margin-bottom` |
 | Tooltip | hover | 80ms intent delay in, instant out |
+
+The rail's tooltip is the one that is **not** the `.tip` pseudo-element, and it cannot be: the
+rail clips its own overflow — that is what hides the labels while it narrows — and the nav list
+scrolls inside it, so anything drawn on the item is cut off at the strip's edge. It is drawn
+against the rail's right edge rather than the item's, because a 30px square sits 15px inside a
+60px strip. The native `title` it replaced was unstyled, opened on the browser's schedule and
+could not be positioned.
 
 ### Campaigns
 
@@ -67,19 +79,35 @@ are deliberately hardcoded (see *Rules*).
 Skeleton on the panel only — the header, filters and tab strip stay live, with the clicked tab
 already selected. Sliding tab marker via `wireTabPill()`. Chart tooltip rises 2px into place.
 
+The panel draws its marks in the way the campaign list does: `growPlots()` on the delivery
+columns, `growBars()` on every distribution bar across all four tabs. Both are **asked for**, not
+wired to the render path — the Responses tab repaints on every character typed into its search,
+and an entrance on that path would leave sixty bars redrawing under the cursor. The `drawIn` flag
+in `insights.js` is set by content arriving, a tab, a filter and a band filter; by nothing else.
+
 ### Builder
 
 No skeleton anywhere, by decision — a wizard step is a form being filled, not data arriving.
 
 | What | Trigger | Mechanism |
 | --- | --- | --- |
-| Step travel | `advance()` only | `step-fwd` / `step-back`; **not** wired to `renderBuilder()`, which also runs on saves and field edits |
+| Step travel | `advance()` only | `step-fwd` / `step-back` in, `step-exit-fwd` / `step-exit-back` out; **not** wired to `renderBuilder()`, which also runs on saves and field edits |
 | Step arriving | state → `current` | marker wipes (`step-mark`), badge settles (`step-settle`) |
 | Step finishing | state → `complete` | badge pops (`step-done`), check draws (`step-check`) |
 | Reachability | `ready` ↔ `locked` | `step-unlock` / `step-lock` |
 
 `markChangedSteps()` marks only steps whose state actually changed. A first paint marks nothing —
 the stepper arrives with the page rather than changing.
+
+`exitStep()` is the one place in the app that gets around the innerHTML problem by **moving the
+real node out of the tree** instead of replaying or re-animating. Called before the repaint — the
+last moment the outgoing step exists — it lifts the `.page` into a fixed box cut to the
+scroller's rect, offset by the scroll position it had, so the step travels out clipped to exactly
+the area it occupied rather than over the header and footer. Moved rather than cloned, because
+`cloneNode` copies the `value` *attribute* and not the live one: a copy of a filled-in form
+flashes empty. The box is opaque on `--background-200`; two steps of body copy crossfading
+through each other is unreadable. Removed on `animationend`, with a 400ms fallback for a tab
+hidden mid-advance, which never gets the event.
 
 ### Settings
 
@@ -101,8 +129,12 @@ Pre-existing and untouched: `asst-resolve`, `asst-blink`, `asst-rise`, `asst-bea
 | `countUp(node, from, to, format)` | `core.js` | tweens a number, respects reduced motion |
 | `wireTabPill(tabs, key)` | `core.js` | sliding tab marker with position replay |
 | `closeMenu(menu)` | `core.js` | animated dropdown close |
-| `growPlots(host)` / `countFigures(host, before)` | `dashboard.js` | chart + figure motion |
-| `markChangedSteps(root)` / `slideStep(dir)` | `builder.js` | stepper states + step travel |
+| `growPlots(host)` | `core.js` | sparkline / column entrance, 8ms per column |
+| `growBars(host)` | `core.js` | distribution bar entrance, 8ms per row, counted per block |
+| `navigate(href)` | `core.js` | leave for another page behind the exit fade |
+| `countFigures(host, before)` | `dashboard.js` | figure motion |
+| `markChangedSteps(root)` / `slideStep(dir)` / `exitStep(dir)` | `builder.js` | stepper states + step travel, both directions |
+| `wireRailTips(rail)` | `shell.js` | the collapsed rail's 1.5s tooltip |
 | `applyRailState(rail, collapsed)` | `shell.js` | in-place rail collapse |
 
 ### Lazy sections, in detail
@@ -136,13 +168,15 @@ before showing anyone.
 2. **Insights figure count-up** (`insights.js:220`) — the dashboard's figures count and Insights'
    do not, so the same gesture behaves differently on two screens. The inconsistency is the problem
    more than the missing motion. `countUp()` already exists.
-3. **Insights distribution bars** (`insights.js:285`) — `.bar-fill` has a width transition that is
-   **dead code**, same cause as the old `.chart-seg`. Fix it the way the sparklines were fixed:
-   fire on `entering`.
-4. **Validation shake** (`builder.js:534`) — the error notice appears and scrolls into view but
+3. **Validation shake** (`builder.js:534`) — the error notice appears and scrolls into view but
    does not announce itself.
-5. **Star / rating press feedback** (`content-step.js:310`) — this is the widget your *end users*
+4. **Star / rating press feedback** (`content-step.js:310`) — this is the widget your *end users*
    tap, and it has no press state at all.
+
+The Insights distribution bars that used to sit at the top of this list are done: `.bar-fill`'s
+dead `width` transition is gone and `growBars()` animates them instead. The Insights figure
+count-up that sat beside it is **not** — `countUp()` still only runs on the dashboard, and the
+same gesture still behaves differently on the two screens.
 
 ### Blocked on the render path
 
@@ -154,10 +188,17 @@ before showing anyone.
 
 ### Considered and rejected
 
-Card entrance staggers, avatar hover, empty-state entrances, device tilt, page-to-page transitions.
-These animate things that do not change meaning. `DESIGN.md` says nothing overshoots and nothing
-loops unless something is genuinely happening — decorating rather than marking state is how a
-console starts feeling like a toy.
+Card entrance staggers, avatar hover, empty-state entrances, device tilt. These animate things
+that do not change meaning. `DESIGN.md` says nothing overshoots and nothing loops unless something
+is genuinely happening — decorating rather than marking state is how a console starts feeling like
+a toy.
+
+**Page-to-page transitions were on this list and have been taken off it.** The argument for
+rejecting them was that a navigation does not change meaning. The argument against was stronger
+once the screen was watched rather than reasoned about: opening a campaign is the single longest
+gap in the product between a click and anything happening, and it was the one gesture that gave
+no acknowledgement at all. The fade is 120ms — the shortest gap that reads as a transition rather
+than as lag — and it is paid on every navigation, which is why it is not longer.
 
 ---
 
