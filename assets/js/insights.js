@@ -6,7 +6,7 @@
 import {
   html, raw, esc, icon, $, $$, on, count, ratingText, percent, ratingColor, ratingValue,
   ratingLegend, wireDropdowns, dialog, toast, wireOnce, AI_ACCENT, LOW_SAMPLE,
-  BANDS, BAND_LABEL, bandRange, keepScroll, lazySection, skel,
+  BANDS, BAND_LABEL, bandRange, keepScroll, lazySection, skel, growPlots, tabInk,
 } from './core.js';
 import { store } from './store.js';
 import {
@@ -1239,7 +1239,7 @@ function paintInsights(host, { pending = false, entering = false } = {}) {
         </div>` : '')}
 
       <!-- FR-88 — tab state lives in the URL so a view is shareable. -->
-      <div class="tabs" role="tablist" aria-label="Insights sections">
+      <div class="tabs" data-ink="insights" role="tablist" aria-label="Insights sections">
         ${tabsFor(c).map((t) => html`
           <button class="tab" role="tab" data-act="tab" data-tab="${t}" aria-selected="${tab === t}">
             ${t[0].toUpperCase() + t.slice(1)}
@@ -1250,7 +1250,17 @@ function paintInsights(host, { pending = false, entering = false } = {}) {
     </div>`;
 
   // Only the panel fades up. The chrome above it never left.
-  if (entering) $$('[data-enter]', host).forEach((node) => node.classList.add('lazy-in'));
+  if (entering) {
+    $$('[data-enter]', host).forEach((node) => node.classList.add('lazy-in'));
+    // …and the delivery chart inside it grows out of its own baseline. Gated
+    // on `entering`, so a filter change — which repaints every panel — leaves
+    // the chart where it is instead of redrawing it from nothing.
+    growPlots(host);
+  }
+  // After the strip exists and before anything is read off it: the bar is
+  // placed against the tab that is now selected, travelling from wherever the
+  // strip this one replaced had left it.
+  tabInk(host);
 
   wireDropdowns(host);
   // Bound to the chart node itself, which this render just replaced — so it

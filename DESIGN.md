@@ -601,16 +601,35 @@ a modal. Tokens: `assets/css/supabase.css`.
 
 | Token | Value | Used for |
 | --- | --- | --- |
+| `--motion-quick` | 90ms | Exits only, and only for what already opens at `--motion-fast` |
 | `--motion-fast` | 120ms | Feedback that only changes colour — hover, focus, a menu opening |
 | `--motion-base` | 180ms | Anything that moves or resizes a box — toasts, arriving content |
-| `--motion-slow` | 320ms | A chart redrawing its whole series, and nothing else |
+| `--motion-slow` | 320ms | A chart redrawing its whole series, and the figure that sums it |
 | `--ease-out` | `cubic-bezier(0.22, 0.61, 0.36, 1)` | Everything; the system has no bounce |
+| `--motion-delay-intent` | 80ms | How long a hover has to hold before a tooltip answers it |
 
-Three rules hold the scale together. **Nothing overshoots** — this is a console, and a spring on
+Four rules hold the scale together. **Nothing overshoots** — this is a console, and a spring on
 a status pill reads as a bug rather than as polish. **Nothing loops except while something is
-genuinely pending**, so a moving pixel always means work in progress. And **anything that
-animates in animates out**: a toast that slides in over 160ms and then disappears on a single
-frame reads as a glitch, not a dismissal.
+genuinely pending**, so a moving pixel always means work in progress. **Anything that
+animates in animates out**: a toast that slides in over 180ms and then disappears on a single
+frame reads as a glitch, not a dismissal. And **an exit runs one rung below its entrance** —
+a close that takes as long as its open reads as the panel arguing about it. The toast leaves at
+`--motion-fast` against its `--motion-base` arrival; the dropdown already opens at the bottom of
+the scale, which is the only reason `--motion-quick` exists. Nothing enters at `--motion-quick`.
+
+**Off the scale on purpose.** Four durations in the stylesheet are not on it, each because it is
+paired with something else rather than chosen for feel: the assistant's word reveal (260ms
+against `WORD_MS`), its border beam (500/600ms against `BEAM_FADE_MS`), the pointer's dwell ring
+(600ms against `DWELL_MS`, where the ring is a clock face for the timer), and the orb's halo
+(400ms, the tail of the orb's own settle). Each carries a comment saying so. Loop periods are
+not on the scale either and never were — the skeleton shimmer's 1.4s, the Live pulse's 2s, the
+caret's 1s, the beam's 3.4s and 12s. The scale measures how long the product takes to answer
+you; a loop is not answering anything. Every response time in the product is a token.
+
+Three curves are likewise not `--ease-out`, and for the same kind of reason: the skeleton sweep
+is `ease-in-out`, because it has to leave a block as gently as it entered it; the caret is
+`steps(2, start)`, because a caret blinks rather than fades; and the dwell ring is `linear`,
+because a clock face ticks evenly. Everything else eases out.
 
 Motion is never the only carrier of a state change. Every transition here decorates a change
 that is already legible in text, colour or position, which is what makes the global
@@ -634,3 +653,37 @@ it has something to load — an empty workspace and a campaign with no responses
 their zero states, because neither is waiting on anything. The chrome around the section stays
 put and stays live throughout: a reader who has just clicked Responses needs to see that
 Responses is selected, and blanking the control they used would read as the click having failed.
+
+**First paint** (`growPlots`) — the columns of a plot that has just replaced a skeleton grow out
+of their own baseline, one just behind the last. The step is derived, not fixed: the same call
+serves a 7-point strip and a 40-point one, and past about 300ms a stagger stops reading as one
+gesture and starts reading as a queue, so the whole sweep is fitted inside that budget with 12ms
+as the ceiling. It is gated on the paint that follows the wait and on nothing else — a sort, a
+column toggle and every keystroke in the search box come through the same render path, and a
+strip that redrew itself on each of them would flinch while someone typed.
+
+**Headline figures** (`countFigures`) — the pair above the activity strip is retyped on a range
+change, from the window that was on screen to the one that is, over `--motion-slow`. Not the
+~250ms a count-up usually gets: these numbers are the sum of the columns beside them, so they run
+at the columns' own duration and the two land together. Range change only, for the same reason
+the entrance is gated.
+
+**Tab indicator** (`.tab-ink`) — one bar that travels between tabs rather than a border that
+turns off in one place and on in another. The strip is rebuilt on every click, so the position is
+remembered and the bar is re-created where the last strip left it, flushed, and only then moved:
+what animates is the second placement, on a node that has already stood at the first. It is
+placed rather than moved on first paint and on every resize frame, and the per-tab border is only
+stood down once the bar is actually appended — a tab strip with no visible selection is not a tab
+strip. Opt-in per strip (`data-ink`), because the variant tabs wear their selection as a card
+edge and have nothing to slide.
+
+**Live pulse** (`.pill[data-status="Live"] .dot`) — the one loop in the product outside a pending
+state, which is the rule rather than an exception to it: a Live campaign is enrolling people
+right now, and this is the only thing on the list that is. A ring on a pseudo-element rather than
+the dot's own shadow, so the pulse is a transform and an opacity and stays on the compositor
+through twenty rows. Live only — Paused and Completed have nothing in flight to report.
+
+**Intent delay** (`.tip`) — a pointer crossing the toolbar passes over three tooltips on its way
+somewhere else, and answering each one turns the strip into a flicker. Hover waits
+`--motion-delay-intent` before opening; keyboard focus does not, because nobody tabs past a
+control by accident, and neither delays on the way out.

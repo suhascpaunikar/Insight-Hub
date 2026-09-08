@@ -5,7 +5,7 @@
 import {
   html, raw, esc, icon, $, $$, on, count, percent, relativeTime, absoluteTime,
   ratingValue, ratingColor, dropdown, wireDropdowns, toast, dialog, wireOnce, keepScroll,
-  lazySection, skel,
+  lazySection, skel, growPlots, REDUCED,
 } from './core.js';
 import { store } from './store.js';
 import {
@@ -38,7 +38,19 @@ const FIELD_LABEL = { name: 'campaign name', id: 'campaign ID', trigger: 'trigge
 
 /** Matches --motion-fast in supabase.css: how long the old plot takes to leave. */
 const SWAP_OUT = 120;
-const REDUCED = matchMedia('(prefers-reduced-motion: reduce)');
+/**
+ * Matches --motion-slow, which is what the columns beside these figures run
+ * at. The number is the sum of the shape next to it, so the two have to land
+ * together — a count that finished early would read as belonging to the range
+ * before last. Deliberately not the ~250ms a count-up is usually given: here
+ * the chart is the thing being matched, not a generic feel.
+ */
+const COUNT_MS = 320;
+/**
+ * The last figures painted, so a range change knows what it is counting from.
+ * Held across the render because the render is what replaces the nodes.
+ */
+let figures = { responses: 0, completion: 0 };
 
 /* ---------- Row pieces ---------- */
 
@@ -110,7 +122,7 @@ function rowMarkup(c) {
       </td>
       <td class="ta-r">
         <button class="btn btn-default btn-sm" data-act="open" data-id="${c.id}">
-          ${isBuilderRoute ? 'Resume' : 'Open'}${raw(icon('right'))}
+          ${isBuilderRoute ? 'Resume' : 'Open'}${raw(icon('right', 'row-chev'))}
         </button>
       </td>
     </tr>`;
@@ -182,6 +194,43 @@ function metricCard({ name, legend = [], value, subs = [], rows, series, axis, b
     </div>`;
 }
 
+/**
+ * Retypes one figure from `from` to `to` over COUNT_MS. Eased rather than
+ * linear, and out rather than in: the figure has to be readable early and
+ * settle late, or the eye tracks the digits instead of the value. A cubic
+ * ease-out, which is what --ease-out is a hand-tuned version of — close enough
+ * that the number and the columns beside it read as one movement.
+ */
+function tweenFigure(node, from, to, format) {
+  const start = performance.now();
+  const step = (now) => {
+    const t = Math.min(1, (now - start) / COUNT_MS);
+    const eased = 1 - (1 - t) ** 3;
+    node.textContent = format(from + (to - from) * eased);
+    if (t < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+const FIGURE_FORMAT = {
+  responses: (n) => count(Math.round(n)),
+  completion: (n) => percent(n),
+};
+
+/**
+ * FR-71's headline pair, counted from the window that was on screen to the one
+ * that is. Range change only: the same figures are re-rendered on every search
+ * keystroke, and a number that re-counts while someone types reads as the
+ * screen arguing with them.
+ */
+function countFigures(host, from) {
+  $$('[data-figure]', host).forEach((node) => {
+    const key = node.dataset.figure;
+    if (!(key in from) || from[key] === figures[key]) return;
+    tweenFigure(node, from[key], figures[key], FIGURE_FORMAT[key]);
+  });
+}
+
 function activityStrip(campaigns) {
   const rows = WORKSPACE_SERIES.slice(-RANGES[view.range].points);
   const sent = sum(rows, 'sent');
@@ -196,6 +245,10 @@ function activityStrip(campaigns) {
   const live = campaigns.filter((c) => c.status === 'Live').length;
   const paused = campaigns.filter((c) => c.status === 'Paused' || c.status === 'Stopped').length;
   const axis = [rows[0].label, rows[rows.length - 1].label];
+  // Recorded here rather than derived again later: this is the one place the
+  // window has already been sliced, and a second slice could disagree with the
+  // markup below it.
+  figures = { responses: completed, completion: completionRate };
 
   const rangeItems = Object.entries(RANGES).map(([key, r]) => `
     <button class="dd-item" role="menuitemradio" data-act="set-range" data-key="${key}"
@@ -209,11 +262,11 @@ function activityStrip(campaigns) {
       <div class="row-between wrap" style="margin-bottom:10px">
         <div class="row wrap" style="gap:20px">
           <span class="row" style="gap:7px">
-            <span class="num t-h1">${count(completed)}</span>
+            <span class="num t-h1" data-figure="responses">${count(completed)}</span>
             <span class="t-body fg-lighter">Responses collected</span>
           </span>
           <span class="row" style="gap:7px">
-            <span class="num t-h1">${percent(completionRate)}</span>
+            <span class="num t-h1" data-figure="completion">${percent(completionRate)}</span>
             <span class="t-body fg-lighter">Completion rate</span>
           </span>
         </div>
@@ -487,7 +540,14 @@ function paintDashboard(host, { pending = false, entering = false } = {}) {
 
   // Only what replaced a skeleton fades up. The page header was on screen
   // throughout the wait, and animating it would make it flicker for no reason.
-  if (entering) $$('[data-enter]', host).forEach((node) => node.classList.add('lazy-in'));
+  if (entering) {
+    $$('[data-enter]', host).forEach((node) => node.classList.add('lazy-in'));
+    // The section fades up as one; the columns inside it grow out of their own
+    // baseline behind that. Gated on `entering` and nothing else — a sort, a
+    // column toggle and every keystroke in the search box come through the
+    // same render path.
+    growPlots(host);
+  }
 
   wireDropdowns(host);
   wireOnce(host, 'dashWired', wire);
@@ -555,6 +615,12 @@ function wire(host) {
     if (!go) return;
     store.cloneCampaign(campaign.id);
     toast('Campaign cloned', 'Content, audience and trigger copied. Schedule and responses were not.');
+    // The 350ms before the navigation was already being spent; this is what
+    // it buys. The flash names the row the copy was taken from, so the builder
+    // that opens next reads as having come from somewhere rather than as the
+    // list having been swapped out from under the reader. Colour only, so it
+    // survives reduced motion — the acknowledgement is not the decoration.
+    $(`tr[data-id="${campaign.id}"]`, host)?.setAttribute('data-flash', 'true');
     setTimeout(() => { location.href = 'builder.html'; }, 350);
   });
 
@@ -581,6 +647,9 @@ function wire(host) {
      baseline, each column just behind the last. */
   on(host, 'click', '[data-act="set-range"]', async (event, btn) => {
     if (view.range === btn.dataset.key) return;
+    // Captured before anything renders: `figures` is about to be overwritten
+    // with the new window's totals, and this is the pair being counted from.
+    const from = { ...figures };
     view.range = btn.dataset.key;
 
     if (!REDUCED.matches) {
@@ -595,6 +664,9 @@ function wire(host) {
       [...plot.children].forEach((col, i) => col.style.setProperty('--i', i));
       plot.dataset.swap = 'in';
     });
+    // Started in the same tick as the columns, so the total and the shape it
+    // sums arrive together instead of the figure hard-cutting ahead of them.
+    countFigures(host, from);
   });
   on(host, 'click', '[data-act="toggle-col"]', (event, btn) => {
     view.columns[btn.dataset.key] = !view.columns[btn.dataset.key];

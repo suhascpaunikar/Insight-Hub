@@ -7,6 +7,13 @@
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
+/**
+ * The one place the motion preference is read. Live — the query object keeps
+ * matching as the setting changes, so a reader who turns it on mid-session
+ * does not have to reload to be taken at their word.
+ */
+export const REDUCED = matchMedia('(prefers-reduced-motion: reduce)');
+
 /** Escape interpolated values so seeded copy can contain < & " safely. */
 export const esc = (v) =>
   String(v ?? '').replace(/[&<>"']/g, (c) =>
@@ -67,6 +74,113 @@ export function keepScroll(find, key, render) {
   if (!after) return;
   after.dataset.scrollKey = stamp;
   after.scrollTop = top;
+}
+
+/* ==========================================================================
+   Sliding tab indicator
+
+   The strip is rebuilt on every tab click — the screen repaints through
+   innerHTML — so there is no previous state for a transition to run from. The
+   position is remembered instead: the bar is re-created where the last strip
+   left it, that placement is flushed to the layout, and only then is it moved
+   to the tab that is now selected. What animates is the second placement, on a
+   node that has already stood at the first.
+
+   Keyed per strip, so insights and settings never inherit each other's
+   position, and so a strip drawn for the first time appears in place rather
+   than flying in from the left edge.
+   ========================================================================== */
+const inkAt = new Map();
+let inkResizeBound = false;
+
+/** `animate: false` suspends the transition for this placement only. */
+function placeInk(ink, box, animate) {
+  ink.dataset.static = animate ? 'false' : 'true';
+  ink.style.width = `${box.width}px`;
+  ink.style.transform = `translateX(${box.left}px)`;
+}
+
+const inkBox = (tab) => ({ left: tab.offsetLeft, width: tab.offsetWidth });
+
+/** Every opted-in strip under `root`, re-placed without animating. */
+function settleInk() {
+  $$('.tabs[data-ink]').forEach((strip) => {
+    const selected = $('.tab[aria-selected="true"]', strip);
+    const ink = $('.tab-ink', strip);
+    if (!selected || !ink) return;
+    const box = inkBox(selected);
+    placeInk(ink, box, false);
+    inkAt.set(strip.dataset.ink, box);
+  });
+}
+
+/** Call after any render that draws a `.tabs[data-ink]` strip. */
+export function tabInk(root = document) {
+  const node = typeof root === 'string' ? $(root) : root;
+  if (!node) return;
+
+  $$('.tabs[data-ink]', node).forEach((strip) => {
+    const selected = $('.tab[aria-selected="true"]', strip);
+    if (!selected) return;
+    let ink = $('.tab-ink', strip);
+    if (!ink) {
+      ink = document.createElement('span');
+      ink.className = 'tab-ink';
+      strip.appendChild(ink);
+      // The tabs keep their own border-bottom until the bar is actually
+      // standing, so a strip that never reaches this line still shows which
+      // tab is selected rather than showing nothing at all.
+      strip.dataset.inkOn = 'true';
+    }
+    const to = inkBox(selected);
+    const from = inkAt.get(strip.dataset.ink);
+    const moved = from && (from.left !== to.left || from.width !== to.width);
+    if (moved && !REDUCED.matches) {
+      placeInk(ink, from, false);
+      void ink.offsetWidth;          // flush, so the move below has a start
+      placeInk(ink, to, true);
+    } else {
+      placeInk(ink, to, false);
+    }
+    inkAt.set(strip.dataset.ink, to);
+  });
+
+  if (inkResizeBound) return;
+  inkResizeBound = true;
+  // A reflow moves every tab at once. The bar has to follow without animating,
+  // or it chases the layout across the screen for the whole drag.
+  addEventListener('resize', settleInk);
+}
+
+/* ==========================================================================
+   Column entrance
+
+   The bars of a plot grow out of their own baseline, one just behind the
+   last. Strictly for a plot that has just replaced a skeleton: re-firing it on
+   a filter change or a keystroke would have the strip flinch every time the
+   reader types.
+
+   The step is derived rather than fixed, because the same call serves a 7-point
+   strip and a 40-point one. Past about 300ms a stagger stops reading as one
+   gesture and starts reading as a queue, so that is the budget the whole sweep
+   is fitted into; 12ms is the ceiling, which is where the short strips land.
+   ========================================================================== */
+const STAGGER_BUDGET = 288;
+const STAGGER_MAX = 12;
+
+export function growPlots(root = document) {
+  const node = typeof root === 'string' ? $(root) : root;
+  if (!node || REDUCED.matches) return;
+  $$('.chart-plot', node).forEach((plot) => {
+    const cols = $$('.chart-col', plot);
+    if (!cols.length) return;
+    const step = Math.min(STAGGER_MAX, STAGGER_BUDGET / Math.max(1, cols.length - 1));
+    plot.style.setProperty('--col-step', `${step.toFixed(2)}ms`);
+    cols.forEach((col, i) => col.style.setProperty('--i', i));
+    // A new node, so setting the attribute is itself what starts the
+    // animation — there is no previous state for a transition to run from.
+    plot.dataset.swap = 'in';
+  });
 }
 
 /* ==========================================================================
@@ -474,6 +588,47 @@ export function stepPanel({
 
 /* ---------- Dropdown ---------- */
 /**
+ * Matches --motion-quick in supabase.css: how long a menu takes to leave.
+ * A close runs one rung below its open — the menu arrives over --motion-fast.
+ */
+const DD_CLOSE = 90;
+
+const ddTrigger = (menu) => menu.closest('.dd')?.querySelector('[data-dd-trigger]');
+
+/**
+ * `hidden` takes the menu out of the box tree on the frame it is set, so a
+ * close under an animation is an interval rather than an instant: `data-closing`
+ * holds the menu on screen for its exit and `hidden` lands at the end of it.
+ *
+ * Re-opening mid-close clears the flag, which is what `finish` tests before
+ * hiding anything — several closes can be queued against one menu, and only
+ * the one that is still current may act.
+ */
+function closeMenu(menu) {
+  ddTrigger(menu)?.setAttribute('aria-expanded', 'false');
+  if (menu.hidden || menu.dataset.closing) return;
+  menu.dataset.closing = 'true';
+  const finish = () => {
+    if (menu.dataset.closing !== 'true') return;
+    delete menu.dataset.closing;
+    menu.hidden = true;
+  };
+  // Either end event will do — the exit is an animation normally and an
+  // opacity transition under reduced motion. The timer is what guarantees the
+  // menu is actually gone: neither event fires in a background tab, and a
+  // menu left visible is worse than one that leaves without its animation.
+  menu.addEventListener('animationend', finish, { once: true });
+  menu.addEventListener('transitionend', finish, { once: true });
+  setTimeout(finish, DD_CLOSE + 60);
+}
+
+function openMenu(menu) {
+  delete menu.dataset.closing;
+  menu.hidden = false;
+  ddTrigger(menu)?.setAttribute('aria-expanded', 'true');
+}
+
+/**
  * Wires every .dd inside `root`: toggles its .dd-menu, closes the rest.
  * Nested roots are skipped — two handlers on ancestor and descendant would
  * each toggle the same menu on one click and cancel out.
@@ -491,20 +646,20 @@ export function wireDropdowns(root = document) {
     $$('.dd-menu', node).forEach((menu) => {
       const owner = menu.closest('.dd');
       const isOwn = trigger && owner && owner.contains(trigger);
-      if (!isOwn && !(insideMenu && menu.contains(event.target))) menu.hidden = true;
+      if (!isOwn && !(insideMenu && menu.contains(event.target))) closeMenu(menu);
     });
     if (trigger) {
       const menu = trigger.closest('.dd')?.querySelector('.dd-menu');
-      if (menu) {
-        menu.hidden = !menu.hidden;
-        trigger.setAttribute('aria-expanded', String(!menu.hidden));
-      }
+      // `hidden` is still false while a menu is leaving, so "open" is the pair:
+      // on screen, and not already on its way out. Without the second half, a
+      // click landing inside the exit would close a menu that is closing.
+      if (menu) (!menu.hidden && !menu.dataset.closing ? closeMenu : openMenu)(menu);
     }
   });
 
   if (closerBound) return;
   closerBound = true;
-  const closeAll = () => $$('.dd-menu').forEach((m) => { m.hidden = true; });
+  const closeAll = () => $$('.dd-menu').forEach((m) => closeMenu(m));
   document.addEventListener('click', (event) => {
     if (!event.target.closest('[data-dd-wired="1"]')) closeAll();
   });

@@ -13,6 +13,7 @@
    ========================================================================== */
 import {
   html, raw, esc, icon, $, on, count, dropdown, wireDropdowns, toast, dialog, wireOnce, keepScroll,
+  tabInk,
 } from './core.js';
 import { store } from './store.js';
 
@@ -387,11 +388,14 @@ function paintSettings(host) {
         </div>
       </header>
 
-      <div class="tabs page-tabs" role="tablist">${tabs}</div>
+      <div class="tabs page-tabs" data-ink="settings" role="tablist">${tabs}</div>
 
       <div style="margin-top:var(--sp-xl)">${raw(body)}</div>
     </div>`;
 
+  // The strip is rebuilt by the line above, so the bar has to be re-placed
+  // after every paint — travelling from where the strip it replaced left it.
+  tabInk(host);
   wireDropdowns(host);
   wireOnce(host, 'settingsWired', wire);
 }

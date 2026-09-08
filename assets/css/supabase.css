@@ -90,11 +90,23 @@
   /* Motion — one scale for the whole system, so a hover and a panel entrance
      are never accidentally the same length. Feedback that only changes colour
      is --motion-fast; anything that moves or resizes a box is --motion-base;
-     only a chart redrawing its whole series earns --motion-slow. */
+     only a chart redrawing its whole series earns --motion-slow.
+
+     An exit runs one rung below its entrance: a close that takes as long as
+     its open reads as the panel being reluctant to go. --motion-quick is the
+     rung below --motion-fast, and exists for nothing else — the dropdown
+     already opens at the bottom of the scale, so its close needs somewhere
+     lower to stand. Never use it for an entrance. */
+  --motion-quick: 90ms;
   --motion-fast: 120ms;
   --motion-base: 180ms;
   --motion-slow: 320ms;
   --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  /* A pointer crossing a toolbar passes over three controls on its way
+     somewhere else. Waiting this long before answering is what separates
+     "resting here" from "on the way past". Applies to the open only; a
+     tooltip that lingered on the way out would be the same bug reversed. */
+  --motion-delay-intent: 80ms;
 
   /* Chrome */
   --rail-w: 212px;
@@ -196,7 +208,7 @@ img { max-width: 100%; }
   height: 30px; padding: 0 12px;
   border: 1px solid transparent; border-radius: var(--radius-sm);
   font-size: 13px; font-weight: 500; line-height: 1; white-space: nowrap;
-  transition: background-color .12s ease, border-color .12s ease, color .12s ease;
+  transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
 }
 .btn:disabled, .btn[aria-disabled="true"] { opacity: .5; cursor: not-allowed; pointer-events: none; }
 .btn svg { width: 14px; height: 14px; flex: none; }
@@ -237,7 +249,7 @@ img { max-width: 100%; }
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   color: var(--foreground-default); font-size: 13px;
-  transition: border-color .12s ease, background-color .12s ease;
+  transition: border-color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out);
 }
 .input::placeholder, .textarea::placeholder { color: var(--foreground-muted); }
 .input:hover, .textarea:hover, .select:hover { border-color: var(--border-overlay); }
@@ -270,7 +282,7 @@ img { max-width: 100%; }
 .check, .radio {
   appearance: none; flex: none; width: 15px; height: 15px; margin: 0;
   background: var(--background-200); border: 1px solid var(--border-overlay);
-  cursor: pointer; transition: background-color .12s ease, border-color .12s ease;
+  cursor: pointer; transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
 }
 .check { border-radius: var(--radius-xs); }
 .radio { border-radius: var(--radius-full); }
@@ -287,7 +299,7 @@ img { max-width: 100%; }
   display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; cursor: pointer;
   text-align: left;
   background: var(--background-100); border: 1px solid var(--border-default);
-  border-radius: var(--radius-md); transition: background-color .12s ease, border-color .12s ease;
+  border-radius: var(--radius-md); transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
 }
 .opt:hover { background: var(--surface-100); border-color: var(--border-strong); }
 .opt.is-on { background: var(--surface-100); border-color: var(--brand-400); box-shadow: inset 0 0 0 1px var(--brand-200); }
@@ -312,11 +324,11 @@ img { max-width: 100%; }
 .switch {
   appearance: none; position: relative; flex: none; width: 34px; height: 19px; margin: 0;
   background: var(--surface-300); border: 1px solid var(--border-overlay);
-  border-radius: var(--radius-full); cursor: pointer; transition: background-color .15s ease, border-color .15s ease;
+  border-radius: var(--radius-full); cursor: pointer; transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
 }
 .switch::after {
   content: ""; position: absolute; top: 2px; left: 2px; width: 13px; height: 13px;
-  background: var(--foreground-light); border-radius: var(--radius-full); transition: transform .15s ease, background-color .15s ease;
+  background: var(--foreground-light); border-radius: var(--radius-full); transition: transform var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out);
 }
 .switch:checked { background: var(--brand-default); border-color: var(--brand-600); }
 .switch:checked::after { transform: translateX(15px); background: var(--on-brand); }
@@ -366,7 +378,28 @@ img { max-width: 100%; }
 .pill[data-status="Paused"] { color: var(--warning-fg); border-color: var(--warning-400); background: var(--warning-200); }
 .pill[data-status="Completed"] { color: var(--foreground-light); }
 .pill[data-status="Stopped"] { color: var(--destructive-fg); border-color: var(--destructive-400); background: var(--destructive-200); }
-.pill[data-status="Live"] .dot { box-shadow: 0 0 0 3px var(--brand-200); }
+.pill[data-status="Live"] .dot { position: relative; box-shadow: 0 0 0 3px var(--brand-200); }
+/* The one thing on a campaign list that is genuinely happening right now, and
+   the only loop in the product outside a pending state — which is the rule the
+   scale is built on: a moving pixel means work in progress. Live only; Paused
+   and Completed have nothing in flight to report.
+
+   A second ring on a pseudo-element rather than the dot's own box-shadow: this
+   way the pulse is a transform and an opacity, so it stays on the compositor
+   through a list of twenty rows, and the static ring underneath it never
+   moves. It expands and fades once every two seconds and rests for the last
+   third, so the list reads as a slow breath rather than a strobe. */
+.pill[data-status="Live"] .dot::after {
+  content: ""; position: absolute; inset: 0;
+  border-radius: var(--radius-full);
+  box-shadow: 0 0 0 3px var(--brand-400);
+  animation: live-pulse 2s var(--ease-out) infinite;
+}
+@keyframes live-pulse {
+  0%   { opacity: .7; transform: scale(1); }
+  70%  { opacity: 0;  transform: scale(2.1); }
+  100% { opacity: 0;  transform: scale(2.1); }
+}
 
 .chip {
   display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 4px 0 10px;
@@ -399,8 +432,34 @@ img { max-width: 100%; }
   font-size: 11px; font-weight: 500; color: var(--foreground-lighter);
   letter-spacing: .03em; text-transform: uppercase; white-space: nowrap;
 }
-.table td { padding: 9px 12px; border-bottom: 1px solid var(--border-muted); font-size: 12.5px; vertical-align: middle; }
+/* The transition lives on the cell, not on the row: `background` is painted
+   per-cell here, and a row-level rule would have nothing to run on. Safe under
+   the innerHTML constraint because hover is a state change on a node that is
+   already standing, not the arrival of a new one. */
+.table td {
+  padding: 9px 12px; border-bottom: 1px solid var(--border-muted);
+  font-size: 12.5px; vertical-align: middle;
+  transition: background-color var(--motion-fast) var(--ease-out);
+}
 .table tbody tr:hover td { background: var(--surface-100); }
+/* The row's own affordance, borrowed from .srow-chev: the chevron leans the
+   way the row goes, so the whole row reads as the target rather than the
+   button in it. Opt-in by class rather than by position — a leading icon that
+   labels its button (Clone) must not drift, and `svg:last-child` cannot tell
+   the two apart, because a trailing text node does not count as a child. */
+.row-chev { transition: transform var(--motion-fast) var(--ease-out); }
+.table tbody tr:hover .row-chev { transform: translateX(2px); }
+/* Clone takes a copy of one row and then leaves the screen. The flash is what
+   says which row it took, in the time the navigation was already going to
+   spend. Colour, not travel: the row must not move while the reader is still
+   reading it, and colour is the half of this that survives reduced motion. */
+.table tbody tr[data-flash="true"] td {
+  animation: row-flash var(--motion-slow) var(--ease-out);
+}
+@keyframes row-flash {
+  from { background-color: var(--brand-200); }
+  to   { background-color: transparent; }
+}
 .table tbody tr:last-child td { border-bottom: 0; }
 .table .ta-r { text-align: right; }
 .table-scroll { overflow-x: auto; }
@@ -411,10 +470,32 @@ img { max-width: 100%; }
   position: relative; padding: 8px 12px; margin-bottom: -1px;
   border-bottom: 2px solid transparent;
   font-size: 12.5px; font-weight: 500; color: var(--foreground-lighter);
-  transition: color .12s ease, border-color .12s ease;
+  transition: color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
 }
 .tab:hover { color: var(--foreground-default); }
 .tab[aria-selected="true"] { color: var(--foreground-default); border-bottom-color: var(--brand-default); }
+
+/* One bar that travels between tabs, rather than a border that turns off in
+   one place and on in another: the strip then reads as the same marker moving
+   to what you picked. Opt-in per strip — the variant tabs below wear their
+   selection as a card edge, not as a rule, and have nothing to slide.
+
+   The per-tab border is only stood down once tabInk() has actually appended
+   the bar. If the script never gets that far the strip degrades to the border
+   it had before, which is the one failure mode worth designing for: a tab
+   strip with no visible selection is not a tab strip. */
+.tabs[data-ink] { position: relative; }
+.tabs[data-ink-on="true"] .tab[aria-selected="true"] { border-bottom-color: transparent; }
+.tab-ink {
+  position: absolute; bottom: -1px; left: 0; height: 2px;
+  background: var(--brand-default);
+  pointer-events: none;
+  transition: transform var(--motion-base) var(--ease-out),
+              width var(--motion-base) var(--ease-out);
+}
+/* First paint and every resize frame: the bar is placed, not moved. Without
+   this it flies in from the left on load and chases the layout on a drag. */
+.tab-ink[data-static="true"] { transition: none; }
 /* FR-70 — variant tabs read a level below the step rail. */
 .tabs-sub { gap: 4px; border-bottom: 1px solid var(--border-default); }
 .tabs-sub .tab {
@@ -435,7 +516,7 @@ img { max-width: 100%; }
   position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
   display: grid; place-items: center; width: 17px; height: 17px;
   border-radius: var(--radius-sm); color: var(--foreground-lighter); cursor: pointer;
-  opacity: 0; transition: opacity .12s ease, background-color .12s ease, color .12s ease;
+  opacity: 0; transition: opacity var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
 }
 .tab-del svg { width: 11px; height: 11px; }
 .tab-wrap:hover .tab-del, .tab-wrap:focus-within .tab-del { opacity: 1; }
@@ -454,6 +535,16 @@ img { max-width: 100%; }
 .dd-menu[data-align="end"] { right: 0; transform-origin: top right; }
 .dd-menu[data-align="start"] { left: 0; transform-origin: top left; }
 @keyframes dd-in { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
+/* The close. It opens at the bottom of the scale, so the exit needs the rung
+   below it — hence --motion-quick, which exists for this and nothing else. It
+   collapses back towards the trigger rather than travelling: a menu that
+   retraced its 4px entrance on the way out would read as being pushed away
+   instead of put back. `hidden` is set by wireDropdowns() when this ends. */
+.dd-menu[data-closing="true"] {
+  animation: dd-out var(--motion-quick) var(--ease-out) both;
+  pointer-events: none;
+}
+@keyframes dd-out { to { opacity: 0; transform: scale(.98); } }
 .dd-label { padding: 6px 8px 4px; font-size: 10px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; color: var(--foreground-muted); }
 .dd-sep { height: 1px; margin: 4px 0; background: var(--border-default); }
 .dd-item {
@@ -468,7 +559,7 @@ img { max-width: 100%; }
 .scrim {
   position: fixed; inset: 0; z-index: 100; display: grid; place-items: center;
   background: rgba(0, 0, 0, 0.6); padding: var(--sp-xl);
-  animation: fade .12s ease;
+  animation: fade var(--motion-fast) var(--ease-out);
 }
 /* A column, not a single scrolling box: the head and the foot hold their
    place while only the body moves, so the title's hairline stays put over a
@@ -478,7 +569,7 @@ img { max-width: 100%; }
   width: 100%; max-width: 480px; max-height: 85vh; overflow: hidden;
   background: var(--background-100); border: 1px solid var(--border-overlay);
   border-radius: var(--radius-md); box-shadow: var(--shadow-3);
-  animation: pop .14s ease;
+  animation: pop var(--motion-base) var(--ease-out);
 }
 .dialog-lg { max-width: 720px; }
 .dialog-xl { max-width: 900px; }
@@ -502,20 +593,22 @@ img { max-width: 100%; }
   padding: 11px 13px; background: var(--background-100);
   border: 1px solid var(--border-overlay); border-left: 2px solid var(--brand-default);
   border-radius: var(--radius-md); box-shadow: var(--shadow-3);
-  animation: slidein .16s ease;
+  animation: slidein var(--motion-base) var(--ease-out);
 }
 .toast[data-kind="warning"] { border-left-color: var(--warning); }
 .toast[data-kind="danger"] { border-left-color: var(--destructive); }
 .toast-title { font-size: 12.5px; font-weight: 500; color: var(--foreground-default); }
 .toast-desc { margin-top: 3px; font-size: 11.5px; color: var(--foreground-lighter); }
 @keyframes slidein { from { opacity: 0; transform: translateX(14px); } }
-/* Leaves the way it arrived. `animation: none` because a toast dismissed
-   inside its own 160ms entrance would otherwise have the two fighting over
-   the same two properties. */
+/* Leaves the way it arrived, one rung quicker. A dismissal that takes as long
+   as the arrival reads as the toast arguing about it; --motion-fast against the
+   entrance's --motion-base is the asymmetry that makes it read as "gone".
+   `animation: none` because a toast dismissed inside its own entrance would
+   otherwise have the two fighting over the same two properties. */
 .toast[data-leaving="true"] {
   animation: none; opacity: 0; transform: translateX(14px);
-  transition: opacity var(--motion-base) var(--ease-out),
-              transform var(--motion-base) var(--ease-out);
+  transition: opacity var(--motion-fast) var(--ease-out),
+              transform var(--motion-fast) var(--ease-out);
 }
 
 /* ---------- Tooltip ---------- */
@@ -525,9 +618,15 @@ img { max-width: 100%; }
   transform: translateX(-50%); padding: 4px 8px; white-space: nowrap;
   background: var(--surface-200); border: 1px solid var(--border-overlay);
   border-radius: var(--radius-xs); font-size: 11px; color: var(--foreground-default);
-  opacity: 0; pointer-events: none; transition: opacity .12s ease; box-shadow: var(--shadow-2);
+  opacity: 0; pointer-events: none; transition: opacity var(--motion-fast) var(--ease-out); box-shadow: var(--shadow-2);
 }
 .tip:hover::after, .tip:focus-visible::after { opacity: 1; }
+/* Hover only. A pointer crossing the toolbar passes over three tips on its way
+   somewhere else, and answering each one turns the strip into a flicker; the
+   delay is what makes a tip mean "you stopped here". Keyboard focus is already
+   deliberate — nobody tabs past a control by accident — so it answers at once,
+   and neither state delays on the way out. */
+.tip:hover::after { transition-delay: var(--motion-delay-intent); }
 
 /* ---------- Empty / zero state ---------- */
 .zero { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 56px var(--sp-xl); }
@@ -544,7 +643,7 @@ img { max-width: 100%; }
 .rail {
   display: flex; flex-direction: column; flex: none; width: var(--rail-w);
   background: var(--background-100); border-right: 1px solid var(--border-default);
-  transition: width .18s ease;
+  transition: width var(--motion-base) var(--ease-out);
 }
 .rail[data-collapsed="true"] { width: var(--rail-w-collapsed); }
 .rail[data-collapsed="true"] .rail-text { display: none; }
@@ -559,7 +658,7 @@ img { max-width: 100%; }
 .rail-link {
   display: flex; align-items: center; gap: 10px; margin: 1px 8px; padding: 6px 8px;
   border-radius: var(--radius-sm); font-size: 12.5px; font-weight: 500; color: var(--foreground-lighter);
-  transition: background-color .12s ease, color .12s ease;
+  transition: background-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
 }
 .rail-link:hover { background: var(--surface-100); color: var(--foreground-default); }
 /* FR-58 — active is distinct through background, weight and a marker, not colour alone. */
@@ -598,7 +697,7 @@ img { max-width: 100%; }
   display: flex; align-items: center; gap: 9px; flex: 1 1 0; min-width: 0; padding: 7px 10px;
   border: 1px solid var(--border-default); border-radius: var(--radius-sm);
   background: var(--background-100); text-align: left;
-  transition: background-color .12s ease, border-color .12s ease;
+  transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
 }
 .step:hover:not(:disabled) { background: var(--surface-100); border-color: var(--border-strong); }
 .step-num {
@@ -633,7 +732,7 @@ img { max-width: 100%; }
   display: block; position: relative; height: 8px; background: var(--surface-200);
   border-radius: var(--radius-full); overflow: hidden;
 }
-.bar-fill { display: block; height: 100%; border-radius: var(--radius-full); transition: width .3s ease; }
+.bar-fill { display: block; height: 100%; border-radius: var(--radius-full); transition: width var(--motion-slow) var(--ease-out); }
 .dist { display: flex; flex-direction: column; gap: 6px; }
 .dist-row { display: grid; grid-template-columns: 44px 1fr 108px; align-items: center; gap: 10px; }
 
@@ -655,7 +754,7 @@ img { max-width: 100%; }
 
 .spark { display: flex; align-items: flex-end; gap: 3px; height: 92px; }
 .spark-col { position: relative; flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; min-width: 0; }
-.spark-seg { border-radius: 2px 2px 0 0; transition: height .3s ease; }
+.spark-seg { border-radius: 2px 2px 0 0; transition: height var(--motion-slow) var(--ease-out); }
 .spark-boundary { position: relative; width: 0; border-left: 1px dashed var(--ai-400); align-self: stretch; }
 
 /* ---------- Template picker (FR-26 … FR-33) ---------- */
@@ -663,7 +762,7 @@ img { max-width: 100%; }
 .tpl-card {
   position: relative; overflow: hidden; padding: 10px;
   background: var(--background-100); border: 1px solid var(--border-default);
-  border-radius: var(--radius-md); text-align: left; transition: border-color .12s ease;
+  border-radius: var(--radius-md); text-align: left; transition: border-color var(--motion-fast) var(--ease-out);
 }
 .tpl-card:hover { border-color: var(--brand-400); }
 .tpl-card.is-on { border-color: var(--brand-default); box-shadow: inset 0 0 0 1px var(--brand-400); }
@@ -676,7 +775,7 @@ img { max-width: 100%; }
 /* FR-32 — hover reveals the primary action over the preview. */
 .tpl-hover {
   position: absolute; inset: 0; display: grid; place-items: center;
-  background: rgba(18, 18, 18, 0.82); opacity: 0; transition: opacity .12s ease;
+  background: rgba(18, 18, 18, 0.82); opacity: 0; transition: opacity var(--motion-fast) var(--ease-out);
 }
 .tpl-card:hover .tpl-hover, .tpl-card:focus-visible .tpl-hover { opacity: 1; }
 .tpl-group-head { display: flex; align-items: center; gap: 10px; margin: var(--sp-lg) 0 var(--sp-sm); }
@@ -836,13 +935,13 @@ img { max-width: 100%; }
 /* A row that navigates. The whole row is the target, the chevron says so. */
 .srow-link {
   width: 100%; text-align: left; cursor: pointer;
-  transition: background-color .12s ease;
+  transition: background-color var(--motion-fast) var(--ease-out);
 }
 .srow-link:hover { background: var(--surface-100); }
 /* The link row's right side is a status beside its chevron, not stacked above
    it — `.srow-ctl` is a column by default and would otherwise win on order. */
 .srow-link .srow-ctl { flex-direction: row; align-items: center; gap: 10px; }
-.srow-link .srow-chev { color: var(--foreground-muted); transition: color .12s ease, transform .12s ease; }
+.srow-link .srow-chev { color: var(--foreground-muted); transition: color var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out); }
 .srow-link:hover .srow-chev { color: var(--foreground-default); transform: translateX(2px); }
 .srow-chev svg { width: 15px; height: 15px; }
 
@@ -897,7 +996,7 @@ img { max-width: 100%; }
   gap: 6px; width: 100%; padding: var(--sp-xl) var(--sp-lg); text-align: center;
   background: var(--background-200); border: 1px dashed var(--border-strong);
   border-radius: var(--radius-md); cursor: pointer;
-  transition: border-color .12s ease, background-color .12s ease;
+  transition: border-color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out);
 }
 .drop:hover, .drop.is-over { border-color: var(--brand-400); background: var(--surface-100); }
 .drop svg { width: 18px; height: 18px; color: var(--foreground-muted); }
@@ -937,7 +1036,7 @@ img { max-width: 100%; }
   display: flex; flex-direction: column; padding: var(--sp-md) var(--sp-lg) 10px;
   background: var(--background-100); border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
-  transition: border-color .12s ease, background-color .12s ease;
+  transition: border-color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out);
 }
 a.metric:hover, button.metric:hover { border-color: var(--border-strong); background: var(--surface-100); }
 .metric-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-sm); }
@@ -979,7 +1078,7 @@ a.metric:hover, button.metric:hover { border-color: var(--border-strong); backgr
 .chart-col { position: relative; flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; min-width: 0; cursor: default; }
 .chart-col::before { content: ""; position: absolute; inset: 0; }
 .chart-col:hover::before { background: var(--surface-100); opacity: .5; border-radius: 2px; }
-.chart-seg { position: relative; border-radius: 2px 2px 0 0; transition: height .3s ease; }
+.chart-seg { position: relative; border-radius: 2px 2px 0 0; transition: height var(--motion-slow) var(--ease-out); }
 
 /* A range change replaces the columns rather than resizing them: 7 days and
    30 days are not the same number of bars, so there is no height to morph
@@ -989,7 +1088,11 @@ a.metric:hover, button.metric:hover { border-color: var(--border-strong); backgr
 .chart-plot[data-swap="in"] .chart-col {
   transform-origin: bottom;
   animation: col-grow var(--motion-slow) var(--ease-out) both;
-  animation-delay: calc(var(--i, 0) * 8ms);
+  /* 8ms is the re-slice, where the shape is already familiar and the sweep
+     only has to say the window changed. A first paint sets its own step: the
+     strip has just replaced a skeleton, which is a bigger moment and carries
+     a wider stagger. See growPlots() in core.js. */
+  animation-delay: calc(var(--i, 0) * var(--col-step, 8ms));
 }
 @keyframes col-grow { from { opacity: 0; transform: scaleY(.35); } }
 
@@ -999,7 +1102,7 @@ a.metric:hover, button.metric:hover { border-color: var(--border-strong); backgr
   position: absolute; z-index: 40; min-width: 190px; padding: 9px 11px;
   background: var(--background-200); border: 1px solid var(--border-overlay);
   border-radius: var(--radius-md); box-shadow: var(--shadow-3);
-  pointer-events: none; opacity: 0; transition: opacity .1s ease;
+  pointer-events: none; opacity: 0; transition: opacity var(--motion-fast) var(--ease-out);
 }
 .chart-tip[data-open="true"] { opacity: 1; }
 .chart-tip-row { display: flex; align-items: center; gap: var(--sp-md); }
@@ -1027,6 +1130,8 @@ a.metric:hover, button.metric:hover { border-color: var(--border-strong); backgr
 .skel::after {
   content: ""; position: absolute; inset: 0; transform: translateX(-100%);
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.045), transparent);
+  /* ease-in-out, not --ease-out: the sweep has to leave the block as gently
+     as it entered it, and an out-curve would have it dart in and crawl off. */
   animation: skel-sweep 1.4s ease-in-out infinite;
 }
 @keyframes skel-sweep { to { transform: translateX(100%); } }
@@ -1088,7 +1193,12 @@ body:has(.builder-foot) .asst {
   background: transparent;        /* the orb paints its own ground */
   box-shadow: var(--shadow-2);
   cursor: pointer;
-  transition: transform 120ms ease, border-color 120ms ease, box-shadow 400ms ease;
+  /* The halo is off the scale on purpose: it is not interaction feedback but
+     the tail of the orb's own two-second settle, and cutting it to
+     --motion-slow would have the glow leave before the orb it belongs to. */
+  transition: transform var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out),
+              box-shadow 400ms ease;
 }
 .asst-bubble:hover { border-color: var(--ai-fg); transform: translateY(-1px); }
 
@@ -1112,7 +1222,11 @@ body:has(.builder-foot) .asst {
   box-shadow: var(--shadow-3);
   overflow: hidden;
   transform-origin: bottom right;
-  transition: opacity 180ms ease, transform 180ms cubic-bezier(0.23, 1, 0.32, 1),
+  /* Opacity and travel are the card opening and sit on the scale. The border
+     is not: it hands the edge over to the beam, so it runs at the beam's own
+     600ms (see BEAM_FADE_MS in assistant-orb.js) rather than the card's. */
+  transition: opacity var(--motion-base) var(--ease-out),
+              transform var(--motion-base) var(--ease-out),
               border-color 600ms ease;
 }
 .asst[data-open="false"] .asst-card {
@@ -1135,7 +1249,7 @@ body:has(.builder-foot) .asst {
   width: 22px; height: 22px; flex: none;
   border: 0; border-radius: var(--radius-sm);
   background: transparent; color: var(--foreground-muted);
-  cursor: pointer; transition: background 100ms ease, color 100ms ease;
+  cursor: pointer; transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
 }
 .asst-icon-btn:hover { background: var(--surface-200); color: var(--foreground-default); }
 .asst-icon-btn svg { width: 13px; height: 13px; }
@@ -1151,7 +1265,11 @@ body:has(.builder-foot) .asst {
 
 /* Each word resolves out of a blur as it lands, so the reveal reads as
    composition rather than as a machine printing characters. */
-.asst-word { display: inline; animation: asst-resolve 260ms ease-out both; }
+/* 260ms against WORD_MS = 80 in assistant.js: three words are resolving at
+   any moment, which is what makes the reveal read as composition rather than
+   as a row of words each snapping in alone. A scale duration would break that
+   overlap, so this one stays paired with the cadence instead. */
+.asst-word { display: inline; animation: asst-resolve 260ms var(--ease-out) both; }
 @keyframes asst-resolve {
   from { opacity: 0; filter: blur(4px); }
   to   { opacity: 1; filter: blur(0); }
@@ -1161,6 +1279,7 @@ body:has(.builder-foot) .asst {
   display: inline-block; width: 2px; height: 12px;
   margin-left: 1px; vertical-align: -2px;
   border-radius: var(--radius-full); background: var(--ai-fg);
+  /* steps(), not a curve: a caret blinks, it does not fade. */
   animation: asst-blink 1s steps(2, start) infinite;
 }
 @keyframes asst-blink { 50% { opacity: 0; } }
@@ -1178,8 +1297,8 @@ body:has(.builder-foot) .asst {
   border: 0; border-top: 1px solid var(--border-muted);
   background: transparent; color: var(--foreground-light);
   font: inherit; font-size: 12px; text-align: left; cursor: pointer;
-  animation: asst-rise 350ms cubic-bezier(0.23, 1, 0.32, 1) both;
-  transition: background 100ms ease, color 100ms ease;
+  animation: asst-rise var(--motion-base) var(--ease-out) both;
+  transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
 }
 .asst-follow-btn:hover { background: var(--surface-100); color: var(--foreground-default); }
 .asst-follow-btn svg { flex: none; color: var(--ai-fg); }
@@ -1196,7 +1315,7 @@ body:has(.builder-foot) .asst {
 @media (prefers-reduced-motion: reduce) {
   .asst-word, .asst-follow-btn { animation: none; }
   .asst-caret { animation: none; }
-  .asst-card { transition: opacity 120ms ease; }
+  .asst-card { transition: opacity var(--motion-fast) var(--ease-out); }
 }
 
 /* A fixed 240px box will cut a line in half whenever the answer runs past it.
@@ -1292,7 +1411,7 @@ body:has(.builder-foot) .asst {
   pointer-events: none;
   opacity: 0;
   /* Out over the package's 0.5s; the `in` below overrides to its 0.6s. */
-  transition: opacity 500ms ease;
+  transition: opacity 500ms var(--ease-out);
 }
 
 /* z-index 2 — the beam proper: the comet, over the pinned colours, cut to a
@@ -1412,8 +1531,8 @@ body[data-asst-thinking="fading"] .asst-card::before {
    full width; these are for a soft band on a 320px card over the console's
    --background-200. The inner glow deliberately stays well under the stroke,
    so the edge still reads as an edge and not as a coloured wash. */
-body[data-asst-thinking="true"] .asst-card::after  { opacity: 0.58; transition: opacity 600ms ease; }
-body[data-asst-thinking="true"] .asst-card::before { opacity: 0.36; transition: opacity 600ms ease; }
+body[data-asst-thinking="true"] .asst-card::after  { opacity: 0.58; transition: opacity 600ms var(--ease-out); }
+body[data-asst-thinking="true"] .asst-card::before { opacity: 0.36; transition: opacity 600ms var(--ease-out); }
 
 @keyframes asst-beam-spin { to { --asst-beam-angle: 360deg; } }
 
@@ -1447,7 +1566,7 @@ body[data-asst-thinking="true"] .asst-card::before { opacity: 0.36; transition: 
   width: 40px; height: 40px; margin: -20px 0 0 -20px;
   pointer-events: none;
   display: grid; place-items: center;
-  opacity: 0; transition: opacity 160ms ease;
+  opacity: 0; transition: opacity var(--motion-base) var(--ease-out);
 }
 .asst-pointer[data-visible="true"] { opacity: 1; }
 
@@ -1468,7 +1587,7 @@ body[data-asst-thinking="true"] .asst-card::before { opacity: 0.36; transition: 
   transform: rotate(-90deg);
   fill: none;
   opacity: 0;
-  transition: opacity 120ms ease;
+  transition: opacity var(--motion-fast) var(--ease-out);
 }
 .asst-pointer[data-dwelling="true"] .asst-pointer-ring { opacity: 1; }
 .asst-pointer-track { stroke: var(--ai-400); stroke-width: 2.5; }
@@ -1477,7 +1596,9 @@ body[data-asst-thinking="true"] .asst-card::before { opacity: 0.36; transition: 
   stroke-dasharray: 107; stroke-dashoffset: 107;   /* 2πr, r = 17 */
 }
 .asst-pointer[data-dwelling="true"] .asst-pointer-progress {
-  animation: asst-dwell 600ms linear forwards;
+  /* Not a scale duration — the ring is a clock face for DWELL_MS in
+     assistant-pointer.js, and has to close exactly when the dwell fires. */
+  animation: asst-dwell 600ms linear forwards;   /* a clock face ticks evenly */
 }
 @keyframes asst-dwell { to { stroke-dashoffset: 0; } }
 
@@ -1485,7 +1606,7 @@ body[data-asst-pointer="true"] [data-insight] {
   outline: 1px dashed var(--ai-400);
   outline-offset: 2px;
   border-radius: var(--radius-lg);
-  transition: outline-color 120ms ease, background 120ms ease;
+  transition: outline-color var(--motion-fast) var(--ease-out), background var(--motion-fast) var(--ease-out);
 }
 body[data-asst-pointer="true"] [data-insight][data-insight-armed] {
   outline: 2px solid var(--ai-fg);
@@ -1530,8 +1651,20 @@ body[data-asst-pointer="true"] [data-insight][data-insight-armed] {
 @media (prefers-reduced-motion: reduce) {
   .scrim, .dialog, .toast, .dd-menu, .lazy-in { animation: none; }
   .skel::after { animation: none; }
-  .toast[data-leaving="true"] { transform: none; transition: opacity var(--motion-fast) ease; }
+  .toast[data-leaving="true"] { transform: none; transition: opacity var(--motion-fast) var(--ease-out); }
   .chart-plot[data-swap="in"] .chart-col { animation: none; }
+  /* Stilled *and* hidden: frozen at 0% it would read as a second ring around
+     every Live dot rather than as the absence of a pulse. */
+  .pill[data-status="Live"] .dot::after { animation: none; opacity: 0; }
+  .row-chev { transition: none; }
+  .tab-ink { transition: none; }
+  /* Not stilled outright: the menu has to stay on screen until wireDropdowns()
+     hides it, and opacity is the half of the exit this preference leaves
+     alone. Same treatment as the toast above. */
+  .dd-menu[data-closing="true"] {
+    animation: none; opacity: 0;
+    transition: opacity var(--motion-quick) var(--ease-out);
+  }
   .chart-seg, .bar-fill { transition: none; }
   .rail { transition: none; }
 }
