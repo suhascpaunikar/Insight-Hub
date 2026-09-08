@@ -160,6 +160,52 @@ export function countUp(node, from, to, format, duration = 260) {
 }
 
 /* ==========================================================================
+   Chart entrances
+
+   Both of these mark freshly rendered nodes, which is the whole reason they
+   exist. Every screen here repaints by replacing innerHTML, so a chart's
+   `transition` has no previous value to run from and never fires — setting the
+   attribute is itself what starts the animation, and the stylesheet does the
+   rest. They live here rather than in dashboard.js because the campaign list
+   and the Insights panels draw the same marks and should draw them in the same
+   way; a bar that grows on one screen and appears on the other is the
+   inconsistency, not the missing motion.
+
+   Neither may be called from a keystroke handler. The response search on
+   Insights repaints on every character, and an entrance wired to that would
+   leave the panel permanently redrawing itself.
+   ========================================================================== */
+
+/** Grow every plot in `host` from its own baseline, one column behind the last. */
+export function growPlots(host) {
+  if (REDUCED_MOTION.matches) return;
+  $$('.chart-plot', host).forEach((plot) => {
+    [...plot.children].forEach((col, i) => col.style.setProperty('--i', i));
+    plot.dataset.swap = 'in';
+  });
+}
+
+/**
+ * Grow every distribution bar in `host` out of its track's left edge.
+ *
+ * Staggered within its own block rather than across the panel: the Impact tab
+ * carries some sixty bars across four cards, and one running count would still
+ * be drawing the last of them half a second after the panel arrived. Each card
+ * starts its own count, so a block reads as one gesture wherever it sits.
+ */
+export function growBars(host) {
+  if (REDUCED_MOTION.matches) return;
+  const counts = new Map();
+  $$('.bar-fill', host).forEach((bar) => {
+    const block = bar.closest('.dist, tbody, .card-body') || host;
+    const i = counts.get(block) || 0;
+    counts.set(block, i + 1);
+    bar.style.setProperty('--i', i);
+    bar.dataset.grow = 'in';
+  });
+}
+
+/* ==========================================================================
    Sliding tab indicator
 
    The marker travels between tabs instead of jumping. Every screen here
@@ -199,6 +245,60 @@ export function wireTabPill(tabs, key) {
   pill.style.transform = `translateX(${to.left}px)`;
   pill.style.width = `${to.width}px`;
 }
+
+/* ==========================================================================
+   Page to page
+
+   The prototype is four documents, so every move between screens is a browser
+   navigation: the screen you left stays on until the next one paints over it,
+   and the click that started it is never acknowledged. Holding the jump for
+   the length of a fade is the whole fix — the arrival half is CSS, keyed to
+   the shell taking its class.
+
+   The hold is --motion-fast rather than anything longer on purpose. It is the
+   shortest gap a reader registers as a transition rather than as lag, and this
+   one is paid on every navigation in the product.
+   ========================================================================== */
+
+const PAGE_OUT = 120;              /* --motion-fast */
+
+/** Leave for `href` behind a fade. Reduced motion goes on the spot. */
+export function navigate(href) {
+  if (REDUCED_MOTION.matches) { location.href = href; return; }
+  // A second click during the fade would queue a second navigation.
+  if (document.body.dataset.leaving === 'true') return;
+  document.body.dataset.leaving = 'true';
+  setTimeout(() => { location.href = href; }, PAGE_OUT);
+}
+
+/**
+ * Every in-app link leaves the same way, so the rail and the back links behave
+ * like the campaign rows rather than being the two places that still cut. Bound
+ * once on the document, which is what lets it survive the repaints.
+ *
+ * Deliberately narrow: a modified click, a new tab, a download and anything
+ * off-site stay the browser's to handle, and a link to the page you are already
+ * on (`href="#"`, an in-page anchor) is not a navigation at all.
+ */
+document.addEventListener('click', (event) => {
+  if (event.defaultPrevented || event.button !== 0) return;
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  const link = event.target?.closest?.('a[href]');
+  if (!link || link.target || link.hasAttribute('download')) return;
+  let url;
+  try { url = new URL(link.getAttribute('href'), location.href); } catch { return; }
+  if (url.origin !== location.origin || url.pathname === location.pathname) return;
+  event.preventDefault();
+  navigate(url.href);
+});
+
+/**
+ * Coming back through the browser's history can restore a page from the
+ * back/forward cache exactly as it was left — mid-fade, and invisible. The
+ * flag is cleared on every show rather than only on restore, since a fresh
+ * load has nothing to clear.
+ */
+addEventListener('pageshow', () => { delete document.body.dataset.leaving; });
 
 /** Event delegation: on(root, 'click', '[data-act="x"]', handler). */
 export function on(root, type, selector, handler) {

@@ -99,6 +99,7 @@
   /* Chrome */
   --rail-w: 212px;
   --rail-w-collapsed: 60px;
+  --rail-item: 30px;               /* collapsed rail item: the app's control height, squared */
   --bar-h: 48px;
   --foot-h: 51px;                  /* wizard footer: 10 + 30 (control) + 10 + 1 border */
   --content-max: 1400px;
@@ -562,6 +563,29 @@ img { max-width: 100%; }
 }
 .tip:hover::after, .tip:focus-visible::after { opacity: 1; transition-delay: 80ms; }
 
+/* ---------- Rail tooltip ----------
+   The collapsed rail's own, and the one tooltip in the product that is not the
+   `.tip` pseudo-element above. It cannot be: the rail clips its own overflow —
+   that is what hides the labels while it narrows — and the nav list scrolls
+   inside it, so a tooltip drawn on the item would be cut off at the strip's
+   edge. It is a body-level node positioned in JS against the hovered item, the
+   way the chart readout is. shell.js drives it.
+
+   1.5s before it opens, against 80ms everywhere else, because it is doing a
+   different job: a collapsed item has no label at all, so this *is* the label
+   rather than a hint about a control that already reads. The long gate is what
+   keeps a cursor crossing the strip on its way somewhere else from dragging
+   eight of them along behind it. Leaving is still instant. */
+.rail-tip {
+  position: fixed; z-index: 70; padding: 4px 8px; white-space: nowrap;
+  background: var(--surface-200); border: 1px solid var(--border-overlay);
+  border-radius: var(--radius-xs); font-size: 11px; color: var(--foreground-default);
+  box-shadow: var(--shadow-2); pointer-events: none;
+  opacity: 0; transform: translateX(-4px);
+  transition: opacity var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out);
+}
+.rail-tip[data-open="true"] { opacity: 1; transform: none; }
+
 /* ---------- Empty / zero state ---------- */
 .zero { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 56px var(--sp-xl); }
 .zero-icon {
@@ -583,21 +607,60 @@ img { max-width: 100%; }
 .rail-text { white-space: nowrap; transition: opacity var(--motion-fast) var(--ease-out); }
 .rail[data-collapsed="true"] { width: var(--rail-w-collapsed); }
 /* The labels fade while the rail narrows rather than disappearing on the frame
-   the width starts moving. They stay in flow and are clipped by the rail's own
-   overflow, so the icons hold their place while the text is on its way out. */
-.rail[data-collapsed="true"] .rail-text { opacity: 0; pointer-events: none; }
-.rail-brand { display: flex; align-items: center; gap: 8px; height: var(--bar-h); padding: 0 12px; border-bottom: 1px solid var(--border-default); }
+   the width starts moving. Collapsed they leave the flex line — a label still
+   in flow would hold the icon off the centre of a 30px square — but they leave
+   it *in place*, pinned to the position they already occupied, and are clipped
+   by the item's own overflow as it closes around the icon. */
+.rail[data-collapsed="true"] .rail-text { position: absolute; opacity: 0; pointer-events: none; }
+.rail[data-collapsed="true"] .rail-link .rail-text,
+.rail[data-collapsed="true"] .rail-collapse .rail-text { left: 33px; top: 50%; transform: translateY(-50%); }
+/* The badge sat at the right end of the expanded item, and stays there while
+   the item closes past it. */
+.rail[data-collapsed="true"] .rail-link .badge.rail-text { left: auto; right: 8px; }
+.rail[data-collapsed="true"] .rail-brand .rail-text { left: 42px; top: 50%; transform: translateY(-50%); }
+
+.rail-brand {
+  position: relative;
+  display: flex; align-items: center; gap: 8px; height: var(--bar-h); padding: 0 12px;
+  border-bottom: 1px solid var(--border-default);
+  transition: padding var(--motion-base) var(--ease-out);
+}
+/* The mark sits on the rail's centre line collapsed, like everything below it. */
+.rail[data-collapsed="true"] .rail-brand { justify-content: center; padding: 0; }
 .rail-mark {
   display: grid; place-items: center; flex: none; width: 22px; height: 22px;
   background: var(--brand-default); color: var(--on-brand);
   border-radius: var(--radius-sm); font-size: 10px; font-weight: 700;
 }
 .rail-groups { flex: 1; overflow-y: auto; padding: 8px 0; }
+/* No scrollbar down the icon strip. At 60px a native track draws a second
+   vertical rule a few pixels off the rail's own border, which reads as chrome
+   rather than as content — the strip still scrolls, it just does it silently. */
+.rail[data-collapsed="true"] .rail-groups { scrollbar-width: none; }
+.rail[data-collapsed="true"] .rail-groups::-webkit-scrollbar { width: 0; height: 0; }
 .rail-group + .rail-group { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-default); }
 .rail-link {
-  display: flex; align-items: center; gap: 10px; margin: 1px 8px; padding: 6px 8px;
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; gap: 10px;
+  width: calc(var(--rail-w) - 16px); height: var(--rail-item);
+  margin: 1px 8px; padding: 0 8px;
   border-radius: var(--radius-sm); font-size: 12.5px; font-weight: 500; color: var(--foreground-lighter);
-  transition: background-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+  transition: background-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out),
+              width var(--motion-base) var(--ease-out), margin var(--motion-base) var(--ease-out),
+              padding var(--motion-base) var(--ease-out);
+}
+/* Collapsed, an item is a square — one control high and the same wide — sitting
+   on the rail's centre line. Both states carry an explicit width so the square
+   closes over --motion-base with the rail rather than snapping to it, which is
+   also what keeps the icon travelling instead of jumping to the middle. */
+.rail[data-collapsed="true"] .rail-link {
+  width: var(--rail-item); height: var(--rail-item);
+  /* Less the right border, which the brand and the toggle centre inside too:
+     the strip's centre line is the content box's, not the element's. An `auto`
+     margin would land in the same place but could not be transitioned, and
+     would snap the icon to the middle of a rail that is still 212px wide. */
+  margin: 1px calc((var(--rail-w-collapsed) - 1px - var(--rail-item)) / 2);
+  padding: 0; gap: 0; justify-content: center;
 }
 .rail-link:hover { background: var(--surface-100); color: var(--foreground-default); }
 /* FR-58 — active is distinct through background, weight and a marker, not colour alone. */
@@ -607,7 +670,18 @@ img { max-width: 100%; }
 }
 .rail-link svg { width: 15px; height: 15px; flex: none; }
 .rail-foot { padding: 8px; border-top: 1px solid var(--border-default); }
-.rail-collapse { display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 8px; border-radius: var(--radius-sm); font-size: 12px; color: var(--foreground-lighter); }
+.rail-collapse {
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; height: var(--rail-item); padding: 0 8px;
+  border-radius: var(--radius-sm); font-size: 12px; color: var(--foreground-lighter);
+  transition: background-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out),
+              width var(--motion-base) var(--ease-out), padding var(--motion-base) var(--ease-out);
+}
+/* The toggle is the last item in the strip and reads as one of them. */
+.rail[data-collapsed="true"] .rail-collapse {
+  width: var(--rail-item); padding: 0; gap: 0; justify-content: center; margin: 0 auto;
+}
 .rail-collapse:hover { background: var(--surface-100); color: var(--foreground-default); }
 .rail-collapse svg { width: 15px; height: 15px; flex: none; }
 
@@ -707,7 +781,17 @@ img { max-width: 100%; }
   display: block; position: relative; height: 8px; background: var(--surface-200);
   border-radius: var(--radius-full); overflow: hidden;
 }
-.bar-fill { display: block; height: 100%; border-radius: var(--radius-full); transition: width var(--motion-slow) var(--ease-out); }
+/* Every one of these is a fresh node on each paint, so the `width` transition
+   this used to carry had no previous value to run from and never fired. The
+   bar is animated instead — out of its track's left edge, one row behind the
+   last, and only when a deliberate change put it there rather than on every
+   keystroke in the response search. growBars() in core.js does the marking. */
+.bar-fill { display: block; height: 100%; border-radius: var(--radius-full); transform-origin: left center; }
+.bar-fill[data-grow="in"] {
+  animation: bar-grow var(--motion-slow) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 8ms);
+}
+@keyframes bar-grow { from { opacity: 0; transform: scaleX(0); } }
 .dist { display: flex; flex-direction: column; gap: 6px; }
 .dist-row { display: grid; grid-template-columns: 44px 1fr 108px; align-items: center; gap: 10px; }
 
@@ -1121,10 +1205,41 @@ img { max-width: 100%; }
 @keyframes step-fwd  { from { opacity: 0; transform: translateX(14px); } }
 @keyframes step-back { from { opacity: 0; transform: translateX(-14px); } }
 
+/* The step being left, which is what makes the pair read as one movement
+   rather than as an arrival on its own. The builder replaces #app wholesale on
+   every paint, so the outgoing step has to be lifted out of the tree before the
+   repaint destroys it: builder.js moves the real node — not a copy, so the
+   fields just filled in are still filled in — into a fixed box cut to the
+   scroller's rect. Opaque, on the page's own ground: two steps of body copy
+   dissolving through each other is unreadable, and this is a swap.
+   Leaving travels less and clears faster than arriving; a close is not an open
+   played backwards. */
+[data-step-ghost] {
+  position: fixed; z-index: 30; overflow: hidden; pointer-events: none;
+  background: var(--background-200);
+  animation: step-exit-fwd var(--motion-fast) var(--ease-out) both;
+}
+[data-step-ghost][data-exit-dir="back"] { animation-name: step-exit-back; }
+@keyframes step-exit-fwd  { to { opacity: 0; transform: translateX(-10px); } }
+@keyframes step-exit-back { to { opacity: 0; transform: translateX(10px); } }
+
 /* Real content arriving after the wait: it fades up rather than snapping in,
    which is the difference between "loaded" and "flickered". */
 .lazy-in { animation: lazy-in var(--motion-base) var(--ease-out) both; }
 @keyframes lazy-in { from { opacity: 0; transform: translateY(4px); } }
+
+/* ---------- Page to page ----------
+   Four documents, so opening a campaign is a browser navigation and by default
+   a hard cut: the list is on screen until the insights page paints over it,
+   with nothing to say the click landed. The page leaving fades at
+   --motion-fast and the page arriving at --motion-base — the same asymmetry
+   every dropdown and dialog here follows, on the largest surface there is.
+   navigate() in core.js holds the jump for the length of the exit; the arrival
+   is keyed to the shell taking the .app class, so it starts when the screen
+   has something to show rather than when the document was parsed. */
+.app { animation: page-in var(--motion-base) var(--ease-out) both; }
+@keyframes page-in { from { opacity: 0; } }
+body[data-leaving="true"] { opacity: 0; transition: opacity var(--motion-fast) var(--ease-out); }
 
 @media (max-width: 1100px) {
   .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1633,6 +1748,19 @@ body[data-asst-pointer="true"] [data-insight][data-insight-armed] {
   .skel::after { animation: none; }
   .toast[data-leaving="true"] { transform: none; transition: opacity var(--motion-fast) ease; }
   .chart-plot[data-swap="in"] .chart-col { animation: none; }
-  .chart-seg, .bar-fill { transition: none; }
+  .bar-fill[data-grow="in"] { animation: none; }
+  .chart-seg { transition: none; }
   .rail { transition: none; }
+  /* The rail's items still change colour on hover; they just stop travelling
+     and resizing as the strip opens and closes. */
+  .rail-brand, .rail-link, .rail-collapse {
+    transition: background-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+  }
+  /* The travel the rail's tooltip opened with is what goes. Its 1.5s gate stays:
+     that is timing rather than motion, and it is the only thing standing between
+     a cursor crossing the strip and eight tooltips opening behind it. */
+  .rail-tip { transition: none; transform: none; }
+  [data-step-ghost] { animation: none; display: none; }
+  .app { animation: none; }
+  body[data-leaving="true"] { opacity: 1; transition: none; }
 }

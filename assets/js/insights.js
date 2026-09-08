@@ -7,6 +7,7 @@ import {
   html, raw, esc, icon, $, $$, on, count, ratingText, percent, ratingColor, ratingValue,
   ratingLegend, wireDropdowns, dialog, toast, wireOnce, AI_ACCENT, LOW_SAMPLE,
   BANDS, BAND_LABEL, bandRange, keepScroll, lazySection, skel, wireTabPill,
+  growPlots, growBars, navigate,
 } from './core.js';
 import { store } from './store.js';
 import {
@@ -1110,6 +1111,27 @@ function tabSkeleton() {
     </div>`;
 }
 
+/* ==========================================================================
+   Drawing the panel in
+
+   The campaign list's sparklines grow out of their own baseline as they
+   arrive, and these panels — the same columns, plus every distribution bar on
+   four tabs — used to appear fully drawn. The same gesture behaving one way on
+   one screen and another way on the next was the problem more than the missing
+   motion was.
+
+   It has to be asked for rather than run on every paint, because the Responses
+   tab repaints on every character typed into its search: an entrance wired to
+   the render path would leave sixty bars redrawing themselves under the
+   cursor. So the deliberate changes of view — a tab, a filter, a band, and the
+   content arriving after its wait — set the flag, and everything else repaints
+   still. It is the same rule that keeps countUp() off the keystroke path.
+   ========================================================================== */
+let drawIn = false;
+
+/** Ask the next paint to draw its marks in. */
+const redraw = (rerender) => { drawIn = true; rerender(); };
+
 export function renderInsights(host) {
   const c0 = campaign();
   const tab = c0 ? currentTab(c0) : '';
@@ -1251,6 +1273,14 @@ function paintInsights(host, { pending = false, entering = false } = {}) {
 
   // Only the panel fades up. The chrome above it never left.
   if (entering) $$('[data-enter]', host).forEach((node) => node.classList.add('lazy-in'));
+
+  // Content arriving is itself a change of view, so it draws in without being
+  // asked. The skeleton's own paint never does — there is nothing there to draw.
+  if ((entering || drawIn) && !pending) {
+    growPlots(host);
+    growBars(host);
+  }
+  drawIn = false;
   // Runs on every paint, including the skeleton's: the marker should already
   // be under the tab you clicked while its panel is still loading.
   wireTabPill($('.tabs', host), 'insights');
@@ -1272,10 +1302,13 @@ function wire(host) {
     p.set('tab', el.dataset.tab);
     if (!p.get('id')) p.set('id', c().id);
     history.replaceState(null, '', `?${p}`);
-    rerender();
+    redraw(rerender);
   });
 
-  on(host, 'change', '[data-act="filter"]', (e, el) => { filters[el.dataset.key] = el.value; rerender(); });
+  on(host, 'change', '[data-act="filter"]', (e, el) => {
+    filters[el.dataset.key] = el.value;
+    redraw(rerender);
+  });
 
   on(host, 'click', '[data-act="toggle-status"]', () => {
     const next = c().status === 'Live' ? 'Paused' : 'Live';
@@ -1320,7 +1353,7 @@ function wire(host) {
     });
     if (!ok) return;
     store.editCampaign(c().id);
-    location.href = 'builder.html';
+    navigate('builder.html');
   });
 
   // FR-110 — the current filtered view exports with its filter state and wording.
@@ -1358,7 +1391,7 @@ function wire(host) {
     const next = $('[data-act="text-search"]', host);
     next?.focus(); next?.setSelectionRange(caret, caret);
   });
-  on(host, 'change', '[data-act="band-filter"]', (e) => { view.bandFilter = e.target.value; rerender(); });
+  on(host, 'change', '[data-act="band-filter"]', (e) => { view.bandFilter = e.target.value; redraw(rerender); });
   on(host, 'click', '[data-act="open-response"]', (e, el) => openResponseDetail(el.dataset.id));
 
   /* Impact tab */

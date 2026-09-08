@@ -615,9 +615,13 @@ played backwards** — opening is an invitation and takes `--motion-base`; closi
 way at `--motion-fast`, travelling less and scaling less far. Dropdowns, dialogs and toasts all
 follow that asymmetry.
 
-**Delay is an intent gate, never padding.** The only delay in the system is the 80ms a tooltip
-waits before appearing, so a cursor merely crossing the toolbar does not trail three of them.
-Nothing waits before leaving: a dismissal is always instant.
+**Delay is an intent gate, never padding.** There are two, and both are gates. A tooltip waits
+80ms before appearing, so a cursor merely crossing the toolbar does not trail three of them. The
+collapsed nav rail waits **1.5s**, because there it is doing a different job: a collapsed item is
+an icon with no label, so the tooltip *is* the label rather than a hint about a control that
+already reads, and the strip is eight items tall — a cursor travelling it on the way to the page
+below would pull the whole column open behind it. Nothing waits before leaving: a dismissal is
+always instant, at either length.
 
 Motion is never the only carrier of a state change. Every transition here decorates a change
 that is already legible in text, colour or position, which is what makes the global
@@ -658,11 +662,33 @@ A first paint marks nothing: the stepper arrives with the page rather than chang
 The current marker is a real element rather than the inset `box-shadow` it started as. A shadow
 cannot wipe; an element can.
 
-**Step travel** (`[data-step-page]`) — the builder's step body enters from the side it travelled
-from: forward from the right, back from the left, so the direction says which way you moved
-through the wizard. Fired only by an actual step change. The builder deliberately has **no**
-skeleton: a wizard step is a form being filled, not data arriving, and a wait between steps reads
-as lag.
+**Step travel** (`[data-step-page]`, `[data-step-ghost]`) — the builder's step body enters from
+the side it travelled from: forward from the right, back from the left, so the direction says
+which way you moved through the wizard. The step being left travels the other way at the same
+moment, which is what makes the pair read as a move rather than as an arrival on its own. It has
+to be lifted out of the tree to do it — the wizard repaints by replacing `#app` wholesale, so by
+the time the next step exists the previous one is already gone — and it is *moved* rather than
+copied, so the fields just filled in are still filled in for the beat it is still on screen.
+It leaves at `--motion-fast` against the entrance's `--motion-base`, and it is opaque: two steps
+of body copy dissolving through each other is unreadable, and this is a swap. Fired only by an
+actual step change, and never by clicking the step you are already on. The builder deliberately
+has **no** skeleton: a wizard step is a form being filled, not data arriving, and a wait between
+steps reads as lag.
+
+**Bars** (`.bar-fill[data-grow]`) — a distribution bar grows out of its track's left edge, one
+row behind the last, on the same 8ms count the sparkline columns use: the campaign list and the
+Insights panels draw the same marks and should draw them the same way. Asked for rather than run
+on every paint, because the Responses tab repaints on every character typed into its search and
+sixty bars redrawing under the cursor is the failure mode. A tab, a filter and a band ask; a
+keystroke never does — the same rule that keeps `countUp` off the keystroke path.
+
+**Page to page** (`.app`, `body[data-leaving]`) — the prototype is four documents, so opening a
+campaign is a browser navigation and by default a hard cut: the list stays on screen until the
+insights page paints over it, with nothing to say the click landed. The page leaving fades over
+`--motion-fast` and the jump is held for exactly that long; the page arriving fades over
+`--motion-base`, keyed to the shell taking its class so it starts when there is something to show
+rather than when the document was parsed. Every in-app link goes the same way, so the rail and the
+back links behave like the campaign rows rather than being the two places that still cut.
 
 **Skeleton** (`.skel`) — what a section shows while its data is on the way. Every block is sized
 to the element it stands in for, measured against the real thing rather than guessed, so content
