@@ -15,6 +15,7 @@
        has actually read; nothing here invents a number.
    ========================================================================== */
 import { count, percent, ratingText, LOW_SAMPLE } from './core.js';
+import { STEP_COUNT } from './store.js';
 import {
   THEMES, SCORE_DRIVERS, DELIVERY_FUNNEL, FAILURE_REASONS,
   VARIANT_RESULTS, OPEN_RESPONSES, RATING_BLOCK, GOALS,
@@ -302,7 +303,7 @@ function overviewAnswer(context) {
     }
     const objective = (draft.objective || '').trim();
     const text =
-      `You're on step ${draft.currentStep} of 6 of “${draft.name || 'an untitled campaign'}”, ` +
+      `You're on step ${draft.currentStep} of ${STEP_COUNT} of “${draft.name || 'an untitled campaign'}”, ` +
       `with ${count(draft.variants ? draft.variants.length : 0)} variant(s) configured. ` +
       (objective
         ? `Its objective reads: “${objective}” That is the context I answer from — I cannot read results until it publishes.`

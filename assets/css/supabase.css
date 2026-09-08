@@ -482,12 +482,28 @@ img { max-width: 100%; }
    of its own trigger rather than arriving from nowhere. */
 .dd-menu[data-align="end"] { right: 0; transform-origin: top right; }
 .dd-menu[data-align="start"] { left: 0; transform-origin: top left; }
+/* Flipped above its trigger where there is no room below it — a row menu near
+   the bottom of the list. openMenu() in core.js measures and sets this. The
+   origin follows, so it still opens out of the trigger rather than into it. */
+.dd-menu[data-drop="up"] { top: auto; bottom: calc(100% + 4px); }
+.dd-menu[data-drop="up"][data-align="end"] { transform-origin: bottom right; }
+.dd-menu[data-drop="up"][data-align="start"] { transform-origin: bottom left; }
+@keyframes dd-in-up { from { opacity: 0; transform: translateY(4px) scale(.98); } }
+.dd-menu[data-drop="up"] { animation-name: dd-in-up; }
+.dd-menu[data-drop="up"][data-closing="1"] { animation: dd-out-up var(--motion-fast) var(--ease-out) both; }
+@keyframes dd-out-up { to { opacity: 0; transform: translateY(2px) scale(.99); } }
 @keyframes dd-in { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
 /* A close is not an open played backwards: quicker, travelling less, scaling
    less far. The menu should get out of the way rather than perform. */
 .dd-menu[data-closing="1"] { animation: dd-out var(--motion-fast) var(--ease-out) both; }
 @keyframes dd-out { to { opacity: 0; transform: translateY(-2px) scale(.99); } }
-.dd-label { padding: 6px 8px 4px; font-size: 10px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; color: var(--foreground-muted); }
+/* One line. A campaign name can run to a sentence, and a label that wrapped to
+   three lines would push the actions it names off the bottom of the menu. */
+.dd-label {
+  padding: 6px 8px 4px; font-size: 10px; font-weight: 500; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--foreground-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .dd-sep { height: 1px; margin: 4px 0; background: var(--border-default); }
 .dd-item {
   display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px;
@@ -496,6 +512,18 @@ img { max-width: 100%; }
 .dd-item:hover { background: var(--surface-200); color: var(--foreground-default); }
 .dd-item[aria-checked="true"] { color: var(--foreground-default); }
 .dd-item svg { width: 14px; height: 14px; flex: none; }
+
+/* An action that destroys something is coloured before it is pressed, not
+   after. Kept legible in greyscale (FR-65) by sitting last in its menu under a
+   rule, so position says "this one is different" where hue cannot. */
+.dd-item[data-tone="danger"] { color: var(--destructive-fg); }
+.dd-item[data-tone="danger"]:hover { background: var(--destructive-200); color: var(--destructive-fg); }
+
+/* Disabled rather than hidden, in the one case where the reader would
+   otherwise go looking for it: a running campaign has a Delete, and the reason
+   it cannot be pressed is the point. The tooltip on it carries that reason. */
+.dd-item:disabled { color: var(--foreground-muted); cursor: not-allowed; }
+.dd-item:disabled:hover { background: transparent; color: var(--foreground-muted); }
 
 /* ---------- Dialog ---------- */
 .scrim {
@@ -541,6 +569,8 @@ img { max-width: 100%; }
 .toast[data-kind="danger"] { border-left-color: var(--destructive); }
 .toast-title { font-size: 12.5px; font-weight: 500; color: var(--foreground-default); }
 .toast-desc { margin-top: 3px; font-size: 11.5px; color: var(--foreground-lighter); }
+/* The way back, in the toast that reports the thing being undone. */
+.toast-act { margin-top: 9px; }
 @keyframes slidein { from { opacity: 0; transform: translateX(14px); } }
 /* Leaves the way it arrived. `animation: none` because a toast dismissed
    inside its own 160ms entrance would otherwise have the two fighting over
@@ -792,6 +822,10 @@ img { max-width: 100%; }
   animation-delay: calc(var(--i, 0) * 8ms);
 }
 @keyframes bar-grow { from { opacity: 0; transform: scaleX(0); } }
+/* The horizontal half of the same swap: a filter can change how many rows a
+   distribution has, so the old set leaves whole rather than resizing into the
+   new one. Set by swapOut() in core.js, cleared by the repaint that follows. */
+.bar-track[data-swap="out"] { opacity: 0; transition: opacity var(--motion-fast) var(--ease-out); }
 .dist { display: flex; flex-direction: column; gap: 6px; }
 .dist-row { display: grid; grid-template-columns: 44px 1fr 108px; align-items: center; gap: 10px; }
 
@@ -870,9 +904,26 @@ img { max-width: 100%; }
   background: var(--surface-100); border: 1px solid var(--border-strong); border-radius: var(--radius-xs);
   font-family: var(--font-mono); font-size: 11px; color: var(--foreground-light);
 }
+/* This is the one widget in the product an *end user* touches, and it had no
+   press state at all. Both halves matter: the give under the finger, which is
+   the transform, and the mark landing, which is the pop on the button that
+   comes back selected. A repaint replaces these nodes, so `is-on` cannot
+   transition into place — it animates, like everything else here. */
+.rate-btn, .star-btn {
+  transition: transform var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out),
+              background-color var(--motion-fast) var(--ease-out);
+}
 .rate-btn:hover { border-color: var(--brand-400); color: var(--foreground-default); }
+.rate-btn:active:not(:disabled), .star-btn:active:not(:disabled) { transform: scale(.9); }
 .rate-btn.is-on { color: var(--on-brand); font-weight: 600; }
+.rate-btn.is-on, .star-btn.is-on { animation: rate-mark var(--motion-base) var(--ease-out); }
+/* Settles onto the value rather than overshooting it — DESIGN.md's rule holds
+   here too: this reports a choice, it does not celebrate one. */
+@keyframes rate-mark { from { transform: scale(.82); } }
 .star-btn { font-size: 15px; line-height: 1; background: none; border: 0; color: var(--foreground-muted); }
+.star-btn:hover:not(:disabled) { color: var(--warning); }
 .star-btn.is-on { color: var(--warning); }
 
 /* ---------- Misc ---------- */
@@ -1138,10 +1189,12 @@ img { max-width: 100%; }
 .chart-col:hover::before { background: var(--surface-100); opacity: .5; border-radius: 2px; }
 .chart-seg { position: relative; border-radius: 2px 2px 0 0; transition: height var(--motion-slow) var(--ease-out); }
 
-/* A range change replaces the columns rather than resizing them: 7 days and
-   30 days are not the same number of bars, so there is no height to morph
-   between. The old plot leaves, and the new series grows back from its own
-   baseline, one column just behind the last. */
+/* A change of window or filter replaces the columns rather than resizing them:
+   7 days and 30 days are not the same number of bars, so there is no height to
+   morph between. The old plot leaves, and the new series grows back from its
+   own baseline, one column just behind the last. swapCharts() in core.js drives
+   both halves; the same attribute is set on .bar-track further up, so a
+   distribution re-slices with the same gesture a column chart does. */
 .chart-plot[data-swap="out"] { opacity: 0; transition: opacity var(--motion-fast) var(--ease-out); }
 .chart-plot[data-swap="in"] .chart-col {
   transform-origin: bottom;
@@ -1149,6 +1202,27 @@ img { max-width: 100%; }
   animation-delay: calc(var(--i, 0) * 8ms);
 }
 @keyframes col-grow { from { opacity: 0; transform: scaleY(.35); } }
+
+/* The campaign list's four cards read the same way the Insights chart does.
+   They carried a native `title` before this, which meant the browser's own
+   tooltip: unstyled, on the browser's schedule, and showing the date with none
+   of the numbers the card is actually about.
+
+   The plot is the hover target and the tip is positioned against the column
+   inside it, so the card reserves no room for either. */
+.metric-plot { position: relative; }
+.metric-plot .chart-tip { min-width: 168px; }
+/* Everything but the column under the cursor steps back, so the one being read
+   is the one in focus. On the plot rather than each column: a :hover rule on
+   the siblings would fire on the gaps between them too. */
+.chart-plot[data-reading] .chart-col { transition: opacity var(--motion-fast) var(--ease-out); }
+.chart-plot[data-reading] .chart-col:not([data-on]) { opacity: .38; }
+/* The read column keeps a hairline under it, so the axis below the plot can be
+   traced back to the bar without counting across. */
+.chart-col[data-on]::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -3px; height: 1px;
+  background: var(--foreground-light);
+}
 
 /* Floating readout. Positioned in JS against the hovered column, so it can
    sit over the plot without the columns having to reserve room for it. */
@@ -1201,6 +1275,18 @@ img { max-width: 100%; }
    the beat before the builder opens. */
 .table tbody tr[data-flash] td { animation: row-flash var(--motion-slow) var(--ease-out); }
 @keyframes row-flash { from { background: var(--brand-200); } }
+
+/* A blocked advance scrolled the notice into view and left it to be noticed.
+   Where the notice was already on screen — a second Next on the same step —
+   nothing happened at all, and the reader had no way to tell the click from a
+   dead button. Two small returns, not a wobble: this is an error, and the
+   product's motion does not perform. */
+.notice-danger[data-shake] { animation: notice-shake var(--motion-base) var(--ease-out); }
+@keyframes notice-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  60% { transform: translateX(4px); }
+}
 
 @keyframes step-fwd  { from { opacity: 0; transform: translateX(14px); } }
 @keyframes step-back { from { opacity: 0; transform: translateX(-14px); } }
@@ -1799,6 +1885,10 @@ body[data-asst-pointer="true"] [data-insight][data-insight-armed] {
 @media (prefers-reduced-motion: reduce) {
   .scrim, .dialog, .toast, .dd-menu, .lazy-in { animation: none; }
   .dd-menu[data-closing="1"] { animation: none; }
+  /* The flipped menu's rules are attribute selectors and outrank the two above
+     on specificity, so they have to be named here rather than covered by them. */
+  .dd-menu[data-drop="up"],
+  .dd-menu[data-drop="up"][data-closing="1"] { animation: none; }
   [data-step-page][data-enter-dir] { animation: none; }
   .step[data-changed], .step[data-changed]::after,
   .step[data-changed] .step-num, .step[data-changed] .step-num svg { animation: none; }
@@ -1814,6 +1904,13 @@ body[data-asst-pointer="true"] [data-insight][data-insight-armed] {
   .chart-plot[data-swap="in"] .chart-col { animation: none; }
   .bar-fill[data-grow="in"] { animation: none; }
   .chart-seg { transition: none; }
+  /* The readout still opens and the neighbours still step back — those are
+     state, not motion — but neither fades into it. */
+  .chart-plot[data-reading] .chart-col { transition: none; }
+  .notice-danger[data-shake] { animation: none; }
+  .rate-btn, .star-btn { transition: none; }
+  .rate-btn.is-on, .star-btn.is-on { animation: none; }
+  .rate-btn:active:not(:disabled), .star-btn:active:not(:disabled) { transform: none; }
   .rail { transition: none; }
   /* The rail's items still change colour on hover; they just stop travelling
      and resizing as the strip opens and closes. */

@@ -3,7 +3,7 @@
 Prototype: static HTML/CSS/JS, dark, Supabase design system (`DESIGN.md`).
 PRD: `docs/prd-v5.md` — 110 requirements, 21 open decisions.
 
-Files: `index.html` (dashboard) · `builder.html` (six-step wizard) · `insights.html`
+Files: `index.html` (dashboard) · `builder.html` (four-step wizard) · `insights.html`
 (the campaign data screen). Logic in `assets/js/`, tokens and primitives in
 `assets/css/supabase.css`. What the data screen can show, by campaign kind:
 `docs/insights-data-plan.md`.
@@ -117,14 +117,14 @@ looking for the requirement behind them.
 
 | Addition | Where | Why |
 |---|---|---|
-| **Campaign objective** — free text at the foot of step 1, carried through save, clone and publish, shown again on the step 6 summary and as a line on the dashboard row | `objectiveSection()` in `builder.js`; `objective` on the draft and on the campaign row in `store.js` | FR-5 records the goal a campaign starts *from*; nothing records what it is *for*. The assistant quotes it (`objectiveAnswer` in `assistant-answers.js`) instead of inferring intent from a goal id and a trigger, and the next person to open the draft reads it instead of guessing |
+| **Campaign objective** — free text at the foot of step 1, carried through save, clone and publish, shown again on the final step's summary and as a line on the dashboard row | `objectiveSection()` in `builder.js`; `objective` on the draft and on the campaign row in `store.js` | FR-5 records the goal a campaign starts *from*; nothing records what it is *for*. The assistant quotes it (`objectiveAnswer` in `assistant-answers.js`) instead of inferring intent from a goal id and a trigger, and the next person to open the draft reads it instead of guessing |
 | **A keyword read of the objective**, offering the goal it matches | `suggestGoalFromObjective()` in `store.js`, `OBJECTIVE_SIGNALS` in `data.js` | Written as a word list, not a model, and consistent with the rest of the prototype: it is offered in the AI accent (FR-91), it names the goal it read, and it never changes the draft on its own. A tie between two goals is treated as no reading at all |
 | **The wizard opens with the rail collapsed** to the icon strip, remembering its own state separately from the console's | `builderNavCollapsed` in `store.js`; `wireRailCollapse(root, rerender, key)` in `shell.js` | FR-61 makes the collapse persistent but says nothing about a default. The Content step is the widest surface in the product and the rail's 152px of labels are worth less there than anywhere else, so the builder starts collapsed rather than inheriting the console's answer |
 
 The objective is deliberately **not** validated. FR-1 gates on configuration,
 and a blocked advance on a free-text field is the fastest way to collect the
 word "asdf". The cost of leaving it empty is stated instead — on step 1, on the
-step 6 summary, and in what the assistant is able to answer.
+summary on the final step, and in what the assistant is able to answer.
 
 ### Step 4 — Content
 
@@ -168,7 +168,7 @@ step 6 summary, and in what the assistant is able to answer.
 | FR-50 Mobile preview | Real configured questions, not placeholders |
 | FR-51 Test send | Saved-account dropdown **or** a directly entered user ID |
 | FR-52 Test sends excluded | Stated on the step |
-| FR-53 Publish is terminal | Step 6 only |
+| FR-53 Publish is terminal | Final step only |
 | FR-54 Branch simulation | Tap a rating to walk that band's path |
 | FR-55 Live campaigns editable | Edit from the insights header |
 | FR-56 Any edit versions | Publish on a live campaign increments and warns |
@@ -217,11 +217,11 @@ prototype choice, not a PRD ruling — overrule any of them.
 | OD-2 **(MP)** | Re-entry toggle on Schedule, **off** by default; re-entry keeps the original variant lock | Adds responses without re-bucketing, so FR-18 still holds. Flagged inline as unresolved |
 | OD-3 | Versioning on publish, post-publish only | Pre-publish edits and tests do not version, so a draft cannot generate noise |
 | OD-4 | A weightage change **is** an edit and versions | It shifts Impact attribution; rename stays exempt per FR-23 |
-| OD-5 **(MP)** | Test is **not** a hard gate; the preview simulates branches | Stated on step 6; branch tap-through is live |
+| OD-5 **(MP)** | Test is **not** a hard gate; the preview simulates branches | Stated on the Schedule & publish step; branch tap-through is live |
 | OD-6 | AI weights visible, not overridable | Shown on Content and on Impact with history |
 | OD-7 | Version boundaries respected on Delivery and Responses; Impact carries the banner | Impact drives routing, so it must not silently blend versions |
 | OD-8 | Segment thresholds are platform-wide | Rules are shown read-only at selection; no per-campaign override |
-| OD-9 **(MP)** | Six steps, Test & Publish its own step | Confirmed |
+| OD-9 **(MP)** | Six steps, Test & Publish its own step | **Revised to four.** Start-from and Campaign Details were one answer to *what is this campaign*, split across a Next button; Schedule and Test & Publish were one sitting, since nobody sets a start date and then leaves. Audience and Content stayed whole — both are large, both gate on their own validation, and neither is half of anything. See `STEPS` in `builder.js` |
 | OD-10 | No hard cap on questions | Add-content is unbounded; worth revisiting |
 | OD-11 | The "create" tile is the same disabled Create Template as FR-6 | One affordance, one state |
 | OD-12 **(MP)** | Star branching stays always-on; NPS stays opt-in | Preserved as-is, with the toggle disabled and explained under star |
@@ -230,7 +230,7 @@ prototype choice, not a PRD ruling — overrule any of them.
 | OD-15 **(MP)** | Builder is **full-screen**, outside the shell, with an exit control | Protects focus; the stepper supplies orientation |
 | OD-16 | Stepper **only** | Revisited: every completed step in the rail is clickable and says where it lands, so a Back button was a second, worse route to the same place — and the only one that could not skip |
 | OD-17 **(MP)** | Save-and-exit returns to the campaign list | Where drafts are discoverable |
-| OD-18 **(MP)** | Templates is step 1 **inside** the wizard | Keeps the flow at six steps and OD-9 consistent |
+| OD-18 **(MP)** | Templates is step 1 **inside** the wizard | Still inside the wizard rather than a gallery in front of it. The step it opens is now step 1 of four rather than of six (OD-9) |
 | OD-19 | Desktop-first | Layouts reflow to tablet; the Content step is not designed for phones |
 | OD-21 | Clone lands the user **in the new draft** | Confirmed in a dialog before cloning |
 | OD-22 | Respondent is **pseudonymous** — response ID, segment, order context; no name or contact | Stated on the response detail; Export inherits it |

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   content-step.js — Step 4 (FR-19 … FR-45).
+   content-step.js — Step 3 (FR-19 … FR-45).
    Variant tabs, weightage above the picker, the tabbed template grid, the
    element library, question logic with NPS banding, and per-variant triggers.
    ========================================================================== */
@@ -378,7 +378,7 @@ export function phonePreview(variant, { interactive = false, picked = null } = {
     </div>`;
 }
 
-/* ---------- Step 4 markup ---------- */
+/* ---------- Step 3 markup ---------- */
 export function renderContentStep(draft, issues) {
   if (!ui.activeVariant || !draft.variants.some((v) => v.id === ui.activeVariant)) {
     ui.activeVariant = draft.variants[0].id;

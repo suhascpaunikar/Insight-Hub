@@ -206,6 +206,64 @@ export function growBars(host) {
 }
 
 /* ==========================================================================
+   Swapping a chart's whole series
+
+   The entrance above answers "this just arrived". This answers the other
+   half: "you changed what this is measuring, and every mark in it now means
+   something else."
+
+   It started as the range picker on the campaign list and stayed there, which
+   left the same gesture behaving two ways — re-slicing the workspace strip
+   crossfaded, while re-slicing an Insights panel hard-cut. The marks are the
+   same marks, so the choreography is now one function every screen calls.
+
+   Out and back rather than a morph, deliberately: 7 days and 30 days are not
+   the same number of columns, and a filter can change the number of rows in a
+   distribution outright, so there is frequently no bar to travel between. The
+   old series leaves as a whole, the new one grows back from its own baseline.
+
+   Out is --motion-fast against the regrow's --motion-slow. The series arriving
+   is what the reader is meant to follow; the one leaving only has to clear the
+   frame.
+   ========================================================================== */
+
+/** Matches --motion-fast in supabase.css: how long the old series takes to leave. */
+export const SWAP_OUT = 120;
+
+/**
+ * Fade every chart and distribution bar in `host` out, resolving when they
+ * have gone. Reduced motion resolves immediately and skips the fade, so the
+ * caller's repaint still happens on the same code path.
+ */
+export function swapOut(host) {
+  if (REDUCED_MOTION.matches) return Promise.resolve();
+  const marks = $$('.chart-plot, .bar-track', host);
+  if (marks.length === 0) return Promise.resolve();
+  marks.forEach((node) => { node.dataset.swap = 'out'; });
+  return new Promise((done) => { setTimeout(done, SWAP_OUT); });
+}
+
+/**
+ * The whole gesture: take the old series off, repaint, grow the new one back.
+ *
+ * `repaint` must be synchronous and must leave the new marks in `host` — the
+ * regrow runs against whatever it rendered. Callers that also move a figure
+ * (the campaign list counts its headline to the new window) pass `between`,
+ * which runs after the repaint and before the regrow, so the number and the
+ * shape it belongs to change as one event rather than two.
+ *
+ * Never call this from a keystroke handler. A search that repaints on every
+ * character would leave the panel permanently crossfading with itself.
+ */
+export async function swapCharts(host, repaint, between) {
+  await swapOut(host);
+  repaint();
+  if (between) between();
+  growPlots(host);
+  growBars(host);
+}
+
+/* ==========================================================================
    Sliding tab indicator
 
    The marker travels between tabs instead of jumping. Every screen here
@@ -356,6 +414,8 @@ const PATHS = {
   send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
   trash: '<path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>',
   dot: '<circle cx="12" cy="12" r="5"/>',
+  ellipsis: '<circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/><circle cx="5" cy="12" r="1.6"/>',
+  undo: '<path d="M3 7v6h6"/><path d="M3.5 13a9 9 0 1 0 2.1-7.4L3 8"/>',
   eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
   filter: '<path d="M3 4h18l-7 8v7l-4 2v-9Z"/>',
   target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
@@ -513,7 +573,18 @@ function toastHost() {
   return host;
 }
 
-export function toast(title, description = '', kind = 'success') {
+/**
+ * `action` is the one place a toast is more than a notice: `{ label, icon, onClick }`
+ * renders a button under the description and dismisses the toast when it is
+ * pressed. It exists for undo — the pattern where the confirmation and the way
+ * back are the same object, and where making the reader hunt for a way back
+ * after the fact is what makes a delete feel dangerous.
+ *
+ * A toast carrying an action holds longer than one that does not (see DWELL
+ * below): four seconds is enough to read a confirmation and not enough to
+ * decide you meant it.
+ */
+export function toast(title, description = '', kind = 'success', action = null) {
   const node = document.createElement('div');
   node.className = 'toast';
   node.dataset.kind = kind;
@@ -522,6 +593,10 @@ export function toast(title, description = '', kind = 'success') {
       <div class="grow">
         <div class="toast-title">${title}</div>
         ${raw(description ? `<div class="toast-desc">${esc(description)}</div>` : '')}
+        ${raw(action ? `<div class="toast-act">
+          <button class="btn btn-outline btn-sm" data-toast-action>
+            ${action.icon ? icon(action.icon) : ''}${esc(action.label)}
+          </button></div>` : '')}
       </div>
       <button class="btn btn-ghost btn-icon btn-sm" data-close aria-label="Dismiss">${raw(icon('x'))}</button>
     </div>`;
@@ -560,7 +635,19 @@ export function toast(title, description = '', kind = 'success') {
     setTimeout(done, 400);
   };
   node.querySelector('[data-close]').addEventListener('click', kill);
-  setTimeout(kill, 5200);
+  const act = node.querySelector('[data-toast-action]');
+  if (act) {
+    act.addEventListener('click', () => {
+      // Dismissed first: the action repaints the screen behind the toast, and
+      // a confirmation of something that has just been taken back is noise.
+      kill();
+      action.onClick();
+    });
+  }
+  // An undo the reader is still reading is not an undo. A toast that offers a
+  // way back holds long enough to take it; one that only reports holds long
+  // enough to be read.
+  setTimeout(kill, action ? 8000 : 5200);
 }
 
 /* ---------- Dialog ---------- */
@@ -666,6 +753,9 @@ let closerBound = false;
    the animation has had its --motion-fast. */
 const DD_CLOSE = 120;
 
+/** Matches the 4px offset the stylesheet puts between trigger and menu. */
+const DD_GAP = 4;
+
 function closeMenu(menu) {
   if (menu.hidden || menu.dataset.closing === '1') return;
   menu.dataset.closing = '1';
@@ -678,9 +768,30 @@ function closeMenu(menu) {
   }, DD_CLOSE);
 }
 
+/**
+ * Open, flipping above the trigger when there is not room below it.
+ *
+ * Toolbar menus never needed this: they sit at the top of a page and the
+ * viewport under them is the whole screen. A menu on a table row does — the
+ * last row is by definition near the bottom, and a nine-item action menu
+ * opening off the fold is a menu the reader cannot reach without scrolling
+ * the page out from under the row they opened it on.
+ *
+ * Measured after unhiding, because a hidden element has no height to measure.
+ * Flipped only when up is genuinely better: a viewport too short for either
+ * direction keeps the menu below, where its first items are at least visible.
+ */
 function openMenu(menu) {
   delete menu.dataset.closing;
+  delete menu.dataset.drop;
   menu.hidden = false;
+
+  const trigger = menu.closest('.dd')?.querySelector('[data-dd-trigger]');
+  if (!trigger) return;
+  const anchor = trigger.getBoundingClientRect();
+  const height = menu.offsetHeight;
+  const below = window.innerHeight - anchor.bottom;
+  if (height + DD_GAP > below && anchor.top - DD_GAP > below) menu.dataset.drop = 'up';
 }
 
 /** Open means visible and not on its way out. */
@@ -695,10 +806,17 @@ export function wireDropdowns(root = document) {
   node.addEventListener('click', (event) => {
     const trigger = event.target.closest('[data-dd-trigger]');
     const insideMenu = event.target.closest('.dd-menu');
+    // A menu of settings stays open under a click — the reader is ticking
+    // columns and would have to reopen it for each one. A menu of *actions*
+    // does not: the click was the whole point of opening it, and one left
+    // standing behind the dialog it just opened reads as a stuck menu.
+    const held = insideMenu
+      && insideMenu.dataset.dismiss !== '1'
+      && !event.target.closest('.dd-item:disabled');
     $$('.dd-menu', node).forEach((menu) => {
       const owner = menu.closest('.dd');
       const isOwn = trigger && owner && owner.contains(trigger);
-      if (!isOwn && !(insideMenu && menu.contains(event.target))) closeMenu(menu);
+      if (!isOwn && !(held && menu.contains(event.target))) closeMenu(menu);
     });
     if (trigger) {
       const menu = trigger.closest('.dd')?.querySelector('.dd-menu');
@@ -719,11 +837,22 @@ export function wireDropdowns(root = document) {
   document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeAll(); });
 }
 
-export function dropdown({ trigger, label, items, align = 'end', triggerClass = 'btn btn-default btn-sm' }) {
+/**
+ * `dismissOnSelect` marks a menu whose items *do* something, so a click inside
+ * it closes it. Leave it off for menus of settings — columns, sort, range —
+ * where the reader is adjusting several things and closing after each one
+ * would mean reopening after each one.
+ */
+export function dropdown({
+  trigger, label, items, align = 'end',
+  triggerClass = 'btn btn-default btn-sm', dismissOnSelect = false,
+  triggerLabel = '',
+}) {
   return html`
     <div class="dd">
-      <button class="${raw(triggerClass)}" data-dd-trigger aria-haspopup="menu" aria-expanded="false">${raw(trigger)}</button>
-      <div class="dd-menu" data-align="${align}" role="menu" hidden>
+      <button class="${raw(triggerClass)}" data-dd-trigger aria-haspopup="menu" aria-expanded="false"
+              ${raw(triggerLabel ? `aria-label="${esc(triggerLabel)}"` : '')}>${raw(trigger)}</button>
+      <div class="dd-menu" data-align="${align}" role="menu" ${raw(dismissOnSelect ? 'data-dismiss="1"' : '')} hidden>
         ${raw(label ? `<div class="dd-label">${esc(label)}</div><div class="dd-sep"></div>` : '')}
         ${raw(items)}
       </div>

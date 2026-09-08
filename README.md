@@ -40,7 +40,7 @@ for"* from. The wizard opens with the nav rail collapsed to its icon strip, sinc
 Content step wants the width; expanding it is one click and the wizard remembers that
 separately from the console.
 
-**Start here:** open `index.html` → *New Campaign* → walk the six steps → publish → open
+**Start here:** open `index.html` → *New Campaign* → walk the four steps → publish → open
 the resulting row.
 
 ---

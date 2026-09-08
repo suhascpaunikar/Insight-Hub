@@ -37,7 +37,7 @@ no animation library removes the need for it.
 
 ## What is live
 
-28 keyframes and 50 transition declarations, carrying 88 references to the three motion tokens.
+32 keyframes and 57 transition declarations, carrying 100 references to the three motion tokens.
 Every duration outside the assistant is a token; the two that are not are the 8ms stagger the
 sparkline columns and distribution bars count on, and the 1.5s the collapsed rail's tooltip waits,
 both of which are gaps between things rather than the length of anything. Six of the assistant's
@@ -68,8 +68,11 @@ could not be positioned.
 | --- | --- | --- |
 | Skeleton → content | first visit per session | `lazySection()` + `.skel`, then `lazy-in` |
 | Sparkline entrance | content arriving | `growPlots()` sets `data-swap="in"` |
-| Range switch | range dropdown | plot crossfades out, new series grows back 8ms per column |
+| Range switch | range dropdown | `swapCharts()` — plot crossfades out, new series grows back 8ms per column |
 | Headline figures | range switch only | `countUp()` — never on a keystroke |
+| Card readout | hover on a metric plot | the column holds its ink, its neighbours drop to .38, and a `.chart-tip` opens against the cursor; `wireMetricCharts()` |
+| Row menu | the ⋯ on any row | `dd-in` / `dd-out`, flipped above the trigger where the row is near the fold |
+| Delete → undo | the row menu | row leaves, toast carries the way back for 8s, restored row takes `row-flash` |
 | Live status pulse | always, `Live` only | `pill-pulse`, a pseudo-element ring on transform/opacity |
 | Row hover | hover | background + 2px chevron lean |
 | Clone | confirm | `row-flash` on the source row |
@@ -85,6 +88,25 @@ wired to the render path — the Responses tab repaints on every character typed
 and an entrance on that path would leave sixty bars redrawing under the cursor. The `drawIn` flag
 in `insights.js` is set by content arriving, a tab, a filter and a band filter; by nothing else.
 
+**A filter now swaps; a tab does not.** `redraw()` fades the marks out via `swapOut()` before the
+repaint, so re-slicing a panel reads the way re-slicing the campaign list does — same chart, same
+question, different slice. `drawNext()` is the tab's path and skips the fade, for two reasons: the
+marks that leave a tab are not the marks that come back, so there is nothing being re-measured;
+and the sliding marker under the tab strip is painted by the repaint, so holding the repaint for
+120ms would leave the marker under the tab you just left.
+
+**The figures count.** `figureValue()` tags each `.figure-value` with a stable key and its numeric
+value; `redraw()` and `drawNext()` capture the old values, and the paint tweens to the new ones
+beside `growPlots()`/`growBars()`. This is the backlog item that used to sit at #2.
+
+Making it fire required fixing the thing under it: the **Date range filter did nothing**. FR-92 put
+the control on every tab and the delivery series ignored it, so the only way to notice was to count
+the columns before and after. `sliceRange()` now cuts the series by elapsed time rather than by a
+point count (the two series run at three days and eight hours a point, so one count would mean two
+different windows under one label), and `windowShare` reads the funnel and the failure reasons at
+the same share of the run. One linear factor, so every relationship the seed was built to preserve
+survives it — and every figure on the tab now has something to count to.
+
 ### Builder
 
 No skeleton anywhere, by decision — a wizard step is a form being filled, not data arriving.
@@ -95,6 +117,11 @@ No skeleton anywhere, by decision — a wizard step is a form being filled, not 
 | Step arriving | state → `current` | marker wipes (`step-mark`), badge settles (`step-settle`) |
 | Step finishing | state → `complete` | badge pops (`step-done`), check draws (`step-check`) |
 | Reachability | `ready` ↔ `locked` | `step-unlock` / `step-lock` |
+| Blocked advance | `advance()` refusing to move | `notice-shake`, two returns; fires on the press via `ui.shake`, not on the notice's presence |
+| Rating press | the preview's rating buttons | `:active` scale to .9, and `rate-mark` on the button that comes back selected |
+
+The wizard is **four steps**, not six — see `STEPS` in `builder.js`. Nothing about the motion
+changed with the merge; there are simply two fewer step travels in a walk through it.
 
 `markChangedSteps()` marks only steps whose state actually changed. A first paint marks nothing —
 the stepper arrives with the page rather than changing.
@@ -131,6 +158,10 @@ Pre-existing and untouched: `asst-resolve`, `asst-blink`, `asst-rise`, `asst-bea
 | `closeMenu(menu)` | `core.js` | animated dropdown close |
 | `growPlots(host)` | `core.js` | sparkline / column entrance, 8ms per column |
 | `growBars(host)` | `core.js` | distribution bar entrance, 8ms per row, counted per block |
+| `swapOut(host)` | `core.js` | fades every `.chart-plot` and `.bar-track` out; resolves when they have gone |
+| `swapCharts(host, repaint, between)` | `core.js` | the whole gesture: out, repaint, `between`, grow back |
+| `wireMetricCharts(host)` | `dashboard.js` | the campaign list's card readout; re-bound every paint |
+| `figureValue()` / `countFigures()` | `insights.js` | figures that tween between windows |
 | `navigate(href)` | `core.js` | leave for another page behind the exit fade |
 | `countFigures(host, before)` | `dashboard.js` | figure motion |
 | `markChangedSteps(root)` / `slideStep(dir)` / `exitStep(dir)` | `builder.js` | stepper states + step travel, both directions |
@@ -161,29 +192,60 @@ before showing anyone.
 
 ## Backlog
 
-### Worth doing — cheap, each marks a state change the user caused
+### Done since the last pass
 
-1. **Settings save footer** (`settings.js:111`) — the best remaining item in the app. A panel going
-   dirty makes a Cancel button *appear* and Save change state, currently a hard pop-in.
-2. **Insights figure count-up** (`insights.js:220`) — the dashboard's figures count and Insights'
-   do not, so the same gesture behaves differently on two screens. The inconsistency is the problem
-   more than the missing motion. `countUp()` already exists.
-3. **Validation shake** (`builder.js:534`) — the error notice appears and scrolls into view but
-   does not announce itself.
-4. **Star / rating press feedback** (`content-step.js:310`) — this is the widget your *end users*
-   tap, and it has no press state at all.
+Four of the five items that were here are built. What they were, and what closing them taught:
 
-The Insights distribution bars that used to sit at the top of this list are done: `.bar-fill`'s
-dead `width` transition is gone and `growBars()` animates them instead. The Insights figure
-count-up that sat beside it is **not** — `countUp()` still only runs on the dashboard, and the
-same gesture still behaves differently on the two screens.
+1. ~~**Insights figure count-up**~~ — done, but not by adding `countUp()` where the backlog said.
+   The figures had nothing to count *to*: the Date range filter was inert, so no figure on the tab
+   ever changed under any control. Wiring motion to it first would have shipped an animation for a
+   state that never renders — the exact dead code this file warns about two sections down. The
+   range filter had to become real first. **The lesson is general: before animating a change, check
+   the change actually happens.**
+2. ~~**Validation shake**~~ — done, and the subtlety was *when*, not *what*. The notice is on
+   screen for every repaint after the first block, including every keystroke in the field being
+   fixed, so a shake wired to the notice's presence would fire on all of them. `ui.shake` is set by
+   the press and consumed by the paint it causes.
+3. ~~**Star / rating press feedback**~~ — done. `:active` for the give under the finger, `rate-mark`
+   for the mark landing. Two halves, because a press and a selection are two events.
+4. **Settings save footer** (`settings.js:111`) — **still open**, and now the best remaining item in
+   the app by some distance. A panel going dirty makes Cancel *appear* and Save change state, both
+   as a hard pop-in.
+
+### Worth doing next — ranked
+
+Ranked by how much each one tells the reader something they could not otherwise see. The first
+three are the ones worth doing; below the line is where the returns stop.
+
+1. **Settings save footer** (`settings.js:111`). Above, and still the strongest. A control
+   appearing is a state change the user caused, and this is the one place in the product where one
+   arrives with no acknowledgement at all. `dd-in`'s shape is the right shape.
+2. **The row menu's own destructive confirm.** Delete now flashes the restored row on undo, but the
+   *departing* row just vanishes on the repaint. A row leaving under a collapse — the toast's own
+   `margin-bottom` trick, applied to a `<tr>` — would make the undo legible as a reversal rather
+   than as a second, unrelated arrival. Cheap, and it does not need keyed reconciliation because
+   there is exactly one row and it is known by id.
+3. **Insights chart column → readout parity.** The campaign list's cards now dim their neighbours
+   while one column is read; the Insights delivery chart, which has the more detailed readout,
+   still does not. Same gesture, two behaviours — the same inconsistency that put the figure
+   count-up on this list. One rule and one attribute in `wireChart()`.
+4. **Filter chips on Insights.** Five `<select>`s that mostly change nothing visible. Now that
+   `range` genuinely re-slices, the others are conspicuous by not doing so. This is a data problem
+   before it is a motion one, and the honest fix is fewer controls, not more animation.
+5. **The `metric-axis` under a swapped plot.** The columns crossfade and regrow; the two date
+   labels under them hard-cut. Nobody has noticed, which is roughly the point — listed so the next
+   person does not "fix" it and add motion to something that reads fine still.
+
+**Deliberately not on this list:** anything that decorates. The rejected set below still stands, and
+the card readout was only worth building because it shows numbers the reader could not otherwise
+get at — not because a hover ought to do something.
 
 ### Blocked on the render path
 
-6. **Row enter/exit on filter.** Needs keyed reconciliation or FLIP. `@formkit/auto-animate` looks
+1. **Row enter/exit on filter.** Needs keyed reconciliation or FLIP. `@formkit/auto-animate` looks
    tailor-made and will not work: it observes a parent's children, and replacing `innerHTML`
    destroys the `<tbody>` and the observer with it.
-7. **Skeleton → content crossfade.** Needs both layers in the DOM at once. The current `lazy-in`
+2. **Skeleton → content crossfade.** Needs both layers in the DOM at once. The current `lazy-in`
    fade-up is a reasonable substitute; the gain does not justify the refactor on its own.
 
 ### Considered and rejected

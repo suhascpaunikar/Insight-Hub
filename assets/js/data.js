@@ -107,7 +107,7 @@ const GOAL_KIND = Object.fromEntries(GOALS.map((g) => [g.id, g.kind]));
 export const campaignKind = (c) => GOAL_KIND[c && c.goal] || 'feedback';
 export const isFeedback = (c) => campaignKind(c) === 'feedback';
 
-/* ---------- Step 4 — template categories and components (FR-26 … FR-29) ---------- */
+/* ---------- Step 3 — template categories and components (FR-26 … FR-29) ---------- */
 export const TEMPLATE_CATEGORIES = [
   { id: 'basic', label: 'Basic Templates' },
   { id: 'ratings', label: 'Ratings Templates' },
@@ -161,7 +161,7 @@ export const TEST_ACCOUNTS = [
   { id: 'ta_3', label: 'growth-bot@quickeats.in (Web)' },
 ];
 
-/* ---------- Step 3 — audience (FR-12 … FR-17) ---------- */
+/* ---------- Step 2 — audience (FR-12 … FR-17) ---------- */
 export const SEGMENTS = [
   { id: 'seg_new', name: 'New', rule: 'First order placed in the last 30 days · 0 prior orders', size: 48210, userCreated: false },
   { id: 'seg_repeat', name: 'Repeat', rule: '2 or more orders placed lifetime', size: 192480, userCreated: false },
@@ -268,6 +268,11 @@ export const DELIVERY_FUNNEL = [
 ];
 
 /* FR-96 / FR-93 — the version boundary falls between 27 Jul and 30 Jul. */
+/* Days between consecutive points. A date-range filter has to slice by elapsed
+   time rather than by a point count, because a point means three days on this
+   series and eight hours on the announcement one below — the same "last 7 days"
+   is 3 columns here and 21 there. */
+export const DELIVERY_STEP_DAYS = 3;
 export const DELIVERY_SERIES = [
   { date: '12 Jul', sends: 2100, completions: 880, version: 1 },
   { date: '15 Jul', sends: 2980, completions: 1240, version: 1 },
@@ -623,6 +628,7 @@ export const ANNOUNCE_FUNNEL = [
    so a daily point would be four bars and would hide the within-day shape
    entirely; the three send windows a day are what a reader needs to see.
    One version, so there is no boundary to mark. */
+export const ANNOUNCE_STEP_DAYS = 1 / 3;
 export const ANNOUNCE_SERIES = [
   { date: '22 Aug 10:00', sends: 15600, taps: 1980, version: 1 },
   { date: '22 Aug 15:00', sends: 14200, taps: 1690, version: 1 },

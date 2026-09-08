@@ -127,20 +127,27 @@ export function reconcileVariants(draft) {
 }
 
 /* ---------- Validation (FR-1, FR-69) ---------- */
+
+/**
+ * How many steps the wizard has. Lives here rather than beside the labels in
+ * builder.js because it is the validation that decides what a step is: every
+ * loop below counts to it, and a label list that disagreed with the validator
+ * would let the reader reach a step nothing checks. builder.js imports it.
+ */
+export const STEP_COUNT = 4;
+
 export function validateStep(draft, step) {
   const issues = [];
   const add = (field, message) => issues.push({ field, message });
 
-  if (step === 1 && !draft.goal) {
-    add('goal', 'Choose what you want to start from.');
-  }
-
-  if (step === 2) {
+  // Step 1 is the old 1 + 2: what the campaign is for, and what it is called.
+  if (step === 1) {
+    if (!draft.goal) add('goal', 'Choose what you want to start from.');
     if (!draft.name.trim()) add('name', 'Campaign name is required.');
     if (draft.apps.length === 0) add('apps', 'Select at least one app.');
   }
 
-  if (step === 3) {
+  if (step === 2) {
     if (draft.audience.mode === 'segmented' && draft.audience.segments.length === 0) {
       add('segments', 'Select at least one segment, or switch to All users.');
     }
@@ -153,7 +160,7 @@ export function validateStep(draft, step) {
     }
   }
 
-  if (step === 4) {
+  if (step === 3) {
     draft.variants.forEach((variant) => {
       if (!variant.templateId) {
         add(`template:${variant.id}`, `${variant.name || 'A variant'} has no template selected.`);
@@ -176,7 +183,9 @@ export function validateStep(draft, step) {
     }
   }
 
-  if (step === 5) {
+  // Step 4 is the old 5 + 6. Only the schedule half validates: testing is not a
+  // gate (OD-5), so there has never been anything on the publish half to block.
+  if (step === 4) {
     const s = draft.schedule;
     if (s.startMode === 'later' && (!s.startDate || !s.startTime)) {
       add('start', 'A later start needs both a date and a time.');
@@ -196,10 +205,10 @@ export function validateStep(draft, step) {
 
 /** The furthest step the draft's current state allows the user to reach. */
 export function furthestReachableStep(draft) {
-  for (let step = 1; step <= 6; step += 1) {
+  for (let step = 1; step <= STEP_COUNT; step += 1) {
     if (validateStep(draft, step).length > 0) return step;
   }
-  return 6;
+  return STEP_COUNT;
 }
 
 /* ---------- Derived ---------- */
@@ -362,7 +371,7 @@ export const store = {
       else completed.delete(s);
     }
     return this.updateDraft({
-      currentStep: clamp(step, 1, 6),
+      currentStep: clamp(step, 1, STEP_COUNT),
       completedSteps: [...completed].sort((a, b) => a - b),
     });
   },
@@ -500,10 +509,61 @@ export const store = {
   editCampaign(id) {
     const draft = this.resumeCampaign(id);
     if (!draft) return null;
-    draft.currentStep = 4;
-    draft.completedSteps = [1, 2, 3];
+    // Content — the step an edit is nearly always for, and the one after the
+    // two the campaign already satisfies.
+    draft.currentStep = 3;
+    draft.completedSteps = [1, 2];
     this.save();
     return draft;
+  },
+
+  /** FR-74 — rename in place. The name is the identifier every list shows. */
+  renameCampaign(id, name) {
+    const index = this.state.campaigns.findIndex((c) => c.id === id);
+    if (index < 0) return null;
+    this.state.campaigns[index] = {
+      ...this.state.campaigns[index],
+      name,
+      updatedAt: new Date().toISOString(),
+    };
+    // A rename while that campaign is open in the builder has to reach the
+    // draft too, or the next save writes the old name straight back over it.
+    if (this.state.draft && this.state.draft.id === id) {
+      this.state.draft = { ...this.state.draft, name };
+    }
+    this.save();
+    return this.state.campaigns[index];
+  },
+
+  /**
+   * Remove a campaign, handing back everything needed to put it back.
+   *
+   * The index matters as much as the row: restoring to the top of the list
+   * would move a campaign the reader did not ask to move, and an undo that
+   * rearranges the screen is not an undo. Nothing here is a real deletion —
+   * this is a prototype over localStorage — but the shape is the shape a real
+   * one needs, and the caller holds the returned record only for as long as
+   * its toast is on screen.
+   */
+  deleteCampaign(id) {
+    const index = this.state.campaigns.findIndex((c) => c.id === id);
+    if (index < 0) return null;
+    const [row] = this.state.campaigns.splice(index, 1);
+    // A draft open in the builder for the row just deleted has nothing left to
+    // save into, and leaving it would resurrect the campaign on the next save.
+    if (this.state.draft && this.state.draft.id === id) this.state.draft = null;
+    this.save();
+    return { row, index };
+  },
+
+  /** Undo of the above, back into the position it was taken from. */
+  restoreCampaign(record) {
+    if (!record) return null;
+    const { row, index } = record;
+    if (this.state.campaigns.some((c) => c.id === row.id)) return row;
+    this.state.campaigns.splice(Math.min(index, this.state.campaigns.length), 0, row);
+    this.save();
+    return row;
   },
 
   setCampaignStatus(id, status) {
