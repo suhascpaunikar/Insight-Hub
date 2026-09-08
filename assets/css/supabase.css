@@ -1265,8 +1265,8 @@ body[data-leaving="true"] { opacity: 0; transition: opacity var(--motion-fast) v
 
    Violet throughout: the design system reserves #a78bfa for machine claims,
    so the whole surface reads as inference and never as measurement. The card
-   is a fixed 320×240 box — the answer scrolls inside it rather than growing
-   it, so the console layout never shifts underneath an answer.
+   is a fixed 320×380 box — the transcript scrolls inside it rather than
+   growing it, so the console layout never shifts underneath an answer.
    ========================================================================== */
 .asst {
   position: fixed; right: var(--sp-lg); bottom: var(--sp-lg);
@@ -1305,10 +1305,15 @@ body:has(.builder-foot) .asst {
   box-shadow: var(--shadow-2), 0 0 18px -2px rgba(167, 139, 250, 0.55);
 }
 
-/* The card occupies its 320×240 whether open or not; visibility is what
-   changes, so opening never reflows the page behind it. */
+/* The card occupies its 320×380 whether open or not; visibility is what
+   changes, so opening never reflows the page behind it. It was 240 while it
+   held one answer at a time; a transcript with an ask box under it needs the
+   extra 140 or the log is three lines deep. Still a fixed size, so the rule it
+   was written to keep — the footprint never changes as an answer grows — still
+   holds. The max-height is for a short viewport, where 380 plus the launcher
+   would otherwise run off the top. */
 .asst-card {
-  width: 320px; height: 240px;
+  width: 320px; height: 380px; max-height: calc(100vh - 120px);
   display: flex; flex-direction: column;
   position: relative;              /* containing block for the border beam */
   border: 1px solid var(--ai-400);
@@ -1370,6 +1375,33 @@ body:has(.builder-foot) .asst {
 }
 @keyframes asst-blink { 50% { opacity: 0; } }
 
+/* ---------- The transcript ----------
+   Turns stack oldest first and the newest is the one in view. A question is
+   the reader's own words, so it sits against the right edge on the console's
+   own surface; an answer is the assistant's, so it runs the full width as
+   prose and carries no bubble at all. A claim about the data should read as a
+   sentence rather than as chat furniture, and only one side of this
+   conversation is a person. */
+.asst-log { display: flex; flex-direction: column; gap: var(--sp-md); }
+.asst-turn { display: flex; flex-direction: column; }
+.asst-turn[data-from="you"] { align-items: flex-end; }
+.asst-turn[data-from="you"] .asst-text {
+  max-width: 85%;
+  padding: 5px 9px;
+  border-radius: var(--radius-md);
+  background: var(--surface-200);
+  color: var(--foreground-light);
+  animation: asst-rise var(--motion-base) var(--ease-out) both;
+}
+/* Which panel a reading came from. The header title only ever names the newest
+   reply, so a pointer reading further up the log would otherwise lose its
+   subject. */
+.asst-turn-label {
+  margin-bottom: 3px;
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--ai-fg);
+}
+
 /* Pinned to the bottom edge — present only once the answer has landed. */
 .asst-follow { flex: none; padding: 0 var(--sp-md) var(--sp-sm); }
 .asst-follow:empty { display: none; }
@@ -1393,6 +1425,53 @@ body:has(.builder-foot) .asst {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* ---------- The ask box ----------
+   Ported from the shadcn/Tailwind `ai-input-with-search` component, the same
+   way border-beam was: this prototype has no package.json, no bundler and no
+   React, and GitHub Pages — one of its two hosts — cannot run a build, so the
+   component's design is taken and its toolchain is not. What is kept is the
+   two-tier shape (a field with a squared-off bar beneath it), the field that
+   grows with what you type up to a cap, and the send button that lights only
+   once there is something to send.
+
+   Two deviations, both deliberate:
+
+   · **The file and web-search controls are gone.** The component carries a
+     paperclip and a "Search the web" toggle. There is no network call anywhere
+     in this prototype and nothing to attach a file to, and docs/assistant.md
+     is explicit that this card must never imply more capability than it has —
+     a dead control here costs more than a missing one.
+   · **sky-500 becomes violet.** FR-91 reserves #a78bfa for machine claims and
+     the whole card is in it; a blue accent would introduce a fourth colour to
+     a system running brand green, AI violet and the rating ramp, and would
+     mean nothing in it. This is the same substitution border-beam's gold got.
+*/
+.asst-ask { flex: none; padding: 0 var(--sp-md) var(--sp-md); }
+.asst-ask-shell {
+  overflow: hidden;
+  border: 1px solid var(--border-default); border-radius: var(--radius-md);
+  background: var(--surface-100);
+  transition: border-color var(--motion-fast) var(--ease-out);
+}
+.asst-ask-shell:focus-within { border-color: var(--ai-400); }
+.asst-ask-field {
+  display: block; width: 100%; min-height: 34px; max-height: 90px;
+  padding: 9px 10px 0; border: 0; background: transparent; resize: none;
+  overflow-y: auto; overscroll-behavior: contain;
+  color: var(--foreground-default); font: inherit; font-size: 12.5px; line-height: 1.35;
+}
+.asst-ask-field:focus { outline: none; }
+.asst-ask-field::placeholder { color: var(--foreground-muted); }
+.asst-ask-bar { display: flex; align-items: center; justify-content: flex-end; height: 30px; padding: 0 5px; }
+.asst-ask-send {
+  display: grid; place-items: center; width: 24px; height: 24px;
+  border: 0; border-radius: var(--radius-sm);
+  background: var(--surface-200); color: var(--foreground-muted); cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+}
+.asst-ask-send[data-armed="true"] { background: var(--ai-200); color: var(--ai-fg); }
+.asst-ask-send svg { width: 13px; height: 13px; }
+
 /* Below the console's narrow breakpoint the fixed card would crowd the
    content it is describing, so it steps aside and only the bubble remains. */
 @media (max-width: 560px) {
@@ -1400,14 +1479,15 @@ body:has(.builder-foot) .asst {
 }
 @media (prefers-reduced-motion: reduce) {
   .asst-word, .asst-follow-btn { animation: none; }
+  .asst-turn[data-from="you"] .asst-text { animation: none; }
   .asst-caret { animation: none; }
   .asst-card { transition: opacity 120ms ease; }
 }
 
-/* A fixed 240px box will cut a line in half whenever the answer runs past it.
+/* A fixed box will cut a line in half whenever the transcript runs past it.
    Fading only the edge the content actually overflows makes that cut read as
    "there is more this way" rather than as a clipped render. Both offsets are
-   0 when the answer fits, which collapses the mask to fully opaque. */
+   0 when the log fits, which collapses the mask to fully opaque. */
 .asst-body {
   --asst-fade-top: 0px;
   --asst-fade-bottom: 0px;
@@ -1699,22 +1779,6 @@ body[data-asst-pointer="true"] [data-insight][data-insight-armed] {
 }
 
 .asst-icon-btn[aria-pressed="true"] { background: var(--ai-200); color: var(--ai-fg); }
-
-/* A fixed 240px box will cut a line in half whenever an answer runs past it.
-   Fading only the edge the content overflows makes that cut read as "there is
-   more this way" rather than as a clipped render. */
-.asst-body {
-  --asst-fade-top: 0px;
-  --asst-fade-bottom: 0px;
-  -webkit-mask-image: linear-gradient(to bottom,
-    transparent 0, #000 var(--asst-fade-top),
-    #000 calc(100% - var(--asst-fade-bottom)), transparent 100%);
-  mask-image: linear-gradient(to bottom,
-    transparent 0, #000 var(--asst-fade-top),
-    #000 calc(100% - var(--asst-fade-bottom)), transparent 100%);
-}
-.asst-body[data-fade-top="true"] { --asst-fade-top: 18px; }
-.asst-body[data-fade-bottom="true"] { --asst-fade-bottom: 22px; }
 
 @media (prefers-reduced-motion: reduce) {
   .asst-pointer-progress { animation: none; stroke-dashoffset: 0; }
