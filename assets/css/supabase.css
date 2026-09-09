@@ -1199,7 +1199,16 @@ img { max-width: 100%; }
 .chart-plot[data-swap="in"] .chart-col {
   transform-origin: bottom;
   animation: col-grow var(--motion-slow) var(--ease-out) both;
-  animation-delay: calc(var(--i, 0) * 8ms);
+  /* The wipe crosses the whole series in --motion-base, whatever the series is
+     made of: `--i / --n` is the column's position as a fraction of the way
+     across, so the last column always starts one --motion-base after the
+     first. A flat per-column gap cannot do this — it makes the gesture as long
+     as the data is, so the 24-column range read as a left-to-right wipe and
+     the 7-column range, spanning 48ms, read as one simultaneous pop. This is
+     the one stagger in the product that is the length of something rather than
+     a gap between things, which is why it is a token and the bars' 8ms is not.
+     growPlots() in core.js sets both properties. */
+  animation-delay: calc(var(--i, 0) / var(--n, 1) * var(--motion-base));
 }
 @keyframes col-grow { from { opacity: 0; transform: scaleY(.35); } }
 

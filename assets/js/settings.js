@@ -359,13 +359,14 @@ export function renderSettings(host) {
   // Ticking a switch two panels down repaints the screen; without this the
   // reader is returned to the top of it. The tab is the key — a new tab is a
   // new screen and opens at the top. See keepScroll() in core.js.
+  const place = (render) => keepScroll(() => host, view.tab, render);
   lazySection({
     key: `settings:${view.tab}`,
     // Every panel has values to show, so unlike the campaign list there is no
     // empty case to skip — a settings tab is never "nothing to load".
     hasData: true,
-    skeleton: () => paintSettings(host, { pending: true }),
-    paint: (entering) => keepScroll(() => host, view.tab, () => paintSettings(host, { entering })),
+    skeleton: () => place(() => paintSettings(host, { pending: true })),
+    paint: (entering) => place(() => paintSettings(host, { entering })),
   });
 }
 

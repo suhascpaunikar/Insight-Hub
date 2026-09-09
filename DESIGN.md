@@ -632,7 +632,15 @@ loops, and the product loses nothing but the movement.
 interaction where a figure and the shape behind it change meaning at the same moment, so it is
 the one that earns a transition. The ranges are 7 and 24 columns, so there is nothing to morph
 between: the old plot leaves over `--motion-fast`, and the new series grows from its own
-baseline, each column 8ms behind the last.
+baseline, one column behind the last.
+
+The stagger is **a fraction of `--motion-base`, not a fixed gap** — each column starts
+`--i / --n` of the way through it, so the wipe crosses the series in 180ms whether the series is
+7 columns or 24. A flat per-column gap makes the gesture as long as the data is, and that is what
+the two ranges used to disagree about: at 24 columns an 8ms count spanned 184ms and read as an
+edge travelling left to right, but at 7 columns it spanned 48ms — below the threshold where a
+sequence is legible — so the same animation read as the whole strip rising from the bottom at
+once. One chart is not allowed two entrances.
 
 **Status pulse** (`.pill[data-status="Live"] .dot`) — a ring expanding out of the Live dot on a
 2.4s loop, and the one piece of perpetual motion in the product. It is a pseudo-element animating
@@ -676,8 +684,11 @@ has **no** skeleton: a wizard step is a form being filled, not data arriving, an
 steps reads as lag.
 
 **Bars** (`.bar-fill[data-grow]`) — a distribution bar grows out of its track's left edge, one
-row behind the last, on the same 8ms count the sparkline columns use: the campaign list and the
-Insights panels draw the same marks and should draw them the same way. Asked for rather than run
+row behind the last, on a flat 8ms count: the campaign list and the Insights panels draw the same
+marks and should draw them the same way. This is the one place the flat gap is still right — a
+distribution's rows are a list whose length is the answer, not two framings of one series, so
+each block reads as one gesture at whatever length it happens to be rather than being stretched
+to a fixed one. Asked for rather than run
 on every paint, because the Responses tab repaints on every character typed into its search and
 sixty bars redrawing under the cursor is the failure mode. A tab, a filter and a band ask; a
 keystroke never does — the same rule that keeps `countUp` off the keystroke path.

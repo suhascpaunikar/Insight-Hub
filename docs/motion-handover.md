@@ -39,8 +39,9 @@ no animation library removes the need for it.
 
 32 keyframes and 57 transition declarations, carrying 100 references to the three motion tokens.
 Every duration outside the assistant is a token; the two that are not are the 8ms stagger the
-sparkline columns and distribution bars count on, and the 1.5s the collapsed rail's tooltip waits,
-both of which are gaps between things rather than the length of anything. Six of the assistant's
+distribution bars count on, and the 1.5s the collapsed rail's tooltip waits, both of which are
+gaps between things rather than the length of anything. The sparkline columns used to be a third,
+and are now `--motion-base` divided across however many columns there are — see *Range switch*. Six of the assistant's
 durations are deliberately hardcoded (see *Rules*).
 
 ### Shell — every page
@@ -68,7 +69,7 @@ could not be positioned.
 | --- | --- | --- |
 | Skeleton → content | first visit per session | `lazySection()` + `.skel`, then `lazy-in` |
 | Sparkline entrance | content arriving | `growPlots()` sets `data-swap="in"` |
-| Range switch | range dropdown | `swapCharts()` — plot crossfades out, new series grows back 8ms per column |
+| Range switch | range dropdown | `swapCharts()` — plot crossfades out, new series grows back, the wipe spanning `--motion-base` whatever the column count |
 | Headline figures | range switch only | `countUp()` — never on a keystroke |
 | Card readout | hover on a metric plot | the column holds its ink, its neighbours drop to .38, and a `.chart-tip` opens against the cursor; `wireMetricCharts()` |
 | Row menu | the ⋯ on any row | `dd-in` / `dd-out`, flipped above the trigger where the row is near the fold |
@@ -156,7 +157,7 @@ Pre-existing and untouched: `asst-resolve`, `asst-blink`, `asst-rise`, `asst-bea
 | `countUp(node, from, to, format)` | `core.js` | tweens a number, respects reduced motion |
 | `wireTabPill(tabs, key)` | `core.js` | sliding tab marker with position replay |
 | `closeMenu(menu)` | `core.js` | animated dropdown close |
-| `growPlots(host)` | `core.js` | sparkline / column entrance, 8ms per column |
+| `growPlots(host)` | `core.js` | sparkline / column entrance; sets `--i` per column and `--n` per plot so the wipe spans `--motion-base` at any length |
 | `growBars(host)` | `core.js` | distribution bar entrance, 8ms per row, counted per block |
 | `swapOut(host)` | `core.js` | fades every `.chart-plot` and `.bar-track` out; resolves when they have gone |
 | `swapCharts(host, repaint, between)` | `core.js` | the whole gesture: out, repaint, `between`, grow back |
@@ -187,6 +188,15 @@ screens demo what they will feel like against a real API.
 
 **Demo note:** skeletons fire once per browser tab. Open a new tab or run `sessionStorage.clear()`
 before showing anyone.
+
+**The skeleton paints through `keepScroll` too, on the same key as the content.** It did not, and
+the bug that came out of it is worth keeping in mind because it looked like nothing to do with
+scrolling at all: the placeholder left the scroller unstamped, so the paint 1–1.5s later compared
+a missing key against the screen's key, concluded it was a different screen, and reset `scrollTop`
+to 0. A reader who scrolled while the skeleton was up was silently thrown back to the top — which
+reads as *"scroll doesn't work, then after two seconds it does"*, since the second attempt lands
+after the content and holds. Both renders now go through one `place()` helper per screen. Any new
+lazy section must do the same.
 
 ---
 
