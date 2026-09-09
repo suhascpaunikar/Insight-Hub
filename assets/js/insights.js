@@ -13,6 +13,7 @@ import { store } from './store.js';
 import {
   DELIVERY_FUNNEL, DELIVERY_SERIES, DELIVERY_STEP_DAYS, FAILURE_REASONS, RATING_BLOCK, BRANCH_BLOCKS,
   OPEN_RESPONSES, SCORE_DRIVERS, OWNER_TEAMS, VARIANT_RESULTS, WEIGHT_HISTORY,
+  THEMES, THEME_COVERAGE,
   AI_SUGGESTIONS, SEGMENTS,
   campaignKind, isFeedback, KIND_LABEL,
   ANNOUNCE_FUNNEL, ANNOUNCE_SERIES, ANNOUNCE_STEP_DAYS, ANNOUNCE_FAILURE_REASONS, ENGAGEMENT,
@@ -35,7 +36,7 @@ export const tabsFor = (c) => TABS_BY_KIND[campaignKind(c)];
 
 /* FR-92 — filters apply across all four tabs and persist when switching. */
 const filters = { range: '30d', segment: 'all', app: 'all', variant: 'all', version: 'all' };
-const view = { textQuery: '', bandFilter: 'all', owners: {} };
+const view = { textQuery: '', bandFilter: 'all', owners: {}, openThemes: {} };
 
 /**
  * FR-92 keeps the filters in module state so they survive a tab switch — which
@@ -818,6 +819,202 @@ function impactTab(c) {
   return isFeedback(c) ? feedbackImpactTab(c) : announcementImpactTab(c);
 }
 
+
+/* ==========================================================================
+   FR-103 / FR-104 / FR-105 — response themes.
+
+   The clusters behind the score drivers above. The drivers table answers *what
+   is this costing us*; this answers *what did people actually write*, and it is
+   the only place on the screen where a machine-made claim can be opened and
+   read back against the raw text it was made from (FR-104). A cluster the
+   reader cannot open is an assertion, not a finding.
+
+   Three things this panel refuses to do:
+
+   - Present seven clusters as the whole of the text. Clustering leaves a
+     remainder, and the remainder is on the list as a row of its own (FR-105),
+     sized against the number of people who *wrote* something rather than the
+     number who answered the rating — text is the only thing a cluster can be
+     built from, so it is the only honest denominator.
+   - Hide a cluster it does not trust. `th_reorder` is below the volume the
+     drivers table reports at, so Impact drops it; here it stays, carrying its
+     low-confidence grade, because a reader deciding what to act on needs to see
+     the weak signal *labelled* rather than silently withheld.
+   - Let the summary read as a measurement. Every machine inference sits in the
+     reserved accent (FR-91); the volumes and ratings beside it do not.
+   ========================================================================== */
+
+const CONFIDENCE_NOTE = {
+  high: 'Tight cluster — members use consistent wording.',
+  medium: 'Members vary in wording; the edges of this cluster are soft.',
+  low: 'Below the volume this screen reports a finding at. Read it as a lead, not a result.',
+};
+
+/** The clusters, plus the remainder, as one list the reader reads top to bottom. */
+function themeRows() {
+  const clustered = THEMES.reduce((t, x) => t + x.volume, 0);
+  const rows = [...THEMES].sort((a, b) => b.volume - a.volume);
+  // FR-105 — the unclustered bucket is a row, not a footnote. It carries a
+  // seeded member of its own, so it opens like any other row.
+  return {
+    clustered,
+    rows: rows.concat([{
+      id: 'th_unclustered',
+      name: 'Unclustered',
+      volume: Math.max(0, THEME_COVERAGE.textResponses - clustered),
+      trend: null,
+      avgRating: null,
+      confidence: 'none',
+      summary: 'Text that reached no cluster above the reliability threshold — '
+        + 'one-off remarks, answers about something the campaign did not ask, and '
+        + 'the genuinely ambiguous. It is reported rather than discarded so the '
+        + 'clusters above are read as a share of the text, never as all of it.',
+    }]),
+  };
+}
+
+function themesSection(c) {
+  const max = scaleMax(c);
+  const { clustered, rows } = themeRows();
+  const total = THEME_COVERAGE.textResponses;
+  const volMax = Math.max(...rows.map((t) => t.volume));
+
+  return html`
+    <section class="card" data-insight="themes">
+      <div class="card-head">
+        <div>
+          <h3 class="row t-h2" style="gap:7px">
+            ${raw(icon('sparkles', 'fg-ai'))}Response themes
+          </h3>
+          <span class="t-xs fg-lighter">
+            Clusters found in the open text. Open one to read the responses it was built from.
+          </span>
+        </div>
+        <span class="row" style="gap:14px">
+          <span class="col" style="gap:0;align-items:flex-end">
+            <span class="t-micro fg-muted">Text answers</span>
+            <span class="num" style="font-size:20px">${count(total)}</span>
+          </span>
+          <span class="col" style="gap:0;align-items:flex-end">
+            <span class="t-micro fg-muted">Clustered</span>
+            <span class="mono t-sm">${share(clustered, total)}</span>
+          </span>
+        </span>
+      </div>
+
+      <div class="card-body theme-list">
+        ${rows.map((t) => {
+          const open = !!view.openThemes[t.id];
+          const members = OPEN_RESPONSES.filter((r) => r.themeId === t.id);
+          const isRemainder = t.id === 'th_unclustered';
+          const low = t.confidence === 'low';
+          return html`
+            <div class="theme-row" data-open="${open}" data-remainder="${isRemainder}">
+              <button class="theme-head" data-act="theme" data-id="${t.id}"
+                      aria-expanded="${open}" aria-controls="body-${t.id}">
+                <span class="theme-chev">${raw(icon('chevron'))}</span>
+                <span class="col" style="gap:2px;min-width:0">
+                  <span class="row" style="gap:6px">
+                    <span class="t-h3 truncate">${t.name}</span>
+                    ${raw(isRemainder ? '' : html`
+                      <span class="badge ${raw(low ? 'badge-warning' : '')}"
+                            title="${CONFIDENCE_NOTE[t.confidence]}">
+                        ${raw(low ? icon('warn') : '')}${t.confidence} confidence
+                      </span>`)}
+                  </span>
+                  <span class="bar-track" style="height:5px;max-width:280px">
+                    <span class="bar-fill" style="width:${(t.volume / volMax) * 100}%;
+                      background:${raw(isRemainder ? 'var(--surface-300)' : AI_ACCENT)};opacity:.8"></span>
+                  </span>
+                </span>
+                <span class="theme-figs">
+                  <span class="col" style="gap:0;align-items:flex-end">
+                    <span class="num t-sm">${count(t.volume)}</span>
+                    <span class="mono t-xs fg-muted">${share(t.volume, total)}</span>
+                  </span>
+                  <span class="col" style="gap:0;align-items:flex-end;width:56px">
+                    ${raw(t.trend === null ? '<span class="t-xs fg-lighter">—</span>' : html`
+                      <span class="mono t-xs" style="color:${raw(t.trend > 0
+                        ? 'var(--foreground-light)' : 'var(--foreground-lighter)')}">
+                        ${raw(t.trend > 0 ? '↑' : '↓')}${Math.abs(t.trend)}%
+                      </span>`)}
+                  </span>
+                  <span class="col" style="gap:0;align-items:flex-end;width:64px">
+                    ${raw(t.avgRating === null
+                      ? '<span class="t-xs fg-lighter">—</span>'
+                      : ratingValue(t.avgRating, max))}
+                  </span>
+                </span>
+              </button>
+
+              <div class="theme-body" id="body-${t.id}">
+                <div>
+                  <div class="theme-body-inner stack">
+                    ${raw(!low ? '' : html`
+                      <div class="notice notice-warning">
+                        ${raw(icon('warn'))}
+                        <span>Left off the score drivers table above for this reason, and kept
+                          here so a weak signal is visible and labelled rather than silently
+                          dropped.</span>
+                      </div>`)}
+
+                    <!-- FR-91 — the summary is machine inference, and wears the accent that says so. -->
+                    <div class="well theme-summary">
+                      <span class="row t-micro fg-muted" style="gap:5px">
+                        ${raw(icon('sparkles', 'fg-ai'))}${raw(isRemainder ? 'Why these are here' : 'Cluster summary')}
+                      </span>
+                      <p class="t-sm fg-light" style="margin-top:4px">${t.summary}</p>
+                    </div>
+
+                    <!-- FR-104 — the claim above, traceable to the text it was made from. -->
+                    <div class="row-between">
+                      <span class="t-micro fg-muted">Responses in this cluster</span>
+                      <span class="mono t-xs fg-muted">
+                        ${count(members.length)} of ${count(t.volume)} shown
+                      </span>
+                    </div>
+                    ${raw(members.length ? html`
+                      <ul class="theme-members">
+                        ${members.map((r) => html`
+                          <li>
+                            <button class="theme-member" data-act="open-response" data-id="${r.id}">
+                              <span class="row" style="gap:6px;flex:none">
+                                <span class="mono t-xs fg-muted">${r.id}</span>
+                                <span class="badge badge-mono"
+                                      style="color:${raw(ratingColor(r.rating, max))}">${r.rating}</span>
+                              </span>
+                              <span class="t-sm fg-light truncate">${r.text}</span>
+                              <span class="row" style="gap:6px;flex:none">
+                                <span class="badge">${r.segment}</span>
+                                <span class="badge badge-mono">v${r.version}</span>
+                                ${raw(icon('right', 'fg-muted'))}
+                              </span>
+                            </button>
+                          </li>`)}
+                      </ul>` : html`
+                      <div class="notice">
+                        ${raw(icon('info'))}
+                        <span>No member responses are seeded for this cluster in the prototype.</span>
+                      </div>`)}
+                  </div>
+                </div>
+              </div>
+            </div>`;
+        })}
+      </div>
+
+      <div class="card-foot">
+        <span class="t-xs fg-muted">
+          Volume is the number of text answers in the cluster; trend is its change against the
+          previous period of the same length. Clustering and the summaries are machine-made and
+          carry the ${raw(`<span style="color:${AI_ACCENT}">AI accent</span>`)} — every one of them
+          opens to the responses it was drawn from. The prototype seeds a readable sample of each
+          cluster rather than its full member set: the volumes are the real sizes, the lists are not.
+        </span>
+      </div>
+    </section>`;
+}
+
 /* FR-106 — score driver breakdown. Attribution keys off theme, and each row is
    ranked by how far it pulls the overall score down. */
 function feedbackImpactTab(c) {
@@ -918,6 +1115,8 @@ function feedbackImpactTab(c) {
           </span>
         </div>
       </section>
+
+      ${raw(themesSection(c))}
 
       <!-- FR-108 — variants compared side by side, labelled by variant name. -->
       <section class="card" data-insight="variant-comparison">
@@ -1576,6 +1775,23 @@ function wire(host) {
   });
   on(host, 'change', '[data-act="band-filter"]', (e) => { view.bandFilter = e.target.value; redraw(host, rerender); });
   on(host, 'click', '[data-act="open-response"]', (e, el) => openResponseDetail(el.dataset.id));
+
+  /* FR-103 — a cluster opens in place.
+   *
+   * Toggled on the node rather than through a repaint. The panel is inside the
+   * Impact tab, which repaints by replacing innerHTML: rendering the open state
+   * would take the row away and put a new one back, so there would be no box
+   * left to animate open and the reader would lose their scroll position mid
+   * gesture. The state still lives in `view`, so a *filter* change — which does
+   * repaint — brings the open rows back open.
+   */
+  on(host, 'click', '[data-act="theme"]', (e, el) => {
+    const id = el.dataset.id;
+    const open = !view.openThemes[id];
+    if (open) view.openThemes[id] = true; else delete view.openThemes[id];
+    el.setAttribute('aria-expanded', String(open));
+    el.closest('.theme-row').dataset.open = String(open);
+  });
 
   /* Impact tab */
   on(host, 'change', '[data-act="set-owner"]', (e, el) => {

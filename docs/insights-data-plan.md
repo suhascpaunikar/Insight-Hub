@@ -150,9 +150,9 @@ average. No composite or secondary score is ever displayed (FR-99).
 | Variant comparison — completion rate, avg rating, responses (FR-108) | Live | Flagged not-like-for-like on divergent triggers |
 | Intelligent A/B weight history (FR-109) | Live | |
 | AI suggestions | Live | In the reserved accent |
-| Themes tab — clusters with volume, trend, examples (FR-103) | Needs data | Removed from the prototype; `THEMES` is seeded and unused by the page |
-| Theme drill-down to member responses (FR-104) | Needs data | Removed with it — every AI claim should be traceable to raw text |
-| Theme reliability / unclustered bucket (FR-105) | Needs data | `confidence` is seeded; nothing reads it |
+| Response themes — clusters with volume, trend, confidence (FR-103) | Added | Folded into Impact under the drivers table, not restored as a fourth tab — see OQ-2 |
+| Theme drill-down to member responses (FR-104) | Added | A cluster opens in place to the seeded responses it was built from, and each opens the full response detail |
+| Theme reliability / unclustered bucket (FR-105) | Added | `confidence` is read and badged; the remainder is a row of its own, sized against `THEME_COVERAGE.textResponses` |
 
 ---
 
@@ -229,8 +229,14 @@ never needed: a push can be accepted by the OS and still never be surfaced.
   the NPS score (% promoters − % detractors)? The two move independently and the
   business almost certainly reports the second. FR-99 says one distribution and
   one average; it does not say the average is the right headline.
-- **OQ-2 — Themes.** FR-103 – FR-105 are specified, seeded, and not rendered.
-  Restore the Themes tab, or fold clusters into Impact and close the FRs?
+- **OQ-2 — Themes. Resolved: folded into Impact.** FR-103 – FR-105 now render as
+  a Response themes panel directly under the score drivers, rather than as a
+  fourth tab. Drivers and clusters are both keyed on `themeId` and answer two
+  halves of one question — what this is costing, and what people actually wrote
+  — so splitting them across tabs would have put the evidence a tab away from
+  the claim. It also leaves the documented tab set per kind untouched.
+  Still open underneath it: the cluster member lists are a seeded sample, and
+  the volumes they are drawn from are not reproducible from `OPEN_RESPONSES`.
 - **OQ-3 — Holdout.** Lift is the only trustworthy impact number, but nothing in
   the builder reserves a control group. Does the Audience step need a holdout %?
 - **OQ-4 — Mixed campaigns.** A push that carries a thumbs-up element is an
