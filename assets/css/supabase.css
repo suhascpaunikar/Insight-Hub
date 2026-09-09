@@ -826,8 +826,101 @@ img { max-width: 100%; }
    distribution has, so the old set leaves whole rather than resizing into the
    new one. Set by swapOut() in core.js, cleared by the repaint that follows. */
 .bar-track[data-swap="out"] { opacity: 0; transition: opacity var(--motion-fast) var(--ease-out); }
+/* ---------- Response themes (FR-103 … FR-105) ---------- */
+.theme-list { display: flex; flex-direction: column; gap: 0; padding: 0; }
+.theme-row { border-top: 1px solid var(--border-muted); }
+.theme-row:first-child { border-top: 0; }
+
+.theme-head {
+  display: grid; grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center; gap: 12px; width: 100%;
+  padding: 11px var(--sp-lg); background: none; border: 0; cursor: pointer;
+  text-align: left; color: inherit; font: inherit;
+  transition: background-color var(--motion-fast) var(--ease-out);
+}
+.theme-head:hover { background: var(--surface-100); }
+.theme-head:focus-visible { outline: 2px solid var(--brand-default); outline-offset: -2px; }
+
+.theme-chev { display: flex; color: var(--foreground-muted); }
+.theme-chev svg { width: 14px; height: 14px; transition: transform var(--motion-base) var(--ease-out); }
+.theme-row[data-open="true"] .theme-chev svg { transform: rotate(90deg); }
+
+.theme-figs { display: flex; align-items: center; gap: 18px; }
+
+/* The open/close itself. 0fr → 1fr animates to the content's own height without
+   measuring it in JS, so a cluster whose member list is two rows and one whose
+   is ten both open at the same speed and neither needs a hard-coded height. */
+.theme-body {
+  display: grid; grid-template-rows: 0fr;
+  transition: grid-template-rows var(--motion-base) var(--ease-out);
+}
+.theme-body > div { overflow: hidden; }
+.theme-row[data-open="true"] .theme-body { grid-template-rows: 1fr; }
+.theme-body-inner { padding: 2px var(--sp-lg) var(--sp-lg) 44px; }
+.theme-summary { border-left: 2px solid var(--ai-400); }
+
+.theme-members { display: flex; flex-direction: column; gap: 4px; list-style: none; margin: 0; padding: 0; }
+.theme-member {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center; gap: 10px; width: 100%;
+  padding: 7px 10px; background: var(--surface-100);
+  border: 1px solid var(--border-muted); border-radius: var(--radius-md);
+  cursor: pointer; text-align: left; color: inherit; font: inherit;
+  transition: background-color var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out);
+}
+.theme-member:hover { background: var(--surface-200); border-color: var(--border-strong); }
+.theme-member:focus-visible { outline: 2px solid var(--brand-default); outline-offset: 1px; }
+.theme-member svg { width: 13px; height: 13px; }
+
+/* The remainder is a reported quantity, not a finding — it reads back a step. */
+.theme-row[data-remainder="true"] .theme-head .t-h3 { color: var(--foreground-light); }
+
+@media (max-width: 720px) {
+  .theme-figs { gap: 10px; }
+  .theme-body-inner { padding-left: var(--sp-lg); }
+}
+
 .dist { display: flex; flex-direction: column; gap: 6px; }
 .dist-row { display: grid; grid-template-columns: 44px 1fr 108px; align-items: center; gap: 10px; }
+
+/* ---------- Linked brushing on the rating axis ----------
+   The ramp is a control, so its rows are buttons; they keep the grid the static
+   rows had so a distribution does not change shape on becoming clickable. */
+.dist-row-btn {
+  width: 100%; padding: 3px 6px; margin: -3px -6px; background: none; border: 0;
+  border-radius: var(--radius-md); cursor: pointer; text-align: left; color: inherit; font: inherit;
+  transition: background-color var(--motion-fast) var(--ease-out),
+              opacity var(--motion-base) var(--ease-out);
+}
+.dist-row-btn:hover { background: var(--surface-100); }
+.dist-row-btn:focus-visible { outline: 2px solid var(--brand-default); outline-offset: -1px; }
+
+/* Selection is carried by the *unselected* marks stepping back rather than the
+   selected one lighting up: the bar colours already encode the score, and
+   brightening one would put a second meaning on the same channel. */
+.dist[data-brush="true"] .dist-row-btn { opacity: .38; }
+.dist[data-brush="true"] .dist-row-btn[data-sel="true"] { opacity: 1; }
+.dist-row-btn[data-sel="true"] { background: var(--surface-200); }
+.dist[data-brush="true"] .dist-row-btn:hover { opacity: .72; }
+.dist[data-brush="true"] .dist-row-btn[data-sel="true"]:hover { opacity: 1; }
+
+/* The branch blocks answer to the same selection — a score cut leaves two of
+   the three paths irrelevant, and they say so by receding. */
+.grid[data-brush="true"] > .card { transition: opacity var(--motion-base) var(--ease-out); }
+.grid[data-brush="true"] > .card[data-sel="false"] { opacity: .38; }
+
+.cut-chip {
+  display: inline-flex; align-items: center; gap: 6px; flex: none;
+  height: 28px; padding: 0 8px; font-size: 11.5px; color: var(--foreground-light);
+  background: var(--surface-200); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full); cursor: pointer; font-family: inherit;
+  transition: background-color var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out);
+}
+.cut-chip:hover { background: var(--surface-300); color: var(--foreground-default); }
+.cut-chip:focus-visible { outline: 2px solid var(--brand-default); outline-offset: 1px; }
+.cut-chip svg { width: 12px; height: 12px; }
 
 /* ---------- Figure strip (FR-95) ---------- */
 .figures { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); row-gap: var(--sp-lg); }
@@ -1912,6 +2005,13 @@ body[data-asst-pointer="true"] [data-insight][data-insight-armed] {
   .toast[data-leaving="true"] { transform: none; transition: opacity var(--motion-fast) ease; }
   .chart-plot[data-swap="in"] .chart-col { animation: none; }
   .bar-fill[data-grow="in"] { animation: none; }
+  /* The cluster still opens and the chevron still turns to say which way it is
+     pointing — that is state. It just stops sliding there. */
+  .theme-body { transition: none; }
+  .theme-chev svg { transition: none; }
+  /* The brush still dims what it deselected — that is which marks are in the
+     cut, not decoration. It just arrives rather than fading in. */
+  .dist-row-btn, .grid[data-brush="true"] > .card { transition: none; }
   .chart-seg { transition: none; }
   /* The readout still opens and the neighbours still step back — those are
      state, not motion — but neither fades into it. */

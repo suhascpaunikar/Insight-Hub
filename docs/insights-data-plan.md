@@ -77,6 +77,19 @@ announcement *did this campaign make anybody do anything*.
 
 Date range · Segment · App · Variant · Version. All **Live**.
 
+**Addressable** (Added). The filters, the rating cut, the open-text search and
+any expanded cluster live in the query string, so the view is the URL. *Copy
+view link* is in the filter row; *Clear filters* appears beside it once anything
+is narrowed.
+
+Only what differs from the default is written — an untouched screen stays
+`?id=c1&tab=impact`. Nothing is trusted coming back in: every value is checked
+against the same option list its control is built from, and the address bar is
+rewritten to what was actually accepted, so a link carrying a segment this
+campaign does not have cannot sit there looking applied or be copied onward.
+A score cut and an expanded cluster are both dropped on an announcement, which
+has neither a ramp nor themes.
+
 ### 0.3 Cross-cutting rules
 
 | Rule | Status | Note |
@@ -121,7 +134,7 @@ average. No composite or secondary score is ever displayed (FR-99).
 |---|---|---|
 | Rating question wording | Live | |
 | Rating element and scale | Live | Star 1–5 · NPS 1–5 · NPS 1–10 |
-| Full distribution per score, on the ramp (FR-98, FR-99) | Live | |
+| Full distribution per score, on the ramp (FR-98, FR-99) | Live | The ramp is also the tab's score control — see *Linked brushing* below |
 | Mean rating | Live | |
 | Response count | Live | |
 | Band split — detractor / passive / promoter | Live (implicit) | Visible through the branch blocks; not stated as three figures |
@@ -130,7 +143,7 @@ average. No composite or secondary score is ever displayed (FR-99).
 | Per-branch option distribution | Live | |
 | Multiple-choice blocks, ranked with counts and shares (FR-98) | Live | Currently only as branch follow-ups |
 | Open-text list, searchable (FR-101) | Live | |
-| Open-text filters: rating band, version | Live | |
+| Open-text filters: rating band, single score, version | Added | Band and score are one selection on one axis, not two filters — see *Linked brushing* below |
 | Per-response: rating, band, segment, variant, version, timestamp | Live | |
 | Response detail — full answer set in order (FR-102) | Live | Pseudonymous, with order context (OD-22) |
 | Rating trend over time | Needs data | The average is a single number today; whether it is moving is unanswerable |
@@ -139,6 +152,29 @@ average. No composite or secondary score is ever displayed (FR-99).
 | Response rate against audience size | Needs data | Responses ÷ eligible, not ÷ sent |
 | Rating split by segment / app / version | Needs data | The filters imply it; there is no per-cut breakdown panel |
 
+### 1.2a Linked brushing on the rating axis
+
+Clicking a score on the ramp cuts the whole tab to the people who gave it: the
+other scores step back, the two branch paths that score cannot be in step back
+with them, and the open-text list below filters to it. Clicking the same score
+again puts it back, so the bar is the way out of a cut as well as the way in.
+
+Two things this settles that the separate band select alone did not:
+
+- **Band and score are one selection, held in one field.** A score sits inside
+  exactly one band, so a band filter and a score filter running side by side
+  could only ever be redundant or produce an empty list between them. Setting
+  either replaces the other; a score cut shows as a removable chip beside the
+  select it came from.
+- **The gap between the bar and the list is stated, not left to the reader.**
+  Clicking a bar 620 tall and landing on one response is not a contradiction,
+  but it looks like one. The heading says how many gave the score, that not all
+  of them wrote anything, and that the text itself is a seeded sample.
+
+A cut travels in the URL (see §0.2), so a brushed view can be handed to someone
+else. Export still does not carry one — FR-110 covers the filter state, and the
+cut is not yet part of what it writes.
+
 ### 1.3 Impact tab
 
 | Data | Status | Note |
@@ -146,13 +182,13 @@ average. No composite or secondary score is ever displayed (FR-99).
 | Score drivers, one row per theme (FR-106) | Live | |
 | Per driver: volume, share, low/high band split, avg rating, score drag | Live | |
 | Owning team, configurable per theme (FR-106) | Live | Engineering · Product · CX · Growth · City Ops |
-| Route action (FR-107) | Live | Export · filtered link · ticket |
+| Route action (FR-107) | Live | Export · filtered link · ticket. The link is now real (Added): it opens Impact with that cluster expanded, under the filters the router had set. Export and ticket remain stubs |
 | Variant comparison — completion rate, avg rating, responses (FR-108) | Live | Flagged not-like-for-like on divergent triggers |
 | Intelligent A/B weight history (FR-109) | Live | |
 | AI suggestions | Live | In the reserved accent |
-| Themes tab — clusters with volume, trend, examples (FR-103) | Needs data | Removed from the prototype; `THEMES` is seeded and unused by the page |
-| Theme drill-down to member responses (FR-104) | Needs data | Removed with it — every AI claim should be traceable to raw text |
-| Theme reliability / unclustered bucket (FR-105) | Needs data | `confidence` is seeded; nothing reads it |
+| Response themes — clusters with volume, trend, confidence (FR-103) | Added | Folded into Impact under the drivers table, not restored as a fourth tab — see OQ-2 |
+| Theme drill-down to member responses (FR-104) | Added | A cluster opens in place to the seeded responses it was built from, and each opens the full response detail |
+| Theme reliability / unclustered bucket (FR-105) | Added | `confidence` is read and badged; the remainder is a row of its own, sized against `THEME_COVERAGE.textResponses` |
 
 ---
 
@@ -229,8 +265,14 @@ never needed: a push can be accepted by the OS and still never be surfaced.
   the NPS score (% promoters − % detractors)? The two move independently and the
   business almost certainly reports the second. FR-99 says one distribution and
   one average; it does not say the average is the right headline.
-- **OQ-2 — Themes.** FR-103 – FR-105 are specified, seeded, and not rendered.
-  Restore the Themes tab, or fold clusters into Impact and close the FRs?
+- **OQ-2 — Themes. Resolved: folded into Impact.** FR-103 – FR-105 now render as
+  a Response themes panel directly under the score drivers, rather than as a
+  fourth tab. Drivers and clusters are both keyed on `themeId` and answer two
+  halves of one question — what this is costing, and what people actually wrote
+  — so splitting them across tabs would have put the evidence a tab away from
+  the claim. It also leaves the documented tab set per kind untouched.
+  Still open underneath it: the cluster member lists are a seeded sample, and
+  the volumes they are drawn from are not reproducible from `OPEN_RESPONSES`.
 - **OQ-3 — Holdout.** Lift is the only trustworthy impact number, but nothing in
   the builder reserves a control group. Does the Audience step need a holdout %?
 - **OQ-4 — Mixed campaigns.** A push that carries a thumbs-up element is an

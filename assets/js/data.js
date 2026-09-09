@@ -495,6 +495,14 @@ export const THEMES = [
   },
 ];
 
+/* FR-105 — the reliability frame the cluster list is read inside.
+   Clusters are built from open text, so the honest denominator is the number of
+   people who wrote something, not the number who answered the rating. The
+   remainder is the unclustered bucket: text that reached no cluster above the
+   reliability threshold. Stating it stops seven clusters reading as the whole
+   story. */
+export const THEME_COVERAGE = { textResponses: 12540 };
+
 /* FR-106 / FR-107 — score driver breakdown. Replaces the food-vs-delivery
    attribution matrix: attribution now keys off theme, and each driver is
    ranked by how far it pulls the overall score down.

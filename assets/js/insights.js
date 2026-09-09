@@ -6,13 +6,14 @@
 import {
   html, raw, esc, icon, $, $$, on, count, ratingText, percent, ratingColor, ratingValue,
   ratingLegend, wireDropdowns, dialog, toast, wireOnce, AI_ACCENT, LOW_SAMPLE,
-  BANDS, BAND_LABEL, bandRange, keepScroll, lazySection, skel, wireTabPill,
+  BANDS, BAND_LABEL, bandRange, bandOf, REDUCED_MOTION, keepScroll, lazySection, skel, wireTabPill,
   growPlots, growBars, swapOut, countUp, navigate,
 } from './core.js';
 import { store } from './store.js';
 import {
   DELIVERY_FUNNEL, DELIVERY_SERIES, DELIVERY_STEP_DAYS, FAILURE_REASONS, RATING_BLOCK, BRANCH_BLOCKS,
   OPEN_RESPONSES, SCORE_DRIVERS, OWNER_TEAMS, VARIANT_RESULTS, WEIGHT_HISTORY,
+  THEMES, THEME_COVERAGE,
   AI_SUGGESTIONS, SEGMENTS,
   campaignKind, isFeedback, KIND_LABEL,
   ANNOUNCE_FUNNEL, ANNOUNCE_SERIES, ANNOUNCE_STEP_DAYS, ANNOUNCE_FAILURE_REASONS, ENGAGEMENT,
@@ -33,9 +34,224 @@ export const TABS_BY_KIND = {
 };
 export const tabsFor = (c) => TABS_BY_KIND[campaignKind(c)];
 
+/**
+ * The filter controls for a campaign — and, because a pasted URL can carry
+ * anything, the only list of values this page will accept for them. Both the
+ * selects and the URL reader are built from this, so a value the reader lets
+ * through is by construction a value a control can actually show.
+ */
+function filterDefsFor(c) {
+  return [
+    ['range', 'Date range', [['7d', 'Last 7 days'], ['30d', 'Last 30 days'], ['all', 'All time']]],
+    ['segment', 'Segment', [['all', 'All segments'], ...SEGMENTS.map((sg) => [sg.id, sg.name])]],
+    ['app', 'App', [['all', 'All apps'], ['android', 'Android'], ['ios', 'iOS'], ['web', 'Web']]],
+    ['variant', 'Variant', [['all', 'All variants'], ...variantsOf(c).map((v) => [v.name, v.name])]],
+    ...(c.versions > 1
+      ? [['version', 'Version', [['all', 'All versions'],
+          ...Array.from({ length: c.versions }, (_, i) => [String(i + 1), `Version ${i + 1}`])]]]
+      : []),
+  ];
+}
+
 /* FR-92 — filters apply across all four tabs and persist when switching. */
-const filters = { range: '30d', segment: 'all', app: 'all', variant: 'all', version: 'all' };
-const view = { textQuery: '', bandFilter: 'all', owners: {} };
+const FILTER_DEFAULTS = { range: '30d', segment: 'all', app: 'all', variant: 'all', version: 'all' };
+const filters = { ...FILTER_DEFAULTS };
+/**
+ * `cut` is one selection on the rating axis, held at whichever granularity the
+ * reader reached for: a band from the select, or a single score from the ramp.
+ *
+ * Deliberately one field rather than two. A score sits inside exactly one band,
+ * so a separate band filter and score filter could only ever be redundant (the
+ * score is in the band) or empty (it is not) — and two controls that can
+ * silently produce an empty list between them is the worst of the options.
+ * Setting either one replaces the other.
+ */
+const view = { textQuery: '', cut: { kind: 'all' }, owners: {}, openThemes: {} };
+
+/** Does this response fall inside the current cut? */
+const inCut = (r) => (
+  view.cut.kind === 'score' ? r.rating === view.cut.score
+    : view.cut.kind === 'band' ? r.band === view.cut.band
+      : true);
+
+/** The band the cut lands in — a score cut implies one — or null when nothing is cut. */
+const cutBand = (max) => (
+  view.cut.kind === 'score' ? bandOf(view.cut.score, max)
+    : view.cut.kind === 'band' ? view.cut.band
+      : null);
+
+
+/* ==========================================================================
+   Shareable state (FR-92, and the half of FR-107 that was still a promise)
+
+   Everything the reader has narrowed to lives in the query string, so the
+   answer on their screen is the answer on yours. Before this, `tab` and `id`
+   travelled and the five filters did not — which meant the Route dialog's
+   "Send a filtered link" could not send one, and a screenshot was the only way
+   to show somebody what you were looking at.
+
+   Two rules keep the URL readable:
+
+   - Only what differs from the default is written. A reader who has changed
+     nothing gets `?id=c1&tab=impact`, not a string of `=all`.
+   - Nothing is trusted on the way back in. A pasted URL is user input from
+     another machine, possibly another version of the seed: every value is
+     checked against the same option list the control is built from, and
+     anything unrecognised falls back to the default rather than filtering the
+     screen down to a silent nothing.
+   ========================================================================== */
+
+/** '' when nothing is cut, else a short token: `b:detractor`, `s:3`. */
+const cutToken = () => (
+  view.cut.kind === 'band' ? `b:${view.cut.band}`
+    : view.cut.kind === 'score' ? `s:${view.cut.score}`
+      : '');
+
+/** The inverse, refusing anything the current campaign's ramp cannot show. */
+function parseCut(token, c) {
+  const [kind, value] = String(token || '').split(':');
+  if (kind === 'b' && BANDS.includes(value)) return { kind: 'band', band: value };
+  if (kind === 's') {
+    const score = Number(value);
+    const onRamp = RATING_BLOCK.distribution.some((d) => d.score === score);
+    if (onRamp && isFeedback(c)) return { kind: 'score', score };
+  }
+  return { kind: 'all' };
+}
+
+/**
+ * Write the whole readable state back to the address bar.
+ *
+ * replaceState, not pushState: narrowing a filter is not a navigation, and a
+ * reader who tried four segments should get Back out of the page rather than
+ * back through their own four attempts. `tab` is read rather than written
+ * because the tab handler sets it before repainting.
+ */
+function stateParams({ tab, theme } = {}) {
+  const c = campaign();
+  const p = new URLSearchParams();
+  if (c) p.set('id', c.id);
+  // The tab handler sets the param before repainting, so it is read rather than
+  // written — unless a caller is building a link to somewhere else on purpose.
+  const t = tab || (c ? currentTab(c) : params().get('tab'));
+  if (t) p.set('tab', t);
+  Object.entries(filters).forEach(([k, v]) => { if (v !== FILTER_DEFAULTS[k]) p.set(k, v); });
+  const cut = cutToken();
+  if (cut) p.set('cut', cut);
+  if (view.textQuery.trim()) p.set('q', view.textQuery.trim());
+  const open = theme === undefined ? Object.keys(view.openThemes) : [theme].filter(Boolean);
+  if (open.length) p.set('theme', open.join(','));
+  return p;
+}
+
+function syncUrl() {
+  if (!campaign()) return;
+  history.replaceState(null, '', `?${stateParams()}`);
+}
+
+/* Typing is the only control here that fires per keystroke, and some browsers
+   rate-limit history writes, so the address bar catches up shortly after the
+   reader stops rather than once per letter. */
+let urlTimer = null;
+function syncUrlSoon() {
+  clearTimeout(urlTimer);
+  urlTimer = setTimeout(syncUrl, 300);
+}
+
+/**
+ * An absolute link to this screen with something overridden — the filters the
+ * reader has set, pointed at a tab and a cluster of your choosing. This is what
+ * makes the Route dialog's "filtered link" an actual link.
+ */
+const linkTo = (opts) => `${location.origin}${location.pathname}?${stateParams(opts)}`;
+
+/**
+ * Hydrate module state from the address bar, once per campaign.
+ *
+ * Runs before the first paint so a pasted link arrives already narrowed rather
+ * than showing the unfiltered screen and then jumping. After that the module
+ * state leads and syncUrl() mirrors it, which is why this is guarded: reading
+ * on every paint would let a stale URL undo the change that triggered the
+ * paint.
+ */
+let hydratedFor = null;
+function readUrlState(c) {
+  if (hydratedFor === c.id) return;
+  hydratedFor = c.id;
+  const p = params();
+
+  // Each filter against the same options its select is built from.
+  const defs = new Map(filterDefsFor(c).map(([key, , options]) => [key, options.map(([v]) => v)]));
+  Object.keys(filters).forEach((key) => {
+    const allowed = defs.get(key);
+    const v = p.get(key);
+    filters[key] = v !== null && allowed && allowed.includes(v) ? v : FILTER_DEFAULTS[key];
+  });
+
+  view.cut = parseCut(p.get('cut'), c);
+  view.textQuery = p.get('q') || '';
+
+  // Clusters are read off open text, so they exist on a feedback campaign and
+  // nowhere else — the same reason the score cut above is gated. Letting the
+  // param through on an announcement would leave it in the address bar pointing
+  // at a panel that is not on the screen.
+  view.openThemes = {};
+  if (isFeedback(c)) {
+    (p.get('theme') || '').split(',').filter(Boolean).forEach((id) => {
+      // th_unclustered is a row this page builds rather than one the seed
+      // carries, so it is allowed through by name alongside the clusters.
+      if (id === 'th_unclustered' || THEMES.some((t) => t.id === id)) view.openThemes[id] = true;
+    });
+  }
+
+  // Write back what was actually accepted. Without this a link carrying a
+  // segment this campaign does not have would sit in the address bar looking
+  // applied, and Copy view link would hand the same bad state to the next
+  // reader.
+  syncUrl();
+}
+
+/** Is anything actually narrowed? Drives the reset affordance and nothing else. */
+const narrowed = () => (
+  Object.entries(filters).some(([k, v]) => v !== FILTER_DEFAULTS[k])
+  || view.cut.kind !== 'all'
+  || view.textQuery.trim() !== '');
+
+/** The address of exactly what is on screen, for handing to somebody else. */
+const shareUrl = () => location.href;
+
+/**
+ * Put a link on the clipboard, and say so.
+ *
+ * The async clipboard API needs a secure context and a permission that can be
+ * refused, and this page is just as likely to be opened from a file:// copy of
+ * the prototype, so the older selection-based path stands behind it. A failure
+ * to copy is reported rather than swallowed: a reader who thinks they have a
+ * link and pastes nothing is worse off than one who is told to copy the bar.
+ */
+async function copyLink(url, what = 'Link copied') {
+  try {
+    await navigator.clipboard.writeText(url);
+    toast(what, 'The filters, the tab and anything you have opened travel with it.');
+    return true;
+  } catch { /* fall through to the older path */ }
+  try {
+    const box = document.createElement('textarea');
+    box.value = url;
+    box.setAttribute('readonly', '');
+    box.style.cssText = 'position:fixed;top:-1000px;opacity:0';
+    document.body.appendChild(box);
+    box.select();
+    const ok = document.execCommand('copy');
+    box.remove();
+    if (!ok) throw new Error('refused');
+    toast(what, 'The filters, the tab and anything you have opened travel with it.');
+    return true;
+  } catch {
+    toast('Could not reach the clipboard', 'Copy the address bar instead — it already holds this view.', 'warning');
+    return false;
+  }
+}
 
 /**
  * FR-92 keeps the filters in module state so they survive a tab switch — which
@@ -435,17 +651,54 @@ function deliveryTab(c) {
 /* ==========================================================================
    Responses tab (FR-98 … FR-102)
    ========================================================================== */
+/**
+ * What the list is currently cut to, said in words under its heading.
+ *
+ * The count matters more than it looks. A reader who clicks the 620-tall bar
+ * for score 1 and lands on two responses needs to be told the difference
+ * between those two numbers, or the list reads as a contradiction of the chart
+ * directly above it. Two things separate them, and both are stated: not every
+ * respondent wrote anything, and of the text that does exist this prototype
+ * seeds a sample.
+ */
+function cutNote(max, block) {
+  if (view.cut.kind === 'score') {
+    const row = block.distribution.find((d) => d.score === view.cut.score);
+    return html`
+      <span class="t-xs fg-lighter">
+        Cut to <strong class="fg-light">score ${view.cut.score}</strong> from the ramp —
+        <span class="mono">${count(row ? row.count : 0)}</span> people gave it. Not all of them
+        wrote anything, and the prototype seeds a sample of the text that exists.
+      </span>`;
+  }
+  if (view.cut.kind === 'band') {
+    return html`
+      <span class="t-xs fg-lighter">
+        Cut to the <strong class="fg-light">${BAND_LABEL[view.cut.band].toLowerCase()}</strong> band
+        · <span class="mono">${bandRange(view.cut.band, max)}</span>
+      </span>`;
+  }
+  return html`
+    <span class="t-xs fg-lighter">
+      Every text answer. Click a score on the ramp above to cut this list to the people who gave it.
+    </span>`;
+}
+
 function responsesTab(c) {
   const max = scaleMax(c);
   const block = RATING_BLOCK;
   const distMax = Math.max(...block.distribution.map((d) => d.count));
+  // The band the cut lands in, shared by all three panels below — this is what
+  // makes the ramp, the branch blocks and the text list read as one selection
+  // rather than three that happen to agree.
+  const cut = cutBand(max);
 
   const filtered = OPEN_RESPONSES.filter((r) => {
     const q = view.textQuery.trim().toLowerCase();
     const matchesQuery = !q || r.text.toLowerCase().includes(q);
-    const matchesBand = view.bandFilter === 'all' || r.band === view.bandFilter;
+    const matchesCut = inCut(r);
     const matchesVersion = filters.version === 'all' || String(r.version) === filters.version;
-    return matchesQuery && matchesBand && matchesVersion;
+    return matchesQuery && matchesCut && matchesVersion;
   });
 
   return html`
@@ -468,18 +721,27 @@ function responsesTab(c) {
             </span>
           </span>
         </div>
-        <div class="card-body dist">
-          ${block.distribution.map((d) => html`
-            <div class="dist-row">
-              <span class="mono t-xs fg-light">${d.score}${raw(c.ratingElement === 'star' ? ' ★' : '')}</span>
-              <span class="bar-track">
-                <span class="bar-fill" style="width:${(d.count / distMax) * 100}%;background:${raw(ratingColor(d.score, max))}"></span>
-              </span>
-              <span class="row" style="justify-content:flex-end;gap:8px">
-                <span class="num t-sm">${count(d.count)}</span>
-                <span class="mono t-xs fg-muted">${share(d.count, block.responses)}</span>
-              </span>
-            </div>`)}
+        <!-- The ramp is the page's score control as well as its distribution:
+             clicking a score cuts the open text below to the people who gave it.
+             A distribution whose bars cannot be reached is a picture; the reader
+             who wants to know *why* 620 people said 1 has to be able to ask. -->
+        <div class="card-body dist" data-brush="${cut !== null}">
+          ${block.distribution.map((d) => {
+            const on = view.cut.kind === 'score' && view.cut.score === d.score;
+            return html`
+              <button class="dist-row dist-row-btn" data-act="score-cut" data-score="${d.score}"
+                      data-sel="${on}" aria-pressed="${on}"
+                      aria-label="Show open text from people who scored ${d.score} out of ${max}">
+                <span class="mono t-xs fg-light">${d.score}${raw(c.ratingElement === 'star' ? ' ★' : '')}</span>
+                <span class="bar-track">
+                  <span class="bar-fill" style="width:${(d.count / distMax) * 100}%;background:${raw(ratingColor(d.score, max))}"></span>
+                </span>
+                <span class="row" style="justify-content:flex-end;gap:8px">
+                  <span class="num t-sm">${count(d.count)}</span>
+                  <span class="mono t-xs fg-muted">${share(d.count, block.responses)}</span>
+                </span>
+              </button>`;
+          })}
         </div>
       </section>
 
@@ -489,12 +751,15 @@ function responsesTab(c) {
           <h3 class="t-h2">Q2 · Follow-up by rating band</h3>
           <span class="t-xs fg-lighter">Branching is on — each path is reported separately</span>
         </div>
-        <div class="grid g3">
+        <div class="grid g3" data-brush="${cut !== null}">
           ${BRANCH_BLOCKS.map((b) => {
             const bandScore = b.band === 'detractor' ? 1 : b.band === 'passive' ? 3 : 5;
             const optMax = Math.max(...b.options.map((o) => o.count));
+            // A score cut reaches here too: picking 2 out of 10 says nothing
+            // about the passive and promoter paths, and leaving all three at
+            // equal weight would invite the reader to keep reading them.
             return html`
-              <div class="card">
+              <div class="card" data-band="${b.band}" data-sel="${cut === null || cut === b.band}">
                 <div class="card-head" style="padding:10px 12px">
                   <span class="col" style="gap:2px">
                     <span class="row" style="gap:6px">
@@ -534,7 +799,10 @@ function responsesTab(c) {
       <!-- FR-101 — a searchable, filterable list of free-text answers. -->
       <section class="card" data-insight="open-text">
         <div class="card-head">
-          <h3 class="t-h2">Q3 · Open text</h3>
+          <div>
+            <h3 class="t-h2">Q3 · Open text</h3>
+            ${raw(cutNote(max, block))}
+          </div>
           <span class="mono t-xs fg-muted">${count(filtered.length)} of ${count(OPEN_RESPONSES.length)} shown</span>
         </div>
         <div class="toolbar">
@@ -545,15 +813,34 @@ function responsesTab(c) {
                    placeholder="Search what people wrote" />
           </label>
           <select class="select select-sm" data-act="band-filter" style="width:170px" aria-label="Filter by rating band">
-            <option value="all" ${raw(view.bandFilter === 'all' ? 'selected' : '')}>All rating bands</option>
+            <option value="all" ${raw(view.cut.kind === 'band' ? '' : 'selected')}>All rating bands</option>
             ${BANDS.map((b) => html`
-              <option value="${b}" ${raw(view.bandFilter === b ? 'selected' : '')}>
+              <option value="${b}" ${raw(view.cut.kind === 'band' && view.cut.band === b ? 'selected' : '')}>
                 ${BAND_LABEL[b]} · ${bandRange(b, max)}</option>`)}
           </select>
+          <!-- A score came from the ramp, not from this toolbar, so it says where
+               it came from and how to put it back. -->
+          ${raw(view.cut.kind !== 'score' ? '' : html`
+            <button class="cut-chip" data-act="clear-cut">
+              <span style="width:7px;height:7px;border-radius:2px;flex:none;
+                background:${raw(ratingColor(view.cut.score, max))}"></span>
+              <span>Score ${view.cut.score}</span>
+              ${raw(icon('x'))}
+            </button>`)}
         </div>
         <ul>
-          ${filtered.length === 0 ? html`
-            <li class="zero"><p class="t-body fg-lighter">No responses match these filters.</p></li>` : ''}
+          <!-- raw() is load-bearing: the html tag returns a plain string, and a
+               bare interpolation of a string is escaped, so without it this zero
+               state printed its own markup as text. Easy to reach now that a
+               score is one click away. -->
+          ${raw(filtered.length !== 0 ? '' : html`
+            <li class="zero">
+              <p class="t-body fg-lighter">No text answers match this cut.</p>
+              ${raw(view.cut.kind === 'all' ? '' : html`
+                <button class="btn btn-link" style="margin-top:6px" data-act="clear-cut">
+                  Show every text answer
+                </button>`)}
+            </li>`)}
           ${filtered.map((r) => html`
             <li style="border-bottom:1px solid var(--border-muted)">
               <button class="row-start" style="width:100%;padding:12px 16px;text-align:left"
@@ -578,6 +865,24 @@ function responsesTab(c) {
         </ul>
       </section>
     </div>`;
+}
+
+/**
+ * Bring the list a ramp click just cut into view, when it is not already there.
+ *
+ * The ramp sits a card and three branch blocks above the text it filters, so on
+ * a short window the whole result of the click happens off screen and the click
+ * reads as having done nothing. Guarded rather than unconditional: if the list
+ * is already visible, scrolling it would move the page out from under a reader
+ * who could see the answer perfectly well, which is the more annoying failure.
+ */
+function revealOpenText(host) {
+  const card = $('[data-insight="open-text"]', host);
+  if (!card) return;
+  const top = card.getBoundingClientRect().top;
+  // Already on screen with something to read below the fold: leave it alone.
+  if (top < window.innerHeight - 120) return;
+  card.scrollIntoView({ behavior: REDUCED_MOTION.matches ? 'auto' : 'smooth', block: 'nearest' });
 }
 
 /* FR-102 — one respondent's full answer set, in order, with their context. */
@@ -818,6 +1123,202 @@ function impactTab(c) {
   return isFeedback(c) ? feedbackImpactTab(c) : announcementImpactTab(c);
 }
 
+
+/* ==========================================================================
+   FR-103 / FR-104 / FR-105 — response themes.
+
+   The clusters behind the score drivers above. The drivers table answers *what
+   is this costing us*; this answers *what did people actually write*, and it is
+   the only place on the screen where a machine-made claim can be opened and
+   read back against the raw text it was made from (FR-104). A cluster the
+   reader cannot open is an assertion, not a finding.
+
+   Three things this panel refuses to do:
+
+   - Present seven clusters as the whole of the text. Clustering leaves a
+     remainder, and the remainder is on the list as a row of its own (FR-105),
+     sized against the number of people who *wrote* something rather than the
+     number who answered the rating — text is the only thing a cluster can be
+     built from, so it is the only honest denominator.
+   - Hide a cluster it does not trust. `th_reorder` is below the volume the
+     drivers table reports at, so Impact drops it; here it stays, carrying its
+     low-confidence grade, because a reader deciding what to act on needs to see
+     the weak signal *labelled* rather than silently withheld.
+   - Let the summary read as a measurement. Every machine inference sits in the
+     reserved accent (FR-91); the volumes and ratings beside it do not.
+   ========================================================================== */
+
+const CONFIDENCE_NOTE = {
+  high: 'Tight cluster — members use consistent wording.',
+  medium: 'Members vary in wording; the edges of this cluster are soft.',
+  low: 'Below the volume this screen reports a finding at. Read it as a lead, not a result.',
+};
+
+/** The clusters, plus the remainder, as one list the reader reads top to bottom. */
+function themeRows() {
+  const clustered = THEMES.reduce((t, x) => t + x.volume, 0);
+  const rows = [...THEMES].sort((a, b) => b.volume - a.volume);
+  // FR-105 — the unclustered bucket is a row, not a footnote. It carries a
+  // seeded member of its own, so it opens like any other row.
+  return {
+    clustered,
+    rows: rows.concat([{
+      id: 'th_unclustered',
+      name: 'Unclustered',
+      volume: Math.max(0, THEME_COVERAGE.textResponses - clustered),
+      trend: null,
+      avgRating: null,
+      confidence: 'none',
+      summary: 'Text that reached no cluster above the reliability threshold — '
+        + 'one-off remarks, answers about something the campaign did not ask, and '
+        + 'the genuinely ambiguous. It is reported rather than discarded so the '
+        + 'clusters above are read as a share of the text, never as all of it.',
+    }]),
+  };
+}
+
+function themesSection(c) {
+  const max = scaleMax(c);
+  const { clustered, rows } = themeRows();
+  const total = THEME_COVERAGE.textResponses;
+  const volMax = Math.max(...rows.map((t) => t.volume));
+
+  return html`
+    <section class="card" data-insight="themes">
+      <div class="card-head">
+        <div>
+          <h3 class="row t-h2" style="gap:7px">
+            ${raw(icon('sparkles', 'fg-ai'))}Response themes
+          </h3>
+          <span class="t-xs fg-lighter">
+            Clusters found in the open text. Open one to read the responses it was built from.
+          </span>
+        </div>
+        <span class="row" style="gap:14px">
+          <span class="col" style="gap:0;align-items:flex-end">
+            <span class="t-micro fg-muted">Text answers</span>
+            <span class="num" style="font-size:20px">${count(total)}</span>
+          </span>
+          <span class="col" style="gap:0;align-items:flex-end">
+            <span class="t-micro fg-muted">Clustered</span>
+            <span class="mono t-sm">${share(clustered, total)}</span>
+          </span>
+        </span>
+      </div>
+
+      <div class="card-body theme-list">
+        ${rows.map((t) => {
+          const open = !!view.openThemes[t.id];
+          const members = OPEN_RESPONSES.filter((r) => r.themeId === t.id);
+          const isRemainder = t.id === 'th_unclustered';
+          const low = t.confidence === 'low';
+          return html`
+            <div class="theme-row" data-open="${open}" data-remainder="${isRemainder}">
+              <button class="theme-head" data-act="theme" data-id="${t.id}"
+                      aria-expanded="${open}" aria-controls="body-${t.id}">
+                <span class="theme-chev">${raw(icon('chevron'))}</span>
+                <span class="col" style="gap:2px;min-width:0">
+                  <span class="row" style="gap:6px">
+                    <span class="t-h3 truncate">${t.name}</span>
+                    ${raw(isRemainder ? '' : html`
+                      <span class="badge ${raw(low ? 'badge-warning' : '')}"
+                            title="${CONFIDENCE_NOTE[t.confidence]}">
+                        ${raw(low ? icon('warn') : '')}${t.confidence} confidence
+                      </span>`)}
+                  </span>
+                  <span class="bar-track" style="height:5px;max-width:280px">
+                    <span class="bar-fill" style="width:${(t.volume / volMax) * 100}%;
+                      background:${raw(isRemainder ? 'var(--surface-300)' : AI_ACCENT)};opacity:.8"></span>
+                  </span>
+                </span>
+                <span class="theme-figs">
+                  <span class="col" style="gap:0;align-items:flex-end">
+                    <span class="num t-sm">${count(t.volume)}</span>
+                    <span class="mono t-xs fg-muted">${share(t.volume, total)}</span>
+                  </span>
+                  <span class="col" style="gap:0;align-items:flex-end;width:56px">
+                    ${raw(t.trend === null ? '<span class="t-xs fg-lighter">—</span>' : html`
+                      <span class="mono t-xs" style="color:${raw(t.trend > 0
+                        ? 'var(--foreground-light)' : 'var(--foreground-lighter)')}">
+                        ${raw(t.trend > 0 ? '↑' : '↓')}${Math.abs(t.trend)}%
+                      </span>`)}
+                  </span>
+                  <span class="col" style="gap:0;align-items:flex-end;width:64px">
+                    ${raw(t.avgRating === null
+                      ? '<span class="t-xs fg-lighter">—</span>'
+                      : ratingValue(t.avgRating, max))}
+                  </span>
+                </span>
+              </button>
+
+              <div class="theme-body" id="body-${t.id}">
+                <div>
+                  <div class="theme-body-inner stack">
+                    ${raw(!low ? '' : html`
+                      <div class="notice notice-warning">
+                        ${raw(icon('warn'))}
+                        <span>Left off the score drivers table above for this reason, and kept
+                          here so a weak signal is visible and labelled rather than silently
+                          dropped.</span>
+                      </div>`)}
+
+                    <!-- FR-91 — the summary is machine inference, and wears the accent that says so. -->
+                    <div class="well theme-summary">
+                      <span class="row t-micro fg-muted" style="gap:5px">
+                        ${raw(icon('sparkles', 'fg-ai'))}${raw(isRemainder ? 'Why these are here' : 'Cluster summary')}
+                      </span>
+                      <p class="t-sm fg-light" style="margin-top:4px">${t.summary}</p>
+                    </div>
+
+                    <!-- FR-104 — the claim above, traceable to the text it was made from. -->
+                    <div class="row-between">
+                      <span class="t-micro fg-muted">Responses in this cluster</span>
+                      <span class="mono t-xs fg-muted">
+                        ${count(members.length)} of ${count(t.volume)} shown
+                      </span>
+                    </div>
+                    ${raw(members.length ? html`
+                      <ul class="theme-members">
+                        ${members.map((r) => html`
+                          <li>
+                            <button class="theme-member" data-act="open-response" data-id="${r.id}">
+                              <span class="row" style="gap:6px;flex:none">
+                                <span class="mono t-xs fg-muted">${r.id}</span>
+                                <span class="badge badge-mono"
+                                      style="color:${raw(ratingColor(r.rating, max))}">${r.rating}</span>
+                              </span>
+                              <span class="t-sm fg-light truncate">${r.text}</span>
+                              <span class="row" style="gap:6px;flex:none">
+                                <span class="badge">${r.segment}</span>
+                                <span class="badge badge-mono">v${r.version}</span>
+                                ${raw(icon('right', 'fg-muted'))}
+                              </span>
+                            </button>
+                          </li>`)}
+                      </ul>` : html`
+                      <div class="notice">
+                        ${raw(icon('info'))}
+                        <span>No member responses are seeded for this cluster in the prototype.</span>
+                      </div>`)}
+                  </div>
+                </div>
+              </div>
+            </div>`;
+        })}
+      </div>
+
+      <div class="card-foot">
+        <span class="t-xs fg-muted">
+          Volume is the number of text answers in the cluster; trend is its change against the
+          previous period of the same length. Clustering and the summaries are machine-made and
+          carry the ${raw(`<span style="color:${AI_ACCENT}">AI accent</span>`)} — every one of them
+          opens to the responses it was drawn from. The prototype seeds a readable sample of each
+          cluster rather than its full member set: the volumes are the real sizes, the lists are not.
+        </span>
+      </div>
+    </section>`;
+}
+
 /* FR-106 — score driver breakdown. Attribution keys off theme, and each row is
    ranked by how far it pulls the overall score down. */
 function feedbackImpactTab(c) {
@@ -918,6 +1419,8 @@ function feedbackImpactTab(c) {
           </span>
         </div>
       </section>
+
+      ${raw(themesSection(c))}
 
       <!-- FR-108 — variants compared side by side, labelled by variant name. -->
       <section class="card" data-insight="variant-comparison">
@@ -1274,6 +1777,7 @@ let figuresBefore = null;
 
 /** Ask the next paint to draw its marks in, and repaint now. */
 const drawNext = (host, rerender) => {
+  syncUrl();
   drawIn = true;
   figuresBefore = readFigures(host);
   rerender();
@@ -1299,6 +1803,7 @@ const drawNext = (host, rerender) => {
  * this is not simply swapCharts().
  */
 const redraw = async (host, rerender) => {
+  syncUrl();
   // Read before the fade, not after: swapOut() only takes the marks down, but
   // reading here keeps the capture in one place for both callers.
   const figures = readFigures(host);
@@ -1310,6 +1815,9 @@ const redraw = async (host, rerender) => {
 
 export function renderInsights(host) {
   const c0 = campaign();
+  // Before anything is measured or drawn: a pasted link should arrive already
+  // narrowed rather than showing the whole run and then jumping to the slice.
+  if (c0) readUrlState(c0);
   const tab = c0 ? currentTab(c0) : '';
   // A filter change repaints every panel below it, and the filters are at the
   // top — so without this, changing one scrolls away from the figures it just
@@ -1353,16 +1861,7 @@ function paintInsights(host, { pending = false, entering = false } = {}) {
 
   // FR-92 — the version filter only exists where there is a boundary to filter
   // to, so a single-version campaign does not carry a control with one option.
-  const filterDefs = [
-    ['range', 'Date range', [['7d', 'Last 7 days'], ['30d', 'Last 30 days'], ['all', 'All time']]],
-    ['segment', 'Segment', [['all', 'All segments'], ...SEGMENTS.map((sg) => [sg.id, sg.name])]],
-    ['app', 'App', [['all', 'All apps'], ['android', 'Android'], ['ios', 'iOS'], ['web', 'Web']]],
-    ['variant', 'Variant', [['all', 'All variants'], ...variantsOf(c).map((v) => [v.name, v.name])]],
-    ...(c.versions > 1
-      ? [['version', 'Version', [['all', 'All versions'],
-          ...Array.from({ length: c.versions }, (_, i) => [String(i + 1), `Version ${i + 1}`])]]]
-      : []),
-  ];
+  const filterDefs = filterDefsFor(c);
 
   host.innerHTML = html`
     <div class="page">
@@ -1418,6 +1917,15 @@ function paintInsights(host, { pending = false, entering = false } = {}) {
                 <option value="${v}" ${raw(filters[key] === v ? 'selected' : '')}>${l}</option>`)}
             </select>
           </label>`)}
+        <!-- The filters above are now addressable, so there is something to hand
+             over. It sits with them rather than in the header actions: it copies
+             this row's state, not the campaign. -->
+        <button class="btn btn-ghost btn-sm tip" data-act="copy-link"
+                data-tip="Copy a link to exactly this view">
+          ${raw(icon('external'))}Copy view link
+        </button>
+        ${raw(!narrowed() ? '' : html`
+          <button class="btn btn-link btn-sm" data-act="reset-filters">Clear filters</button>`)}
         ${raw(feedback ? `<span class="push">${ratingLegend(max, elementLabel(c))}</span>` : '')}
       </div>
 
@@ -1569,13 +2077,64 @@ function wire(host) {
   /* Responses tab */
   on(host, 'input', '[data-act="text-search"]', (e) => {
     view.textQuery = e.target.value;
+    syncUrlSoon();
     const caret = e.target.selectionStart;
     rerender();
     const next = $('[data-act="text-search"]', host);
     next?.focus(); next?.setSelectionRange(caret, caret);
   });
-  on(host, 'change', '[data-act="band-filter"]', (e) => { view.bandFilter = e.target.value; redraw(host, rerender); });
+  /* The band select and the ramp are one control on one axis (see `view.cut`),
+     so each of these three handlers sets the whole selection rather than its
+     own half of it. */
+  on(host, 'change', '[data-act="band-filter"]', (e) => {
+    const v = e.target.value;
+    view.cut = v === 'all' ? { kind: 'all' } : { kind: 'band', band: v };
+    redraw(host, rerender);
+  });
+
+  on(host, 'click', '[data-act="score-cut"]', async (e, el) => {
+    const score = Number(el.dataset.score);
+    // Clicking the score already cut puts the list back — the bar is the way
+    // out of the cut as well as the way in, so the reader never has to hunt
+    // for a reset to undo a click they made by accident.
+    const same = view.cut.kind === 'score' && view.cut.score === score;
+    view.cut = same ? { kind: 'all' } : { kind: 'score', score };
+    await redraw(host, rerender);
+    if (!same) revealOpenText(host);
+  });
+
+  on(host, 'click', '[data-act="clear-cut"]', () => {
+    view.cut = { kind: 'all' };
+    redraw(host, rerender);
+  });
+
+  on(host, 'click', '[data-act="copy-link"]', () => copyLink(shareUrl(), 'View link copied'));
+
+  on(host, 'click', '[data-act="reset-filters"]', () => {
+    Object.assign(filters, FILTER_DEFAULTS);
+    view.cut = { kind: 'all' };
+    view.textQuery = '';
+    redraw(host, rerender);
+  });
   on(host, 'click', '[data-act="open-response"]', (e, el) => openResponseDetail(el.dataset.id));
+
+  /* FR-103 — a cluster opens in place.
+   *
+   * Toggled on the node rather than through a repaint. The panel is inside the
+   * Impact tab, which repaints by replacing innerHTML: rendering the open state
+   * would take the row away and put a new one back, so there would be no box
+   * left to animate open and the reader would lose their scroll position mid
+   * gesture. The state still lives in `view`, so a *filter* change — which does
+   * repaint — brings the open rows back open.
+   */
+  on(host, 'click', '[data-act="theme"]', (e, el) => {
+    const id = el.dataset.id;
+    const open = !view.openThemes[id];
+    if (open) view.openThemes[id] = true; else delete view.openThemes[id];
+    el.setAttribute('aria-expanded', String(open));
+    el.closest('.theme-row').dataset.open = String(open);
+    syncUrl();
+  });
 
   /* Impact tab */
   on(host, 'change', '[data-act="set-owner"]', (e, el) => {
@@ -1596,7 +2155,8 @@ function wire(host) {
         <div class="stack-sm" style="margin-top:14px">
           ${[
             [icon('download'), 'Export as CSV', 'The filtered response set with question wording.'],
-            [icon('external'), 'Send a filtered link', 'Opens this page pre-filtered to the theme.'],
+            [icon('external'), 'Copy a filtered link',
+              'Opens Impact with this cluster expanded, under the filters you have set.'],
             [icon('ticket'), 'Open a ticket', `Creates a ticket in ${owner}'s queue, linked back here.`],
           ].map(([ic, title, note]) => html`
             <button class="opt" style="width:100%;text-align:left" data-route-action="${title}">
@@ -1610,7 +2170,14 @@ function wire(host) {
           btn.addEventListener('click', () => finish(btn.dataset.routeAction)));
       },
     }).then((choice) => {
-      if (choice) toast(choice, `“${driver.name}” routed to ${owner}.`);
+      if (!choice) return;
+      // The one option that is no longer a promise: the link exists, carries the
+      // reader's filters, and opens on the cluster the driver was read from.
+      if (choice.startsWith('Copy')) {
+        copyLink(linkTo({ tab: 'impact', theme: driver.themeId }), 'Filtered link copied');
+        return;
+      }
+      toast(choice, `“${driver.name}” routed to ${owner}.`);
     });
   });
 }
