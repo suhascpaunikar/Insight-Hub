@@ -1218,7 +1218,12 @@ img { max-width: 100%; }
    of the numbers the card is actually about.
 
    The plot is the hover target and the tip is positioned against the column
-   inside it, so the card reserves no room for either. */
+   inside it, so the card reserves no room for either. The tip is narrower here
+   than on the Insights chart and still wider than half the card, which is why
+   placeChartTip() lifts it clear of the plot rather than fitting it beside the
+   bars: a 40px band cannot hold it, and a card that overlaps its neighbour for
+   the moment it is being read costs less than one that hides the column being
+   asked about. Nothing between here and `.scroll` clips, so the lift lands. */
 .metric-plot { position: relative; }
 .metric-plot .chart-tip { min-width: 168px; }
 /* Everything but the column under the cursor steps back, so the one being read
@@ -1233,8 +1238,10 @@ img { max-width: 100%; }
   background: var(--foreground-light);
 }
 
-/* Floating readout. Positioned in JS against the hovered column, so it can
-   sit over the plot without the columns having to reserve room for it. */
+/* Floating readout. Positioned in JS against the hovered column — never the
+   pointer — and opened on whichever side of the plot leaves that column
+   visible: right of it on the left half, left of it on the right half. The
+   z-index is what lets it cross out of its own card on the way. */
 .chart-tip {
   position: absolute; z-index: 40; min-width: 190px; padding: 9px 11px;
   background: var(--background-200); border: 1px solid var(--border-overlay);
@@ -1244,7 +1251,7 @@ img { max-width: 100%; }
               transform var(--motion-fast) var(--ease-out);
 }
 /* Rises the last two pixels into place so it reads as belonging to the column
-   under it rather than floating above the plot. */
+   it opened beside rather than arriving over the plot from nowhere. */
 .chart-tip[data-open="true"] { opacity: 1; transform: none; }
 .chart-tip-row { display: flex; align-items: center; gap: var(--sp-md); }
 .chart-tip-row + .chart-tip-row { margin-top: 5px; }
@@ -1319,8 +1326,19 @@ img { max-width: 100%; }
 @keyframes step-exit-back { to { opacity: 0; transform: translateX(10px); } }
 
 /* Real content arriving after the wait: it fades up rather than snapping in,
-   which is the difference between "loaded" and "flickered". */
-.lazy-in { animation: lazy-in var(--motion-base) var(--ease-out) both; }
+   which is the difference between "loaded" and "flickered".
+
+   `backwards` rather than `both`, which is what this was. The keyframes only
+   declare `from`, so the implicit `to` is the section's own resting state and
+   forwards-filling it changes nothing you can see — except that the fill never
+   ends, so the section keeps a `translateY(0)` on it for as long as the page
+   is open. An identity transform is still a transform, and a transform makes a
+   stacking context: every lazily loaded section became a sealed box that
+   painted atomically in DOM order, so anything overflowing one — the chart
+   readout lifting out of a campaign card, most visibly — was painted over by
+   the next section down however high its z-index. Dropping the forwards fill
+   lets the transform go back to `none` when the entrance ends. */
+.lazy-in { animation: lazy-in var(--motion-base) var(--ease-out) backwards; }
 @keyframes lazy-in { from { opacity: 0; transform: translateY(4px); } }
 
 /* ---------- Page to page ----------
