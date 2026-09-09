@@ -7,7 +7,7 @@ import {
   html, raw, esc, icon, $, $$, on, count, ratingText, percent, ratingColor, ratingValue,
   ratingLegend, wireDropdowns, dialog, toast, wireOnce, AI_ACCENT, LOW_SAMPLE,
   BANDS, BAND_LABEL, bandRange, keepScroll, lazySection, skel, wireTabPill,
-  growPlots, growBars, swapOut, countUp, navigate,
+  growPlots, growBars, swapOut, countUp, navigate, placeChartTip,
 } from './core.js';
 import { store } from './store.js';
 import {
@@ -208,20 +208,47 @@ function gridlines(top) {
 }
 
 /**
- * Opens the readout against the hovered column. The tip is measured after it
- * is filled, then flipped to the left of the cursor when it would otherwise
- * run past the plot's right edge.
+ * Opens the readout against the hovered column.
+ *
+ * Against the column and not the pointer: the tip settles once per column
+ * instead of sliding under a pointer that is still crossing the same bar, and
+ * placeChartTip() then opens it on whichever side of the plot leaves that
+ * column visible. This chart is 150px tall against a readout of about ninety,
+ * so unlike the campaign cards it has the room to hold the tip beside its bars
+ * rather than lift it out of the plot.
  */
 function wireChart(host) {
   const chart = $('[data-chart]', host);
+  const plot = $('.chart-plot', chart || host);
   const tip = $('[data-chart-tip]', host);
-  if (!chart || !tip) return;
+  if (!chart || !plot || !tip) return;
 
   const doneLabel = chart.dataset.doneLabel || 'Completed';
+  let reading = null;
+
+  const clear = () => {
+    if (reading) reading.removeAttribute('data-on');
+    reading = null;
+    plot.removeAttribute('data-reading');
+    tip.dataset.open = 'false';
+  };
 
   chart.addEventListener('mousemove', (event) => {
     const col = event.target.closest('.chart-col');
-    if (!col) { tip.dataset.open = 'false'; return; }
+    if (!col) { clear(); return; }
+    if (col === reading) return;
+
+    // The same mark the campaign cards carry, on the stylesheet rules they
+    // already share: the columns either side step back and the read one keeps
+    // a hairline down to the axis. This chart had neither, so the only thing
+    // saying which column the readout belonged to was where the readout
+    // happened to be — which is exactly what stopped being reliable once it
+    // started flipping sides.
+    if (reading) reading.removeAttribute('data-on');
+    col.setAttribute('data-on', '');
+    plot.dataset.reading = 'true';
+    reading = col;
+
     const sends = Number(col.dataset.sends);
     const done = Number(col.dataset.done);
 
@@ -236,15 +263,11 @@ function wireChart(host) {
       </div>
       <div class="chart-tip-foot">${col.dataset.date} · version ${col.dataset.version}</div>`;
 
-    const box = chart.getBoundingClientRect();
-    const x = event.clientX - box.left;
-    const width = tip.offsetWidth;
-    tip.style.left = `${Math.min(Math.max(0, x + 14), box.width - width)}px`;
-    tip.style.top = `${Math.max(0, event.clientY - box.top - tip.offsetHeight - 12)}px`;
+    placeChartTip(tip, col, plot, chart);
     tip.dataset.open = 'true';
   });
 
-  chart.addEventListener('mouseleave', () => { tip.dataset.open = 'false'; });
+  chart.addEventListener('mouseleave', clear);
 }
 
 function deliveryTab(c) {

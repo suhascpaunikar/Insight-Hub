@@ -5,7 +5,7 @@
 import {
   html, raw, esc, icon, $, $$, on, count, percent, relativeTime, absoluteTime,
   ratingValue, ratingColor, dropdown, wireDropdowns, toast, dialog, wireOnce, keepScroll,
-  lazySection, skel, countUp, growPlots, swapCharts, navigate,
+  lazySection, skel, countUp, growPlots, swapCharts, navigate, placeChartTip,
 } from './core.js';
 import { store } from './store.js';
 import {
@@ -405,32 +405,35 @@ function wireMetricCharts(host) {
     plot.addEventListener('mousemove', (event) => {
       const col = event.target.closest('.chart-col');
       if (!col) { clear(); return; }
+      // Nothing below runs unless the column changed. The readout is placed
+      // against the column rather than the pointer, so a pointer still
+      // travelling across the same 10px bar has nothing left to say — and
+      // rewriting the tip forty times a second would relayout it for content
+      // that has not moved.
+      if (col === reading) return;
 
-      if (col !== reading) {
-        if (reading) reading.removeAttribute('data-on');
-        col.setAttribute('data-on', '');
-        chart.dataset.reading = 'true';
-        reading = col;
-        // Only rebuilt when the column changes. Rewriting it on every mousemove
-        // would relayout the tip forty times a second for the same content.
-        let rows = [];
-        try { rows = JSON.parse(col.dataset.readout || '[]'); } catch { rows = []; }
-        tip.innerHTML = html`
-          ${raw(rows.map((r) => `
-            <div class="chart-tip-row">
-              <i style="background:${r.fill};opacity:${r.opacity}"></i>
-              <span>${esc(r.label)}</span><b>${esc(r.value)}</b>
-            </div>`).join(''))}
-          <div class="chart-tip-foot">${col.dataset.label}</div>`;
-      }
+      if (reading) reading.removeAttribute('data-on');
+      col.setAttribute('data-on', '');
+      chart.dataset.reading = 'true';
+      reading = col;
 
-      // Measured after filling, then flipped to the left of the cursor where it
-      // would otherwise run past the card's right edge — the cards are 300px
-      // wide, so the right-hand third of every plot needs the flip.
-      const box = plot.getBoundingClientRect();
-      const x = event.clientX - box.left;
-      tip.style.left = `${Math.min(Math.max(0, x + 12), Math.max(0, box.width - tip.offsetWidth))}px`;
-      tip.style.top = `${Math.max(0, event.clientY - box.top - tip.offsetHeight - 10)}px`;
+      let rows = [];
+      try { rows = JSON.parse(col.dataset.readout || '[]'); } catch { rows = []; }
+      tip.innerHTML = html`
+        ${raw(rows.map((r) => `
+          <div class="chart-tip-row">
+            <i style="background:${r.fill};opacity:${r.opacity}"></i>
+            <span>${esc(r.label)}</span><b>${esc(r.value)}</b>
+          </div>`).join(''))}
+        <div class="chart-tip-foot">${col.dataset.label}</div>`;
+
+      // Measured after filling, and lifted clear of the plot rather than
+      // placed inside it: the card's band of bars is 40px and the readout is
+      // nearer a hundred, so no placement within the card leaves the series
+      // whole. It rises out of the card and sits over the card's own figures
+      // instead — those are printed and stay printed, while the bars are the
+      // thing the reader opened the readout to look at.
+      placeChartTip(tip, col, chart, plot, true);
       tip.dataset.open = 'true';
     });
 

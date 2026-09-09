@@ -233,6 +233,102 @@ export function growBars(host) {
 }
 
 /* ==========================================================================
+   Placing a chart's readout
+
+   Every column chart here opens the same floating readout, and both of them
+   used to put it at the pointer and then clamp it to the plot's right edge.
+   That clamp is what broke them: past the halfway mark the tip stopped
+   travelling and parked itself over the columns, so the further right the
+   reader pointed, the more certain it was that the one column they had asked
+   about was the one hidden underneath the answer.
+
+   Two rules replace it. The tip is placed against the *column* rather than the
+   pointer, so it holds still while the pointer crosses a 10px bar. And the
+   side it opens on is decided by which half of the plot that column falls in —
+   right of it on the left half, left of it on the right half — rather than by
+   whether it happens to fit. A rule the reader can predict beats one that only
+   fires near an edge, and this one leaves the read column clear everywhere.
+   ========================================================================== */
+
+/** The gap the readout keeps from the column it belongs to. */
+const TIP_GAP = 10;
+
+/** And from the edge of whatever would clip it. */
+const TIP_EDGE = 8;
+
+/**
+ * The box the tip has to stay inside, in viewport coordinates.
+ *
+ * `.scroll` is the page's scroller and it only asks for `overflow-y`, but one
+ * axis being scrollable makes the other one so. A tip hanging off its right
+ * edge would therefore not merely look wrong — it would add a horizontal
+ * scrollbar to the whole page. Off the top there is no scrollbar to gain,
+ * since overflow at the start of an axis is cut rather than reached, so the
+ * tip would simply lose its first rows.
+ */
+function clipEdges(node) {
+  const clip = node.closest('.scroll') || document.documentElement;
+  const box = clip.getBoundingClientRect();
+  return {
+    left: box.left + TIP_EDGE,
+    right: box.left + clip.clientWidth - TIP_EDGE,
+    top: box.top + TIP_EDGE,
+  };
+}
+
+/**
+ * Position `tip` against the column it describes.
+ *
+ * `lift` is for a plot too short to hold the readout beside its bars — the
+ * campaign cards run a 40px band under a hundred pixels of tip, so there is no
+ * placement inside the card that clears them. It puts the tip outside the band
+ * altogether instead.
+ *
+ * @param {HTMLElement} tip   the readout, already filled — it is measured here
+ * @param {HTMLElement} col   the `.chart-col` under the pointer
+ * @param {HTMLElement} plot  the `.chart-plot`, whose midpoint decides the side
+ * @param {HTMLElement} frame the tip's positioned ancestor, which `left` and
+ *                            `top` are measured from
+ * @param {boolean} lift      clear the band of bars entirely rather than
+ *                            sitting inside it
+ */
+export function placeChartTip(tip, col, plot, frame, lift = false) {
+  const frameBox = frame.getBoundingClientRect();
+  const plotBox = plot.getBoundingClientRect();
+  const colBox = col.getBoundingClientRect();
+  const edges = clipEdges(frame);
+  const width = tip.offsetWidth;
+  const height = tip.offsetHeight;
+
+  const toRight = colBox.left + colBox.width / 2 < plotBox.left + plotBox.width / 2;
+  const beside = (right) => (right ? colBox.right + TIP_GAP : colBox.left - TIP_GAP - width);
+  const held = (x) => Math.min(Math.max(x, edges.left), edges.right - width);
+  const clears = (x) => x >= colBox.right || x + width <= colBox.left;
+
+  // Held off the page's edge, the tip can be pushed back onto the very column
+  // it belongs to — the rightmost card's left half is narrow enough for it.
+  // The other side is tried before that is allowed to stand.
+  let x = held(beside(toRight));
+  if (!clears(x)) {
+    const other = held(beside(!toRight));
+    if (clears(other)) x = other;
+  }
+
+  // A plot tall enough to hold the tip beside its bars gets it at the top,
+  // fixed: aligning it to each column's ink instead would make it bob up and
+  // down as the reader scanned across, for no information gained. A plot that
+  // is not goes above the bars, or below them where the card has been scrolled
+  // too near the top of the page for above to survive the cut.
+  const above = plotBox.top - TIP_GAP - height;
+  const y = !lift ? plotBox.top
+    : above >= edges.top ? above
+    : plotBox.bottom + TIP_GAP;
+
+  tip.style.left = `${x - frameBox.left}px`;
+  tip.style.top = `${y - frameBox.top}px`;
+}
+
+/* ==========================================================================
    Swapping a chart's whole series
 
    The entrance above answers "this just arrived". This answers the other
