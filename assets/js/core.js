@@ -185,11 +185,29 @@ export function countUp(node, from, to, format, duration = 260) {
    leave the panel permanently redrawing itself.
    ========================================================================== */
 
-/** Grow every plot in `host` from its own baseline, one column behind the last. */
+/**
+ * Grow every plot in `host` from its own baseline, one column behind the last.
+ *
+ * Each column gets its position `--i` and the plot gets `--n`, the number of
+ * gaps between its columns. The stylesheet divides one by the other, so the
+ * wipe crosses the series in a fixed time no matter how many columns it has.
+ *
+ * That division is the whole point. The stagger used to be a flat 8ms per
+ * column, which is a constant *gap* rather than a constant gesture: at 24
+ * columns it spanned 184ms and read as a wipe travelling left to right, but at
+ * 7 columns it spanned 48ms — under the threshold where a sequence is legible
+ * at all — so the same animation read as every column popping up at once. Two
+ * ranges of one chart appeared to have two different entrances.
+ *
+ * `--n` is floored at 1: a single-column plot has no gaps to divide by, and
+ * dividing by zero would invalidate the whole declaration.
+ */
 export function growPlots(host) {
   if (REDUCED_MOTION.matches) return;
   $$('.chart-plot', host).forEach((plot) => {
-    [...plot.children].forEach((col, i) => col.style.setProperty('--i', i));
+    const cols = [...plot.children];
+    cols.forEach((col, i) => col.style.setProperty('--i', i));
+    plot.style.setProperty('--n', Math.max(1, cols.length - 1));
     plot.dataset.swap = 'in';
   });
 }

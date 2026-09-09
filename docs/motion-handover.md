@@ -39,8 +39,9 @@ no animation library removes the need for it.
 
 32 keyframes and 57 transition declarations, carrying 100 references to the three motion tokens.
 Every duration outside the assistant is a token; the two that are not are the 8ms stagger the
-sparkline columns and distribution bars count on, and the 1.5s the collapsed rail's tooltip waits,
-both of which are gaps between things rather than the length of anything. Six of the assistant's
+distribution bars count on, and the 1.5s the collapsed rail's tooltip waits, both of which are
+gaps between things rather than the length of anything. The sparkline columns used to be a third,
+and are now `--motion-base` divided across however many columns there are — see *Range switch*. Six of the assistant's
 durations are deliberately hardcoded (see *Rules*).
 
 ### Shell — every page
@@ -68,7 +69,7 @@ could not be positioned.
 | --- | --- | --- |
 | Skeleton → content | first visit per session | `lazySection()` + `.skel`, then `lazy-in` |
 | Sparkline entrance | content arriving | `growPlots()` sets `data-swap="in"` |
-| Range switch | range dropdown | `swapCharts()` — plot crossfades out, new series grows back 8ms per column |
+| Range switch | range dropdown | `swapCharts()` — plot crossfades out, new series grows back, the wipe spanning `--motion-base` whatever the column count |
 | Headline figures | range switch only | `countUp()` — never on a keystroke |
 | Card readout | hover on a metric plot | the column holds its ink, its neighbours drop to .38, and a `.chart-tip` opens against the cursor; `wireMetricCharts()` |
 | Row menu | the ⋯ on any row | `dd-in` / `dd-out`, flipped above the trigger where the row is near the fold |
@@ -156,7 +157,7 @@ Pre-existing and untouched: `asst-resolve`, `asst-blink`, `asst-rise`, `asst-bea
 | `countUp(node, from, to, format)` | `core.js` | tweens a number, respects reduced motion |
 | `wireTabPill(tabs, key)` | `core.js` | sliding tab marker with position replay |
 | `closeMenu(menu)` | `core.js` | animated dropdown close |
-| `growPlots(host)` | `core.js` | sparkline / column entrance, 8ms per column |
+| `growPlots(host)` | `core.js` | sparkline / column entrance; sets `--i` per column and `--n` per plot so the wipe spans `--motion-base` at any length |
 | `growBars(host)` | `core.js` | distribution bar entrance, 8ms per row, counted per block |
 | `swapOut(host)` | `core.js` | fades every `.chart-plot` and `.bar-track` out; resolves when they have gone |
 | `swapCharts(host, repaint, between)` | `core.js` | the whole gesture: out, repaint, `between`, grow back |
