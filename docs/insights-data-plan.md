@@ -77,6 +77,19 @@ announcement *did this campaign make anybody do anything*.
 
 Date range · Segment · App · Variant · Version. All **Live**.
 
+**Addressable** (Added). The filters, the rating cut, the open-text search and
+any expanded cluster live in the query string, so the view is the URL. *Copy
+view link* is in the filter row; *Clear filters* appears beside it once anything
+is narrowed.
+
+Only what differs from the default is written — an untouched screen stays
+`?id=c1&tab=impact`. Nothing is trusted coming back in: every value is checked
+against the same option list its control is built from, and the address bar is
+rewritten to what was actually accepted, so a link carrying a segment this
+campaign does not have cannot sit there looking applied or be copied onward.
+A score cut and an expanded cluster are both dropped on an announcement, which
+has neither a ramp nor themes.
+
 ### 0.3 Cross-cutting rules
 
 | Rule | Status | Note |
@@ -158,9 +171,9 @@ Two things this settles that the separate band select alone did not:
   but it looks like one. The heading says how many gave the score, that not all
   of them wrote anything, and that the text itself is a seeded sample.
 
-Still open: nothing carries a cut into an export or a URL, so a brushed view
-cannot be sent to anyone (the same gap the Route action's *filtered link* has —
-see FR-107).
+A cut travels in the URL (see §0.2), so a brushed view can be handed to someone
+else. Export still does not carry one — FR-110 covers the filter state, and the
+cut is not yet part of what it writes.
 
 ### 1.3 Impact tab
 
@@ -169,7 +182,7 @@ see FR-107).
 | Score drivers, one row per theme (FR-106) | Live | |
 | Per driver: volume, share, low/high band split, avg rating, score drag | Live | |
 | Owning team, configurable per theme (FR-106) | Live | Engineering · Product · CX · Growth · City Ops |
-| Route action (FR-107) | Live | Export · filtered link · ticket |
+| Route action (FR-107) | Live | Export · filtered link · ticket. The link is now real (Added): it opens Impact with that cluster expanded, under the filters the router had set. Export and ticket remain stubs |
 | Variant comparison — completion rate, avg rating, responses (FR-108) | Live | Flagged not-like-for-like on divergent triggers |
 | Intelligent A/B weight history (FR-109) | Live | |
 | AI suggestions | Live | In the reserved accent |

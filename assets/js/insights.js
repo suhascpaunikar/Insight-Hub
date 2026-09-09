@@ -34,8 +34,28 @@ export const TABS_BY_KIND = {
 };
 export const tabsFor = (c) => TABS_BY_KIND[campaignKind(c)];
 
+/**
+ * The filter controls for a campaign — and, because a pasted URL can carry
+ * anything, the only list of values this page will accept for them. Both the
+ * selects and the URL reader are built from this, so a value the reader lets
+ * through is by construction a value a control can actually show.
+ */
+function filterDefsFor(c) {
+  return [
+    ['range', 'Date range', [['7d', 'Last 7 days'], ['30d', 'Last 30 days'], ['all', 'All time']]],
+    ['segment', 'Segment', [['all', 'All segments'], ...SEGMENTS.map((sg) => [sg.id, sg.name])]],
+    ['app', 'App', [['all', 'All apps'], ['android', 'Android'], ['ios', 'iOS'], ['web', 'Web']]],
+    ['variant', 'Variant', [['all', 'All variants'], ...variantsOf(c).map((v) => [v.name, v.name])]],
+    ...(c.versions > 1
+      ? [['version', 'Version', [['all', 'All versions'],
+          ...Array.from({ length: c.versions }, (_, i) => [String(i + 1), `Version ${i + 1}`])]]]
+      : []),
+  ];
+}
+
 /* FR-92 — filters apply across all four tabs and persist when switching. */
-const filters = { range: '30d', segment: 'all', app: 'all', variant: 'all', version: 'all' };
+const FILTER_DEFAULTS = { range: '30d', segment: 'all', app: 'all', variant: 'all', version: 'all' };
+const filters = { ...FILTER_DEFAULTS };
 /**
  * `cut` is one selection on the rating axis, held at whichever granularity the
  * reader reached for: a band from the select, or a single score from the ramp.
@@ -59,6 +79,179 @@ const cutBand = (max) => (
   view.cut.kind === 'score' ? bandOf(view.cut.score, max)
     : view.cut.kind === 'band' ? view.cut.band
       : null);
+
+
+/* ==========================================================================
+   Shareable state (FR-92, and the half of FR-107 that was still a promise)
+
+   Everything the reader has narrowed to lives in the query string, so the
+   answer on their screen is the answer on yours. Before this, `tab` and `id`
+   travelled and the five filters did not — which meant the Route dialog's
+   "Send a filtered link" could not send one, and a screenshot was the only way
+   to show somebody what you were looking at.
+
+   Two rules keep the URL readable:
+
+   - Only what differs from the default is written. A reader who has changed
+     nothing gets `?id=c1&tab=impact`, not a string of `=all`.
+   - Nothing is trusted on the way back in. A pasted URL is user input from
+     another machine, possibly another version of the seed: every value is
+     checked against the same option list the control is built from, and
+     anything unrecognised falls back to the default rather than filtering the
+     screen down to a silent nothing.
+   ========================================================================== */
+
+/** '' when nothing is cut, else a short token: `b:detractor`, `s:3`. */
+const cutToken = () => (
+  view.cut.kind === 'band' ? `b:${view.cut.band}`
+    : view.cut.kind === 'score' ? `s:${view.cut.score}`
+      : '');
+
+/** The inverse, refusing anything the current campaign's ramp cannot show. */
+function parseCut(token, c) {
+  const [kind, value] = String(token || '').split(':');
+  if (kind === 'b' && BANDS.includes(value)) return { kind: 'band', band: value };
+  if (kind === 's') {
+    const score = Number(value);
+    const onRamp = RATING_BLOCK.distribution.some((d) => d.score === score);
+    if (onRamp && isFeedback(c)) return { kind: 'score', score };
+  }
+  return { kind: 'all' };
+}
+
+/**
+ * Write the whole readable state back to the address bar.
+ *
+ * replaceState, not pushState: narrowing a filter is not a navigation, and a
+ * reader who tried four segments should get Back out of the page rather than
+ * back through their own four attempts. `tab` is read rather than written
+ * because the tab handler sets it before repainting.
+ */
+function stateParams({ tab, theme } = {}) {
+  const c = campaign();
+  const p = new URLSearchParams();
+  if (c) p.set('id', c.id);
+  // The tab handler sets the param before repainting, so it is read rather than
+  // written — unless a caller is building a link to somewhere else on purpose.
+  const t = tab || (c ? currentTab(c) : params().get('tab'));
+  if (t) p.set('tab', t);
+  Object.entries(filters).forEach(([k, v]) => { if (v !== FILTER_DEFAULTS[k]) p.set(k, v); });
+  const cut = cutToken();
+  if (cut) p.set('cut', cut);
+  if (view.textQuery.trim()) p.set('q', view.textQuery.trim());
+  const open = theme === undefined ? Object.keys(view.openThemes) : [theme].filter(Boolean);
+  if (open.length) p.set('theme', open.join(','));
+  return p;
+}
+
+function syncUrl() {
+  if (!campaign()) return;
+  history.replaceState(null, '', `?${stateParams()}`);
+}
+
+/* Typing is the only control here that fires per keystroke, and some browsers
+   rate-limit history writes, so the address bar catches up shortly after the
+   reader stops rather than once per letter. */
+let urlTimer = null;
+function syncUrlSoon() {
+  clearTimeout(urlTimer);
+  urlTimer = setTimeout(syncUrl, 300);
+}
+
+/**
+ * An absolute link to this screen with something overridden — the filters the
+ * reader has set, pointed at a tab and a cluster of your choosing. This is what
+ * makes the Route dialog's "filtered link" an actual link.
+ */
+const linkTo = (opts) => `${location.origin}${location.pathname}?${stateParams(opts)}`;
+
+/**
+ * Hydrate module state from the address bar, once per campaign.
+ *
+ * Runs before the first paint so a pasted link arrives already narrowed rather
+ * than showing the unfiltered screen and then jumping. After that the module
+ * state leads and syncUrl() mirrors it, which is why this is guarded: reading
+ * on every paint would let a stale URL undo the change that triggered the
+ * paint.
+ */
+let hydratedFor = null;
+function readUrlState(c) {
+  if (hydratedFor === c.id) return;
+  hydratedFor = c.id;
+  const p = params();
+
+  // Each filter against the same options its select is built from.
+  const defs = new Map(filterDefsFor(c).map(([key, , options]) => [key, options.map(([v]) => v)]));
+  Object.keys(filters).forEach((key) => {
+    const allowed = defs.get(key);
+    const v = p.get(key);
+    filters[key] = v !== null && allowed && allowed.includes(v) ? v : FILTER_DEFAULTS[key];
+  });
+
+  view.cut = parseCut(p.get('cut'), c);
+  view.textQuery = p.get('q') || '';
+
+  // Clusters are read off open text, so they exist on a feedback campaign and
+  // nowhere else — the same reason the score cut above is gated. Letting the
+  // param through on an announcement would leave it in the address bar pointing
+  // at a panel that is not on the screen.
+  view.openThemes = {};
+  if (isFeedback(c)) {
+    (p.get('theme') || '').split(',').filter(Boolean).forEach((id) => {
+      // th_unclustered is a row this page builds rather than one the seed
+      // carries, so it is allowed through by name alongside the clusters.
+      if (id === 'th_unclustered' || THEMES.some((t) => t.id === id)) view.openThemes[id] = true;
+    });
+  }
+
+  // Write back what was actually accepted. Without this a link carrying a
+  // segment this campaign does not have would sit in the address bar looking
+  // applied, and Copy view link would hand the same bad state to the next
+  // reader.
+  syncUrl();
+}
+
+/** Is anything actually narrowed? Drives the reset affordance and nothing else. */
+const narrowed = () => (
+  Object.entries(filters).some(([k, v]) => v !== FILTER_DEFAULTS[k])
+  || view.cut.kind !== 'all'
+  || view.textQuery.trim() !== '');
+
+/** The address of exactly what is on screen, for handing to somebody else. */
+const shareUrl = () => location.href;
+
+/**
+ * Put a link on the clipboard, and say so.
+ *
+ * The async clipboard API needs a secure context and a permission that can be
+ * refused, and this page is just as likely to be opened from a file:// copy of
+ * the prototype, so the older selection-based path stands behind it. A failure
+ * to copy is reported rather than swallowed: a reader who thinks they have a
+ * link and pastes nothing is worse off than one who is told to copy the bar.
+ */
+async function copyLink(url, what = 'Link copied') {
+  try {
+    await navigator.clipboard.writeText(url);
+    toast(what, 'The filters, the tab and anything you have opened travel with it.');
+    return true;
+  } catch { /* fall through to the older path */ }
+  try {
+    const box = document.createElement('textarea');
+    box.value = url;
+    box.setAttribute('readonly', '');
+    box.style.cssText = 'position:fixed;top:-1000px;opacity:0';
+    document.body.appendChild(box);
+    box.select();
+    const ok = document.execCommand('copy');
+    box.remove();
+    if (!ok) throw new Error('refused');
+    toast(what, 'The filters, the tab and anything you have opened travel with it.');
+    return true;
+  } catch {
+    toast('Could not reach the clipboard', 'Copy the address bar instead — it already holds this view.', 'warning');
+    return false;
+  }
+}
 
 /**
  * FR-92 keeps the filters in module state so they survive a tab switch — which
@@ -1584,6 +1777,7 @@ let figuresBefore = null;
 
 /** Ask the next paint to draw its marks in, and repaint now. */
 const drawNext = (host, rerender) => {
+  syncUrl();
   drawIn = true;
   figuresBefore = readFigures(host);
   rerender();
@@ -1609,6 +1803,7 @@ const drawNext = (host, rerender) => {
  * this is not simply swapCharts().
  */
 const redraw = async (host, rerender) => {
+  syncUrl();
   // Read before the fade, not after: swapOut() only takes the marks down, but
   // reading here keeps the capture in one place for both callers.
   const figures = readFigures(host);
@@ -1620,6 +1815,9 @@ const redraw = async (host, rerender) => {
 
 export function renderInsights(host) {
   const c0 = campaign();
+  // Before anything is measured or drawn: a pasted link should arrive already
+  // narrowed rather than showing the whole run and then jumping to the slice.
+  if (c0) readUrlState(c0);
   const tab = c0 ? currentTab(c0) : '';
   // A filter change repaints every panel below it, and the filters are at the
   // top — so without this, changing one scrolls away from the figures it just
@@ -1663,16 +1861,7 @@ function paintInsights(host, { pending = false, entering = false } = {}) {
 
   // FR-92 — the version filter only exists where there is a boundary to filter
   // to, so a single-version campaign does not carry a control with one option.
-  const filterDefs = [
-    ['range', 'Date range', [['7d', 'Last 7 days'], ['30d', 'Last 30 days'], ['all', 'All time']]],
-    ['segment', 'Segment', [['all', 'All segments'], ...SEGMENTS.map((sg) => [sg.id, sg.name])]],
-    ['app', 'App', [['all', 'All apps'], ['android', 'Android'], ['ios', 'iOS'], ['web', 'Web']]],
-    ['variant', 'Variant', [['all', 'All variants'], ...variantsOf(c).map((v) => [v.name, v.name])]],
-    ...(c.versions > 1
-      ? [['version', 'Version', [['all', 'All versions'],
-          ...Array.from({ length: c.versions }, (_, i) => [String(i + 1), `Version ${i + 1}`])]]]
-      : []),
-  ];
+  const filterDefs = filterDefsFor(c);
 
   host.innerHTML = html`
     <div class="page">
@@ -1728,6 +1917,15 @@ function paintInsights(host, { pending = false, entering = false } = {}) {
                 <option value="${v}" ${raw(filters[key] === v ? 'selected' : '')}>${l}</option>`)}
             </select>
           </label>`)}
+        <!-- The filters above are now addressable, so there is something to hand
+             over. It sits with them rather than in the header actions: it copies
+             this row's state, not the campaign. -->
+        <button class="btn btn-ghost btn-sm tip" data-act="copy-link"
+                data-tip="Copy a link to exactly this view">
+          ${raw(icon('external'))}Copy view link
+        </button>
+        ${raw(!narrowed() ? '' : html`
+          <button class="btn btn-link btn-sm" data-act="reset-filters">Clear filters</button>`)}
         ${raw(feedback ? `<span class="push">${ratingLegend(max, elementLabel(c))}</span>` : '')}
       </div>
 
@@ -1879,6 +2077,7 @@ function wire(host) {
   /* Responses tab */
   on(host, 'input', '[data-act="text-search"]', (e) => {
     view.textQuery = e.target.value;
+    syncUrlSoon();
     const caret = e.target.selectionStart;
     rerender();
     const next = $('[data-act="text-search"]', host);
@@ -1908,6 +2107,15 @@ function wire(host) {
     view.cut = { kind: 'all' };
     redraw(host, rerender);
   });
+
+  on(host, 'click', '[data-act="copy-link"]', () => copyLink(shareUrl(), 'View link copied'));
+
+  on(host, 'click', '[data-act="reset-filters"]', () => {
+    Object.assign(filters, FILTER_DEFAULTS);
+    view.cut = { kind: 'all' };
+    view.textQuery = '';
+    redraw(host, rerender);
+  });
   on(host, 'click', '[data-act="open-response"]', (e, el) => openResponseDetail(el.dataset.id));
 
   /* FR-103 — a cluster opens in place.
@@ -1925,6 +2133,7 @@ function wire(host) {
     if (open) view.openThemes[id] = true; else delete view.openThemes[id];
     el.setAttribute('aria-expanded', String(open));
     el.closest('.theme-row').dataset.open = String(open);
+    syncUrl();
   });
 
   /* Impact tab */
@@ -1946,7 +2155,8 @@ function wire(host) {
         <div class="stack-sm" style="margin-top:14px">
           ${[
             [icon('download'), 'Export as CSV', 'The filtered response set with question wording.'],
-            [icon('external'), 'Send a filtered link', 'Opens this page pre-filtered to the theme.'],
+            [icon('external'), 'Copy a filtered link',
+              'Opens Impact with this cluster expanded, under the filters you have set.'],
             [icon('ticket'), 'Open a ticket', `Creates a ticket in ${owner}'s queue, linked back here.`],
           ].map(([ic, title, note]) => html`
             <button class="opt" style="width:100%;text-align:left" data-route-action="${title}">
@@ -1960,7 +2170,14 @@ function wire(host) {
           btn.addEventListener('click', () => finish(btn.dataset.routeAction)));
       },
     }).then((choice) => {
-      if (choice) toast(choice, `“${driver.name}” routed to ${owner}.`);
+      if (!choice) return;
+      // The one option that is no longer a promise: the link exists, carries the
+      // reader's filters, and opens on the cluster the driver was read from.
+      if (choice.startsWith('Copy')) {
+        copyLink(linkTo({ tab: 'impact', theme: driver.themeId }), 'Filtered link copied');
+        return;
+      }
+      toast(choice, `“${driver.name}” routed to ${owner}.`);
     });
   });
 }
