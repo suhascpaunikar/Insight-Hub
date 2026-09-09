@@ -884,6 +884,44 @@ img { max-width: 100%; }
 .dist { display: flex; flex-direction: column; gap: 6px; }
 .dist-row { display: grid; grid-template-columns: 44px 1fr 108px; align-items: center; gap: 10px; }
 
+/* ---------- Linked brushing on the rating axis ----------
+   The ramp is a control, so its rows are buttons; they keep the grid the static
+   rows had so a distribution does not change shape on becoming clickable. */
+.dist-row-btn {
+  width: 100%; padding: 3px 6px; margin: -3px -6px; background: none; border: 0;
+  border-radius: var(--radius-md); cursor: pointer; text-align: left; color: inherit; font: inherit;
+  transition: background-color var(--motion-fast) var(--ease-out),
+              opacity var(--motion-base) var(--ease-out);
+}
+.dist-row-btn:hover { background: var(--surface-100); }
+.dist-row-btn:focus-visible { outline: 2px solid var(--brand-default); outline-offset: -1px; }
+
+/* Selection is carried by the *unselected* marks stepping back rather than the
+   selected one lighting up: the bar colours already encode the score, and
+   brightening one would put a second meaning on the same channel. */
+.dist[data-brush="true"] .dist-row-btn { opacity: .38; }
+.dist[data-brush="true"] .dist-row-btn[data-sel="true"] { opacity: 1; }
+.dist-row-btn[data-sel="true"] { background: var(--surface-200); }
+.dist[data-brush="true"] .dist-row-btn:hover { opacity: .72; }
+.dist[data-brush="true"] .dist-row-btn[data-sel="true"]:hover { opacity: 1; }
+
+/* The branch blocks answer to the same selection — a score cut leaves two of
+   the three paths irrelevant, and they say so by receding. */
+.grid[data-brush="true"] > .card { transition: opacity var(--motion-base) var(--ease-out); }
+.grid[data-brush="true"] > .card[data-sel="false"] { opacity: .38; }
+
+.cut-chip {
+  display: inline-flex; align-items: center; gap: 6px; flex: none;
+  height: 28px; padding: 0 8px; font-size: 11.5px; color: var(--foreground-light);
+  background: var(--surface-200); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full); cursor: pointer; font-family: inherit;
+  transition: background-color var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out);
+}
+.cut-chip:hover { background: var(--surface-300); color: var(--foreground-default); }
+.cut-chip:focus-visible { outline: 2px solid var(--brand-default); outline-offset: 1px; }
+.cut-chip svg { width: 12px; height: 12px; }
+
 /* ---------- Figure strip (FR-95) ---------- */
 .figures { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); row-gap: var(--sp-lg); }
 .figure { padding: 2px var(--sp-lg); border-left: 1px solid var(--border-default); }
@@ -1971,6 +2009,9 @@ body[data-asst-pointer="true"] [data-insight][data-insight-armed] {
      pointing — that is state. It just stops sliding there. */
   .theme-body { transition: none; }
   .theme-chev svg { transition: none; }
+  /* The brush still dims what it deselected — that is which marks are in the
+     cut, not decoration. It just arrives rather than fading in. */
+  .dist-row-btn, .grid[data-brush="true"] > .card { transition: none; }
   .chart-seg { transition: none; }
   /* The readout still opens and the neighbours still step back — those are
      state, not motion — but neither fades into it. */

@@ -147,7 +147,7 @@ export function lazySection({ key, hasData, skeleton, paint }) {
    never a keystroke, which would leave the figures permanently in flight.
    ========================================================================== */
 
-const REDUCED_MOTION = matchMedia('(prefers-reduced-motion: reduce)');
+export const REDUCED_MOTION = matchMedia('(prefers-reduced-motion: reduce)');
 
 /**
  * Tween `node`'s text from `from` to `to`, rendering each frame through

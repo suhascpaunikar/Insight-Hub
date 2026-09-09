@@ -121,7 +121,7 @@ average. No composite or secondary score is ever displayed (FR-99).
 |---|---|---|
 | Rating question wording | Live | |
 | Rating element and scale | Live | Star 1–5 · NPS 1–5 · NPS 1–10 |
-| Full distribution per score, on the ramp (FR-98, FR-99) | Live | |
+| Full distribution per score, on the ramp (FR-98, FR-99) | Live | The ramp is also the tab's score control — see *Linked brushing* below |
 | Mean rating | Live | |
 | Response count | Live | |
 | Band split — detractor / passive / promoter | Live (implicit) | Visible through the branch blocks; not stated as three figures |
@@ -130,7 +130,7 @@ average. No composite or secondary score is ever displayed (FR-99).
 | Per-branch option distribution | Live | |
 | Multiple-choice blocks, ranked with counts and shares (FR-98) | Live | Currently only as branch follow-ups |
 | Open-text list, searchable (FR-101) | Live | |
-| Open-text filters: rating band, version | Live | |
+| Open-text filters: rating band, single score, version | Added | Band and score are one selection on one axis, not two filters — see *Linked brushing* below |
 | Per-response: rating, band, segment, variant, version, timestamp | Live | |
 | Response detail — full answer set in order (FR-102) | Live | Pseudonymous, with order context (OD-22) |
 | Rating trend over time | Needs data | The average is a single number today; whether it is moving is unanswerable |
@@ -138,6 +138,29 @@ average. No composite or secondary score is ever displayed (FR-99).
 | Time to complete | Needs data | |
 | Response rate against audience size | Needs data | Responses ÷ eligible, not ÷ sent |
 | Rating split by segment / app / version | Needs data | The filters imply it; there is no per-cut breakdown panel |
+
+### 1.2a Linked brushing on the rating axis
+
+Clicking a score on the ramp cuts the whole tab to the people who gave it: the
+other scores step back, the two branch paths that score cannot be in step back
+with them, and the open-text list below filters to it. Clicking the same score
+again puts it back, so the bar is the way out of a cut as well as the way in.
+
+Two things this settles that the separate band select alone did not:
+
+- **Band and score are one selection, held in one field.** A score sits inside
+  exactly one band, so a band filter and a score filter running side by side
+  could only ever be redundant or produce an empty list between them. Setting
+  either replaces the other; a score cut shows as a removable chip beside the
+  select it came from.
+- **The gap between the bar and the list is stated, not left to the reader.**
+  Clicking a bar 620 tall and landing on one response is not a contradiction,
+  but it looks like one. The heading says how many gave the score, that not all
+  of them wrote anything, and that the text itself is a seeded sample.
+
+Still open: nothing carries a cut into an export or a URL, so a brushed view
+cannot be sent to anyone (the same gap the Route action's *filtered link* has —
+see FR-107).
 
 ### 1.3 Impact tab
 

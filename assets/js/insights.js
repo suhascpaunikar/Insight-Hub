@@ -6,7 +6,7 @@
 import {
   html, raw, esc, icon, $, $$, on, count, ratingText, percent, ratingColor, ratingValue,
   ratingLegend, wireDropdowns, dialog, toast, wireOnce, AI_ACCENT, LOW_SAMPLE,
-  BANDS, BAND_LABEL, bandRange, keepScroll, lazySection, skel, wireTabPill,
+  BANDS, BAND_LABEL, bandRange, bandOf, REDUCED_MOTION, keepScroll, lazySection, skel, wireTabPill,
   growPlots, growBars, swapOut, countUp, navigate,
 } from './core.js';
 import { store } from './store.js';
@@ -36,7 +36,29 @@ export const tabsFor = (c) => TABS_BY_KIND[campaignKind(c)];
 
 /* FR-92 — filters apply across all four tabs and persist when switching. */
 const filters = { range: '30d', segment: 'all', app: 'all', variant: 'all', version: 'all' };
-const view = { textQuery: '', bandFilter: 'all', owners: {}, openThemes: {} };
+/**
+ * `cut` is one selection on the rating axis, held at whichever granularity the
+ * reader reached for: a band from the select, or a single score from the ramp.
+ *
+ * Deliberately one field rather than two. A score sits inside exactly one band,
+ * so a separate band filter and score filter could only ever be redundant (the
+ * score is in the band) or empty (it is not) — and two controls that can
+ * silently produce an empty list between them is the worst of the options.
+ * Setting either one replaces the other.
+ */
+const view = { textQuery: '', cut: { kind: 'all' }, owners: {}, openThemes: {} };
+
+/** Does this response fall inside the current cut? */
+const inCut = (r) => (
+  view.cut.kind === 'score' ? r.rating === view.cut.score
+    : view.cut.kind === 'band' ? r.band === view.cut.band
+      : true);
+
+/** The band the cut lands in — a score cut implies one — or null when nothing is cut. */
+const cutBand = (max) => (
+  view.cut.kind === 'score' ? bandOf(view.cut.score, max)
+    : view.cut.kind === 'band' ? view.cut.band
+      : null);
 
 /**
  * FR-92 keeps the filters in module state so they survive a tab switch — which
@@ -436,17 +458,54 @@ function deliveryTab(c) {
 /* ==========================================================================
    Responses tab (FR-98 … FR-102)
    ========================================================================== */
+/**
+ * What the list is currently cut to, said in words under its heading.
+ *
+ * The count matters more than it looks. A reader who clicks the 620-tall bar
+ * for score 1 and lands on two responses needs to be told the difference
+ * between those two numbers, or the list reads as a contradiction of the chart
+ * directly above it. Two things separate them, and both are stated: not every
+ * respondent wrote anything, and of the text that does exist this prototype
+ * seeds a sample.
+ */
+function cutNote(max, block) {
+  if (view.cut.kind === 'score') {
+    const row = block.distribution.find((d) => d.score === view.cut.score);
+    return html`
+      <span class="t-xs fg-lighter">
+        Cut to <strong class="fg-light">score ${view.cut.score}</strong> from the ramp —
+        <span class="mono">${count(row ? row.count : 0)}</span> people gave it. Not all of them
+        wrote anything, and the prototype seeds a sample of the text that exists.
+      </span>`;
+  }
+  if (view.cut.kind === 'band') {
+    return html`
+      <span class="t-xs fg-lighter">
+        Cut to the <strong class="fg-light">${BAND_LABEL[view.cut.band].toLowerCase()}</strong> band
+        · <span class="mono">${bandRange(view.cut.band, max)}</span>
+      </span>`;
+  }
+  return html`
+    <span class="t-xs fg-lighter">
+      Every text answer. Click a score on the ramp above to cut this list to the people who gave it.
+    </span>`;
+}
+
 function responsesTab(c) {
   const max = scaleMax(c);
   const block = RATING_BLOCK;
   const distMax = Math.max(...block.distribution.map((d) => d.count));
+  // The band the cut lands in, shared by all three panels below — this is what
+  // makes the ramp, the branch blocks and the text list read as one selection
+  // rather than three that happen to agree.
+  const cut = cutBand(max);
 
   const filtered = OPEN_RESPONSES.filter((r) => {
     const q = view.textQuery.trim().toLowerCase();
     const matchesQuery = !q || r.text.toLowerCase().includes(q);
-    const matchesBand = view.bandFilter === 'all' || r.band === view.bandFilter;
+    const matchesCut = inCut(r);
     const matchesVersion = filters.version === 'all' || String(r.version) === filters.version;
-    return matchesQuery && matchesBand && matchesVersion;
+    return matchesQuery && matchesCut && matchesVersion;
   });
 
   return html`
@@ -469,18 +528,27 @@ function responsesTab(c) {
             </span>
           </span>
         </div>
-        <div class="card-body dist">
-          ${block.distribution.map((d) => html`
-            <div class="dist-row">
-              <span class="mono t-xs fg-light">${d.score}${raw(c.ratingElement === 'star' ? ' ★' : '')}</span>
-              <span class="bar-track">
-                <span class="bar-fill" style="width:${(d.count / distMax) * 100}%;background:${raw(ratingColor(d.score, max))}"></span>
-              </span>
-              <span class="row" style="justify-content:flex-end;gap:8px">
-                <span class="num t-sm">${count(d.count)}</span>
-                <span class="mono t-xs fg-muted">${share(d.count, block.responses)}</span>
-              </span>
-            </div>`)}
+        <!-- The ramp is the page's score control as well as its distribution:
+             clicking a score cuts the open text below to the people who gave it.
+             A distribution whose bars cannot be reached is a picture; the reader
+             who wants to know *why* 620 people said 1 has to be able to ask. -->
+        <div class="card-body dist" data-brush="${cut !== null}">
+          ${block.distribution.map((d) => {
+            const on = view.cut.kind === 'score' && view.cut.score === d.score;
+            return html`
+              <button class="dist-row dist-row-btn" data-act="score-cut" data-score="${d.score}"
+                      data-sel="${on}" aria-pressed="${on}"
+                      aria-label="Show open text from people who scored ${d.score} out of ${max}">
+                <span class="mono t-xs fg-light">${d.score}${raw(c.ratingElement === 'star' ? ' ★' : '')}</span>
+                <span class="bar-track">
+                  <span class="bar-fill" style="width:${(d.count / distMax) * 100}%;background:${raw(ratingColor(d.score, max))}"></span>
+                </span>
+                <span class="row" style="justify-content:flex-end;gap:8px">
+                  <span class="num t-sm">${count(d.count)}</span>
+                  <span class="mono t-xs fg-muted">${share(d.count, block.responses)}</span>
+                </span>
+              </button>`;
+          })}
         </div>
       </section>
 
@@ -490,12 +558,15 @@ function responsesTab(c) {
           <h3 class="t-h2">Q2 · Follow-up by rating band</h3>
           <span class="t-xs fg-lighter">Branching is on — each path is reported separately</span>
         </div>
-        <div class="grid g3">
+        <div class="grid g3" data-brush="${cut !== null}">
           ${BRANCH_BLOCKS.map((b) => {
             const bandScore = b.band === 'detractor' ? 1 : b.band === 'passive' ? 3 : 5;
             const optMax = Math.max(...b.options.map((o) => o.count));
+            // A score cut reaches here too: picking 2 out of 10 says nothing
+            // about the passive and promoter paths, and leaving all three at
+            // equal weight would invite the reader to keep reading them.
             return html`
-              <div class="card">
+              <div class="card" data-band="${b.band}" data-sel="${cut === null || cut === b.band}">
                 <div class="card-head" style="padding:10px 12px">
                   <span class="col" style="gap:2px">
                     <span class="row" style="gap:6px">
@@ -535,7 +606,10 @@ function responsesTab(c) {
       <!-- FR-101 — a searchable, filterable list of free-text answers. -->
       <section class="card" data-insight="open-text">
         <div class="card-head">
-          <h3 class="t-h2">Q3 · Open text</h3>
+          <div>
+            <h3 class="t-h2">Q3 · Open text</h3>
+            ${raw(cutNote(max, block))}
+          </div>
           <span class="mono t-xs fg-muted">${count(filtered.length)} of ${count(OPEN_RESPONSES.length)} shown</span>
         </div>
         <div class="toolbar">
@@ -546,15 +620,34 @@ function responsesTab(c) {
                    placeholder="Search what people wrote" />
           </label>
           <select class="select select-sm" data-act="band-filter" style="width:170px" aria-label="Filter by rating band">
-            <option value="all" ${raw(view.bandFilter === 'all' ? 'selected' : '')}>All rating bands</option>
+            <option value="all" ${raw(view.cut.kind === 'band' ? '' : 'selected')}>All rating bands</option>
             ${BANDS.map((b) => html`
-              <option value="${b}" ${raw(view.bandFilter === b ? 'selected' : '')}>
+              <option value="${b}" ${raw(view.cut.kind === 'band' && view.cut.band === b ? 'selected' : '')}>
                 ${BAND_LABEL[b]} · ${bandRange(b, max)}</option>`)}
           </select>
+          <!-- A score came from the ramp, not from this toolbar, so it says where
+               it came from and how to put it back. -->
+          ${raw(view.cut.kind !== 'score' ? '' : html`
+            <button class="cut-chip" data-act="clear-cut">
+              <span style="width:7px;height:7px;border-radius:2px;flex:none;
+                background:${raw(ratingColor(view.cut.score, max))}"></span>
+              <span>Score ${view.cut.score}</span>
+              ${raw(icon('x'))}
+            </button>`)}
         </div>
         <ul>
-          ${filtered.length === 0 ? html`
-            <li class="zero"><p class="t-body fg-lighter">No responses match these filters.</p></li>` : ''}
+          <!-- raw() is load-bearing: the html tag returns a plain string, and a
+               bare interpolation of a string is escaped, so without it this zero
+               state printed its own markup as text. Easy to reach now that a
+               score is one click away. -->
+          ${raw(filtered.length !== 0 ? '' : html`
+            <li class="zero">
+              <p class="t-body fg-lighter">No text answers match this cut.</p>
+              ${raw(view.cut.kind === 'all' ? '' : html`
+                <button class="btn btn-link" style="margin-top:6px" data-act="clear-cut">
+                  Show every text answer
+                </button>`)}
+            </li>`)}
           ${filtered.map((r) => html`
             <li style="border-bottom:1px solid var(--border-muted)">
               <button class="row-start" style="width:100%;padding:12px 16px;text-align:left"
@@ -579,6 +672,24 @@ function responsesTab(c) {
         </ul>
       </section>
     </div>`;
+}
+
+/**
+ * Bring the list a ramp click just cut into view, when it is not already there.
+ *
+ * The ramp sits a card and three branch blocks above the text it filters, so on
+ * a short window the whole result of the click happens off screen and the click
+ * reads as having done nothing. Guarded rather than unconditional: if the list
+ * is already visible, scrolling it would move the page out from under a reader
+ * who could see the answer perfectly well, which is the more annoying failure.
+ */
+function revealOpenText(host) {
+  const card = $('[data-insight="open-text"]', host);
+  if (!card) return;
+  const top = card.getBoundingClientRect().top;
+  // Already on screen with something to read below the fold: leave it alone.
+  if (top < window.innerHeight - 120) return;
+  card.scrollIntoView({ behavior: REDUCED_MOTION.matches ? 'auto' : 'smooth', block: 'nearest' });
 }
 
 /* FR-102 — one respondent's full answer set, in order, with their context. */
@@ -1773,7 +1884,30 @@ function wire(host) {
     const next = $('[data-act="text-search"]', host);
     next?.focus(); next?.setSelectionRange(caret, caret);
   });
-  on(host, 'change', '[data-act="band-filter"]', (e) => { view.bandFilter = e.target.value; redraw(host, rerender); });
+  /* The band select and the ramp are one control on one axis (see `view.cut`),
+     so each of these three handlers sets the whole selection rather than its
+     own half of it. */
+  on(host, 'change', '[data-act="band-filter"]', (e) => {
+    const v = e.target.value;
+    view.cut = v === 'all' ? { kind: 'all' } : { kind: 'band', band: v };
+    redraw(host, rerender);
+  });
+
+  on(host, 'click', '[data-act="score-cut"]', async (e, el) => {
+    const score = Number(el.dataset.score);
+    // Clicking the score already cut puts the list back — the bar is the way
+    // out of the cut as well as the way in, so the reader never has to hunt
+    // for a reset to undo a click they made by accident.
+    const same = view.cut.kind === 'score' && view.cut.score === score;
+    view.cut = same ? { kind: 'all' } : { kind: 'score', score };
+    await redraw(host, rerender);
+    if (!same) revealOpenText(host);
+  });
+
+  on(host, 'click', '[data-act="clear-cut"]', () => {
+    view.cut = { kind: 'all' };
+    redraw(host, rerender);
+  });
   on(host, 'click', '[data-act="open-response"]', (e, el) => openResponseDetail(el.dataset.id));
 
   /* FR-103 — a cluster opens in place.
