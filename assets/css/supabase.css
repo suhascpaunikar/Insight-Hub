@@ -416,6 +416,16 @@ img { max-width: 100%; }
 .table td { padding: 9px 12px; border-bottom: 1px solid var(--border-muted); font-size: 12.5px; vertical-align: middle; }
 .table td { transition: background-color var(--motion-fast) var(--ease-out); }
 .table tbody tr:hover td { background: var(--surface-100); }
+/* A campaign row opens the campaign wherever it is clicked, so it says so.
+   The background lift on hover was already the affordance; this is the half
+   that was missing. Only rows that carry a campaign — a skeleton row and the
+   zero state have no id and nothing to open. dashboard.js does the routing. */
+.table tbody tr[data-id] { cursor: pointer; }
+/* Except the ID: one click takes the whole string, for pasting into a support
+   ticket (FR-75). The text cursor is the tell that this one spot reads rather
+   than opens, and the click handler makes good on it by refusing to navigate
+   away from a selection it just made. */
+.select-all { user-select: all; cursor: text; }
 /* The chevron leans toward its destination on hover — the same two pixels the
    settings rows already use, so the gesture means one thing product-wide. */
 .table tbody .btn-default svg { transition: transform var(--motion-fast) var(--ease-out); }

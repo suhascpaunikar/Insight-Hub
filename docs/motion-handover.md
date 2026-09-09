@@ -75,7 +75,7 @@ could not be positioned.
 | Row menu | the ⋯ on any row | `dd-in` / `dd-out`, flipped above the trigger where the row is near the fold |
 | Delete → undo | the row menu | row leaves, toast carries the way back for 8s, restored row takes `row-flash` |
 | Live status pulse | always, `Live` only | `pill-pulse`, a pseudo-element ring on transform/opacity |
-| Row hover | hover | background + 2px chevron lean |
+| Row hover | hover | background + 2px chevron lean, and `cursor:pointer` — the whole row opens the campaign |
 | Clone | confirm | `row-flash` on the source row |
 
 ### Insights

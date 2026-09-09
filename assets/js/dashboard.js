@@ -82,7 +82,7 @@ function campaignCell(c) {
           : '')}
       </span>
       <!-- FR-75 — the ID is selectable for support and debugging. -->
-      <span class="mono t-xs fg-muted" style="user-select:all">${c.campaignId}</span>
+      <span class="mono t-xs fg-muted select-all">${c.campaignId}</span>
       <!-- The objective, one line of it. A campaign name says what a campaign is
            called and the trigger says when it fires; this is the only column that
            says what it was for. Full text on hover, since it can run to 400
@@ -693,16 +693,57 @@ function wire(host) {
     navigate('builder.html');
   });
 
-  on(host, 'click', '[data-act="open"]', (event, btn) => {
-    const campaign = store.state.campaigns.find((c) => c.id === btn.dataset.id);
+  /**
+   * FR-82 — Draft and Scheduled reopen the builder; everything else opens
+   * insights. A draft has to be resumed into the store before the builder has
+   * anything to render, which is the reason this is a button and a handler
+   * rather than an `<a href>` for the global link interceptor to pick up.
+   */
+  const openCampaign = (id) => {
+    const campaign = store.state.campaigns.find((c) => c.id === id);
     if (!campaign) return;
-    // FR-82 — Draft and Scheduled reopen the builder; everything else opens insights.
     if (campaign.status === 'Draft' || campaign.status === 'Scheduled') {
       store.resumeCampaign(campaign.id);
       navigate('builder.html');
     } else {
       navigate(`insights.html?id=${encodeURIComponent(campaign.id)}`);
     }
+  };
+
+  on(host, 'click', '[data-act="open"]', (event, btn) => openCampaign(btn.dataset.id));
+
+  /* The whole row opens the campaign, not just the button at the end of it.
+     The row is a wide target carrying the campaign's name, ID, status and
+     numbers, and every one of those is something a reader points at when they
+     mean "this one" — landing on the button was a second, smaller aim after
+     they had already found the row.
+
+     A pointer affordance only. The row takes no `tabindex` and no `role`: the
+     Open button is already the accessible control for exactly this action, and
+     a focusable row would put a second stop in the tab order that goes to the
+     same place and reads to a screen reader as a duplicate. Keyboard and AT
+     lose nothing by this handler not existing for them.
+
+     Three things are not an open, and each has bitten this pattern elsewhere:
+
+     1. Anything that is already a control does its own job. The Open button,
+        the row menu and its popup are all inside the row, and a click on one
+        of them must not also navigate.
+     2. A click that left text selected was a read. The campaign ID is
+        `user-select:all` precisely so one click grabs the whole of it for a
+        support ticket (FR-75) — navigating away from it would take the
+        clipboard gesture with it. A drag across the name or the objective is
+        the same case.
+     3. A modified click means something to the browser and nothing here.
+        Rather than swallow it, leave it alone: with no href to open there is
+        no new tab to give, so acting on it would only surprise. */
+  on(host, 'click', 'tbody tr[data-id]', (event, row) => {
+    if (event.button !== 0) return;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    if (event.target.closest('button, a, input, select, textarea, label, .dd')) return;
+    const selection = window.getSelection();
+    if (selection && !selection.isCollapsed && row.contains(selection.anchorNode)) return;
+    openCampaign(row.dataset.id);
   });
 
   // FR-81 / OD-21 — clone lands the user in the new draft.
