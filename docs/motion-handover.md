@@ -188,6 +188,15 @@ screens demo what they will feel like against a real API.
 **Demo note:** skeletons fire once per browser tab. Open a new tab or run `sessionStorage.clear()`
 before showing anyone.
 
+**The skeleton paints through `keepScroll` too, on the same key as the content.** It did not, and
+the bug that came out of it is worth keeping in mind because it looked like nothing to do with
+scrolling at all: the placeholder left the scroller unstamped, so the paint 1–1.5s later compared
+a missing key against the screen's key, concluded it was a different screen, and reset `scrollTop`
+to 0. A reader who scrolled while the skeleton was up was silently thrown back to the top — which
+reads as *"scroll doesn't work, then after two seconds it does"*, since the second attempt lands
+after the content and holds. Both renders now go through one `place()` helper per screen. Any new
+lazy section must do the same.
+
 ---
 
 ## Backlog

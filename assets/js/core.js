@@ -57,6 +57,15 @@ export function wireOnce(node, key, fn) {
  * position belongs to: a wizard step, a settings tab, a campaign id. When the
  * key changes the new screen opens at the top, which is the one case where
  * starting at the top is what the reader wants.
+ *
+ * **A skeleton shares its content's key.** A lazySection paints twice — the
+ * placeholder, then the real thing 1–1.5s later — and both are the same
+ * screen. Route only the second through here and the first leaves the
+ * scroller unstamped, so the paint that follows reads "different screen" and
+ * resets to the top: a reader who scrolls during the wait is silently thrown
+ * back, which reads as the scroll not working until the content lands. Give
+ * both renders one key. See the three `place()` helpers in dashboard.js,
+ * insights.js and settings.js.
  */
 export function keepScroll(find, key, render) {
   const before = find();

@@ -1311,17 +1311,19 @@ const redraw = async (host, rerender) => {
 export function renderInsights(host) {
   const c0 = campaign();
   const tab = c0 ? currentTab(c0) : '';
+  // A filter change repaints every panel below it, and the filters are at the
+  // top — so without this, changing one scrolls away from the figures it just
+  // changed. Keyed on campaign and tab, both of which are new screens. The
+  // skeleton shares the key: it is the same screen as the content it becomes,
+  // so a scroll made while it is up survives the swap.
+  const place = (render) => keepScroll(() => host, `${c0 ? c0.id : 'none'}:${tab}`, render);
   lazySection({
     key: `insights:${c0 ? c0.id : 'none'}:${tab}`,
     // A campaign that has collected nothing yet is not waiting on a request —
     // its zero states are the answer, and should not sit behind a placeholder.
     hasData: !!c0 && volumeOf(c0) > 0,
-    skeleton: () => paintInsights(host, { pending: true }),
-    // A filter change repaints every panel below it, and the filters are at the
-    // top — so without this, changing one scrolls away from the figures it just
-    // changed. Keyed on campaign and tab, both of which are new screens.
-    paint: (entering) => keepScroll(() => host, `${c0 ? c0.id : 'none'}:${tab}`,
-      () => paintInsights(host, { entering })),
+    skeleton: () => place(() => paintInsights(host, { pending: true })),
+    paint: (entering) => place(() => paintInsights(host, { entering })),
   });
 }
 

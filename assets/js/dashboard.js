@@ -538,17 +538,18 @@ function rows() {
 /* ---------- Render ---------- */
 export function renderDashboard(host) {
   const source = store.state.emptyDashboard ? [] : store.state.campaigns;
+  // Sorting, filtering or toggling a column repaints the whole list; the
+  // reader's place in it should survive that. One key: the campaign list is
+  // one screen throughout — the skeleton included, which is why both renders
+  // go through it. See keepScroll() in core.js.
+  const place = (render) => keepScroll(() => host, 'campaigns', render);
   lazySection({
     key: 'campaigns',
     // A workspace with no campaigns is not waiting on anything — the empty
     // state is the answer, not a placeholder for one.
     hasData: source.length > 0,
-    skeleton: () => paintDashboard(host, { pending: true }),
-    // Sorting, filtering or toggling a column repaints the whole list; the
-    // reader's place in it should survive that. One key: the campaign list is
-    // one screen throughout. See keepScroll() in core.js.
-    paint: (entering) =>
-      keepScroll(() => host, 'campaigns', () => paintDashboard(host, { entering })),
+    skeleton: () => place(() => paintDashboard(host, { pending: true })),
+    paint: (entering) => place(() => paintDashboard(host, { entering })),
   });
 }
 
