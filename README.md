@@ -94,6 +94,9 @@ npx @cloudflare/kumo doc Button    # one component's props, sizes and variants
 Neither dependency is loaded by the pages: the prototype still has **no build step and no
 runtime dependencies**, and `index.html` opens on its own.
 
+Work in progress on the restyle is handed over in [`docs/revamp.md`](docs/revamp.md) —
+where it stands, how to verify it, what is left, and which decisions are already settled.
+
 ---
 
 ## Layout
