@@ -174,6 +174,28 @@ in the guideline.
   a status pill is still forbidden.
 - **The ramp's owner → CSS.** §6.1 above.
 
+### 6.1a The motion pass (Sep 2026)
+
+A second pass added Kumo's motion everywhere the product had none. What went in:
+
+- **The four state changes that had no acknowledgement** — the settings save footer (the
+  item `docs/motion-handover.md` ranked first, which had survived two passes), the
+  departing row on a delete, the page turn, and the stat strip's arrival. A fifth, the
+  Insights chart readout parity, turned out to have been built already by `fec44d2`; the
+  backlog entry was stale.
+- **Kumo's scroll fade** on the table, which overflows below about 1250px. Its exact
+  implementation: a mask on a `scroll(self x)` timeline, behind `@supports`, with
+  `observeOverflow()` in `core.js` setting the attribute CSS cannot compute.
+- **The toolbar refresh button** (§9.1, never built) and Kumo's `refresh` spinner on it.
+- **The anchored Copied chip** (§6.23), which is what Kumo's `clipboard-toast-bump` is
+  for. It replaced a corner toast on the builder's copy-trigger — a value landing in the
+  fields beside you should not be reported in the far corner.
+- **The rejected set, reopened**: card entrance staggers, hover lift, empty-state
+  entrances. Guideline §12.2 rule 7 replaces the ban with an ordering.
+
+`float` and the marquee stayed out: both loop with nothing happening, which rule 2 still
+forbids, and neither has a host that would make it mean anything.
+
 ### 6.2 Still open, in the order worth doing
 
 1. **The `--code-*` tokens are still unused.** `--code-bg`, `--code-field-bg` and
@@ -195,6 +217,10 @@ in the guideline.
 4. **Filter chips on Insights.** Unchanged from the last handover, and still a data
    problem before it is a UI one: five `<select>`s of which only `range` changes anything.
    The honest fix is fewer controls.
+5. **The chart readout is painted over by a `.metric-head`.** Found while adding the card
+   hover lift, and measured three ways to establish the lift did not cause it: identical
+   with the lift, with the lift and no `z-index`, and with no lift at all. A pre-existing
+   z-order bug, and the best remaining item in the app.
 
 ### 6.3 Deliberately left alone
 
@@ -231,6 +257,27 @@ in the guideline.
 - **`localStorage` persists across runs**, including the rail-collapsed, builder-chrome
   and now **theme** preferences. Fresh context per verification run — a run that ends in
   light mode will otherwise make the next one disagree with the screenshots.
+
+### Added by the motion pass
+
+- **A backtick in a comment closes the `html` template it sits inside.** Writing
+  ``Kumo's `refresh` keyframe`` inside an HTML comment in a tagged template ended the
+  literal, and the file still *parsed* — so `node --check` passed and the page died at
+  runtime with "Unexpected identifier". **`node --check` is not enough; load the page.**
+- **A screenshot is not evidence and neither is a reading of the block.** Two animations
+  looked stilled under reduced motion and were not: the card stagger reuses the `lazy-in`
+  keyframe through a different selector, and the hover lift is a transition rather than an
+  animation. Both were caught by reading `getComputedStyle` in an emulated reduced-motion
+  context, not by reading the CSS.
+- **Check the change actually happens before animating it.** The page turn was animated
+  against a page size of ten and a seeded list of seven — a second page that did not
+  exist. The page size moved to five. This is the same trap `motion-handover.md` records
+  at the top of its list, walked into again.
+- **Playwright's `reducedMotion` is a context option, not a method.**
+  `browser.newContext({ reducedMotion: 'reduce' })`; there is no `ctx.emulateMedia`.
+- **`python3 -m http.server` started from a tool call dies with it.** Two verification
+  runs measured an empty page and a 404 before this was noticed. `setsid nohup … &` and
+  check the status code before trusting a run.
 
 ### Added this pass
 

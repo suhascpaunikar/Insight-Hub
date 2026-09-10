@@ -708,6 +708,33 @@ Blocks `#171717` with the existing sweep at `rgba(255,255,255,.04)`. Sized as to
 
 ---
 
+### 6.23 Copied chip *(Kumo `.animate-clipboard-toast-bump`)*
+
+A small toast anchored to the control that was pressed, rather than the stack in the
+corner: `--surface-100`, 1px `--border-default`, radius 6, 5px 10px padding, 12px text,
+`role="status"`. Positioned under its trigger, flipped above it when there is no room
+below, and clamped into the viewport either way — the repaint that precedes it can scroll
+the trigger out of view, and a chip placed off-screen reports nothing.
+
+Kumo ships two bump curves for exactly this distinction, and the difference is what the
+shapes mean: a stack toast has travelled from somewhere and slides; a clipboard toast has
+appeared where the reader is already looking and bumps. Use it when a value lands *near
+the pointer* — the builder's "Copy trigger from a variant" is the one today, and it
+replaced a corner toast that made the reader look away from the fields that had just
+changed to be told they had changed.
+
+### 6.24 Refresh *(toolbar)*
+
+The last of §9.1's toolbar controls, a secondary sm icon button at the right end. It
+re-reads the section: `forgetSection()` in `core.js` drops the key, so the skeleton comes
+back and the content lands again after the wait the prototype already simulates.
+
+The button **stays real while the skeleton is up** — it is the only control in that
+toolbar that is not replaced by a placeholder. A refresh that replaced itself with a grey
+block would take away the one thing on screen saying the press landed, and it is the
+control that caused the wait, so it is the control that should report it. Kumo's
+`refresh` spins on it for exactly as long as the wait lasts.
+
 ## 7. States
 
 | State | Treatment |
@@ -1258,8 +1285,21 @@ Rule 1 is the one that changed. The other five are unchanged and still hold.
    reduced-motion blocks safe. There are now two, one per stylesheet: `motion-kumo.css`
    loads after `supabase.css`, so its rules are out of reach of that file's block and are
    stilled again at its own foot. **A new animation needs an entry in the block of the
-   file it was written in.**
-7. **A stagger is a fraction of one duration, not a fixed per-item gap.** A flat gap makes
+   file it was written in** — and an entry keyed to *its own selector*: the card stagger
+   reuses the `lazy-in` keyframe but reaches it through `.metric-grid[data-stagger] > *`,
+   and was not stilled until that selector was named. The only exception is the scroll
+   fade; §12.3a says why.
+7. **Decoration is allowed, and is the weakest reason.** This used to read "anything that
+   decorates is deliberately not on the list", and a set of hover and entrance animations
+   was rejected under it. That was reversed deliberately in Sep 2026 — hover lift,
+   entrance staggers and empty-state entrances are built. The rule that replaces it is
+   an ordering, not a ban: **motion that reveals something the reader could not otherwise
+   see comes first, motion that marks a change they caused second, motion that only makes
+   the surface feel alive last** — and the last kind never justifies a technical
+   compromise. It is why the card lift is one pixel rather than four, why it does not
+   apply to a radio card that is already chosen, and why `float` and the marquee stayed
+   out.
+8. **A stagger is a fraction of one duration, not a fixed per-item gap.** A flat gap makes
    a gesture as long as the data is: at 24 columns an 8ms count reads as an edge
    travelling across, at 7 columns it reads as the whole strip rising at once. One chart
    is not allowed two entrances. The exception is a *list* of distribution bars, where the
@@ -1267,22 +1307,44 @@ Rule 1 is the one that changed. The other five are unchanged and still hold.
 
 ### 12.3 Kumo's keyframes
 
-All five are transcribed into `motion-kumo.css` and also exposed under Kumo's own class
-names — `.animate-bounce-in`, `.animate-toast-bump`, `.animate-clipboard-toast-bump`,
+All are transcribed into `motion-kumo.css` and also exposed under Kumo's own class names —
+`.animate-bounce-in`, `.animate-toast-bump`, `.animate-clipboard-toast-bump`,
 `.animate-refresh` — so a component lifted from Kumo's docs animates correctly when it is
 pasted in, and so adopting Kumo's real components later is a deletion here rather than a
 translation.
 
-| Keyframe | Shape |
-| --- | --- |
-| `bounce-in` | scale .6 → 1.2 → 1, opacity 0 → 1 |
-| `toast-bump` | scale 1 → 1.02 → 1 |
-| `clipboard-toast-bump` | scale 1 → 1.04 → 1 |
-| `shimmer` | translateX −100% → 100% |
-| `refresh` | rotate 360° with scale .9 |
+| Keyframe | Shape | Where it runs |
+| --- | --- | --- |
+| `bounce-in` | scale .6 → 1.2 → 1, opacity 0 → 1 | A wizard step completing |
+| `toast-bump` | scale 1 → 1.02 → 1 | A toast re-firing while one is up |
+| `clipboard-toast-bump` | scale 1 → 1.04 → 1 | The anchored **Copied** chip (§6.23) |
+| `shimmer` | translateX −100% → 100% | The skeleton sweep |
+| `refresh` | rotate 360° with scale .9 | The toolbar's refresh, while a section loads |
+| `scroll-fade-x-left` / `-right` | `--fade-*-n` 0 ↔ 1 | The overflowing table's edge mask |
 
-`clipboard-toast-bump` is carried unused: there is no clipboard toast in this product yet,
-and it is two lines to keep rather than a decision to re-make.
+Two of Kumo's remaining keyframes are **deliberately not carried**: `float` (a 5s drift,
+alternating, forever) and `right` (a 15s linear marquee). Both loop without anything
+happening, which rule 2 forbids, and neither has a host in this product that would make
+them mean something. `rdp-fade` and `rdp-slide` belong to react-day-picker; there is no
+date picker here.
+
+### 12.3a Scroll-driven, not time-driven
+
+`[data-overflowing]` is the one animation here whose timeline is a scroll position rather
+than a duration: the mask on a horizontally overflowing table fades whichever edge still
+has content past it, tracking the scroll thumb. Two consequences follow, and both are
+deliberate:
+
+- It sits behind `@supports (animation-timeline: scroll())`. A browser without it keeps
+  the native scrollbar, which is the affordance the fade replaces; where the fade runs,
+  the scrollbar is hidden, exactly as Kumo does on its own tab list.
+- **It survives `prefers-reduced-motion`.** Nothing moves on its own — the mask follows a
+  scroll the reader is performing. Stilling it would remove an affordance rather than a
+  movement, which is the opposite of what rule 6 is protecting.
+
+CSS cannot ask whether a box overflows, so `observeOverflow()` in `core.js` sets the
+attribute from a single document-level `ResizeObserver`, watching both the scroller and
+the table inside it — either side of that comparison can move.
 
 ### 12.4 Where the `motion` library earns its place
 

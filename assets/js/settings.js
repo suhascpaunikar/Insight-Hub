@@ -120,7 +120,7 @@ function unitInput(field, unit, note) {
 function panelFoot(panel, hint) {
   const isDirty = dirty(panel);
   return html`
-    <div class="spanel-foot">
+    <div class="spanel-foot" data-foot="${panel}" data-dirty="${raw(String(isDirty))}">
       <span class="t-xs fg-muted">${raw(isDirty ? 'Unsaved changes' : esc(hint || ''))}</span>
       <span class="row" style="gap:8px">
         ${raw(isDirty
@@ -394,6 +394,43 @@ function alertsTab() {
     </section>`;
 }
 
+/* ---------- The save footer's own change ----------
+   A panel going dirty is a state change the reader caused, and it was the one
+   place in the product where one arrived with no acknowledgement at all: Cancel
+   pops into existence and Save flips from neutral to primary, both on a frame.
+
+   It cannot be a `transition`, for the same reason the stepper's marks could
+   not be — this screen repaints by replacing its markup on every keystroke, so
+   the footer is a fresh node each time and a fresh node has no previous value
+   to move from. So the previous dirty state is remembered per panel here, and
+   only the footer that actually changed is marked. Without that, every
+   character typed into a field would re-fire the animation.
+
+   Same shape as `markChangedSteps()` in builder.js; the comment there explains
+   the pattern in full. */
+let footStates = new Map();
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)');
+
+function markChangedFeet(root) {
+  const next = new Map();
+  $$('.spanel-foot[data-foot]', root).forEach((foot) => {
+    const { foot: panel, dirty: state } = foot.dataset;
+    next.set(panel, state);
+    // A first paint has no previous state: the footer arrives with the tab
+    // rather than changing, and marking all five at once would be a light show.
+    const before = footStates.get(panel);
+    if (!REDUCED.matches && before !== undefined && before !== state) {
+      foot.dataset.changed = state === 'true' ? 'dirty' : 'clean';
+    }
+  });
+  footStates = next;
+}
+
+/* Leaving a tab drops its edits, so the footers on the tab being entered are
+   arrivals rather than changes. Without this, switching away from a dirty panel
+   and back would animate it clean on the first paint of the new tab. */
+function forgetFeet() { footStates = new Map(); }
+
 /* ---------- Render ---------- */
 export function renderSettings(host) {
   // Ticking a switch two panels down repaints the screen; without this the
@@ -464,12 +501,13 @@ function paintSettings(host, { pending = false, entering = false } = {}) {
     label: 'Settings sections',
     items: Object.entries(TABS).map(([key, label]) => ({ key, label })),
     active: view.tab,
-    onSelect: (key) => { edits = {}; view.tab = key; renderSettings(host); },
+    onSelect: (key) => { edits = {}; forgetFeet(); view.tab = key; renderSettings(host); },
   });
 
   // Only the panel fades up; the header and tab strip never left.
   if (entering) $$('[data-enter]', host).forEach((node) => node.classList.add('lazy-in'));
 
+  markChangedFeet(host);
   wireDropdowns(host);
   wireOnce(host, 'settingsWired', wire);
 }

@@ -8,6 +8,7 @@ import {
   ratingLegend, wireDropdowns, dialog, toast, wireOnce, AI_ACCENT, LOW_SAMPLE,
   BANDS, BAND_LABEL, bandRange, keepScroll, lazySection, skel,
   growPlots, growBars, swapOut, countUp, navigate, placeChartTip,
+  observeOverflow,
 } from './core.js';
 import { store } from './store.js';
 import {
@@ -1465,6 +1466,8 @@ function paintInsights(host, { pending = false, entering = false } = {}) {
   // strip is chrome and outside `#content`, so they route through `onAction`
   // rather than the page's delegated clicks.
   setStrip({
+    // The campaign is the subject; a tab change inside it is not an arrival.
+    key: c.id,
     items: [
       { label: 'Status',
         value: `<span class="pill" data-status="${esc(c.status)}"><span class="dot"></span>${esc(c.status)}</span>` },
@@ -1503,6 +1506,10 @@ function paintInsights(host, { pending = false, entering = false } = {}) {
   }
   drawIn = false;
   figuresBefore = null;
+  // The fade on a horizontally overflowing table (motion-kumo.css) needs to
+  // be re-pointed at the scrollers this paint just created.
+  observeOverflow(host);
+
   wireDropdowns(host);
   // Bound to the chart node itself, which this render just replaced — so it
   // is re-bound every time, unlike the delegated listeners in wire().

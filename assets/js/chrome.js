@@ -79,12 +79,16 @@ export function applyTabs() {
    the columns, the shell owns the band, and a shell repaint can put it back
    without waiting for the page to paint again (§6.8). */
 let stripSpec = null;
+/* What the strip is currently describing. A strip written again for the same
+   subject is a repaint; one written for a different subject is an arrival. */
+let stripKey = null;
 
 /**
- * { items: [{ label, value, hint?, mono?, glyph? }], actions?: [{ key, label,
- * glyph?, kind? }], onAction(key) } — or null to remove the strip. `value` and
- * `glyph` are trusted markup, so a column can carry a status pill or an icon;
- * `label` and a button's `label` are escaped here.
+ * { key?, items: [{ label, value, hint?, mono?, glyph? }], actions?: [{ key,
+ * label, glyph?, kind? }], onAction(key) } — or null to remove the strip.
+ * `value` and `glyph` are trusted markup, so a column can carry a status pill
+ * or an icon; `label` and a button's `label` are escaped here. `key` names what
+ * the strip is describing, so a repaint can be told from an arrival.
  */
 export function setStrip(spec) {
   stripSpec = spec && spec.items && spec.items.length ? spec : null;
@@ -98,6 +102,7 @@ export function applyStrip() {
   if (!stripSpec) {
     strip.hidden = true;
     strip.innerHTML = '';
+    stripKey = null;
     return;
   }
 
@@ -112,8 +117,18 @@ export function applyStrip() {
       ${act.glyph || ''}${esc(act.label)}
     </button>`).join('');
 
+  // Arriving, not repainting. The strip is set on every paint — including the
+  // skeleton's, so it does not blink while a panel loads — which means most
+  // calls here are the same strip being written again. Only a change of `key`
+  // is a new subject, and only that animates; without it the band would
+  // re-enter on every tab click and every keystroke that repaints the page.
+  const arriving = stripSpec.key !== undefined && stripSpec.key !== stripKey;
+  stripKey = stripSpec.key;
+
   strip.hidden = false;
   strip.innerHTML = `<div class="statstrip-cols">${cols}</div>${acts ? `<div class="statstrip-acts">${acts}</div>` : ''}`;
+  if (arriving) strip.dataset.enter = 'true';
+  else delete strip.dataset.enter;
 
   // The strip is a sibling of #content, so the page's own delegated handlers
   // cannot see these buttons. Assigned rather than added, for the same reason

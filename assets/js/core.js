@@ -128,6 +128,20 @@ export const skel = (width, height, extra = '') =>
 let lazyTimer = null;
 
 /**
+ * Forget that a section has loaded, so the next `lazySection()` for that key
+ * waits and shows its skeleton again. This is what a Refresh control means in
+ * a prototype with no network: the section is re-fetched, and the wait it
+ * would really take is the wait it already simulates.
+ */
+export function forgetSection(key) {
+  try {
+    const seen = loadedSections();
+    seen.delete(key);
+    sessionStorage.setItem(LAZY_STORE, JSON.stringify([...seen]));
+  } catch { /* storage refused: the section reloads on every visit anyway */ }
+}
+
+/**
  * `skeleton` and `paint` both render; neither returns markup. `paint` is told
  * whether it followed a wait, so the screen can fade the arriving content in
  * without also animating chrome that was on screen the whole time.
@@ -931,6 +945,52 @@ export function closeDialog() {
   if (openScrim) { openScrim.remove(); openScrim = null; }
 }
 
+/* ---------- Copied chip ----------
+   Kumo's `clipboard-toast-bump` is for a small toast anchored to the control
+   that was pressed, rather than for the stack in the corner — and a value
+   landing in a field beside you is exactly the case the two shapes differ on.
+   A corner toast for a local change makes the reader look away from the thing
+   that changed; this reports it where it happened.
+
+   Anchored in fixed positioning off the trigger's own rect, because the
+   trigger sits inside a scroller and an absolutely-positioned chip would need
+   a positioned ancestor that does not exist. */
+export function copiedChip(anchor, text = 'Copied') {
+  if (!anchor) return;
+  document.querySelectorAll('.copied-chip').forEach((old) => old.remove());
+
+  const chip = document.createElement('div');
+  chip.className = 'copied-chip';
+  chip.setAttribute('role', 'status');
+  chip.textContent = text;
+  document.body.appendChild(chip);
+
+  const box = anchor.getBoundingClientRect();
+  // Under the trigger by default, above it when there is no room below, and
+  // clamped into the viewport either way — the anchor can be scrolled out of
+  // view by the repaint that precedes this, and a chip placed off-screen
+  // reports nothing.
+  const gap = 6;
+  const height = chip.offsetHeight || 26;
+  const below = box.bottom + gap;
+  const top = below + height <= window.innerHeight - 8
+    ? below
+    : Math.max(8, box.top - gap - height);
+  chip.style.top = `${Math.round(Math.min(top, window.innerHeight - height - 8))}px`;
+  // Right-aligned to the trigger, then pulled back inside the viewport if the
+  // trigger sits near the edge.
+  const right = Math.max(8, Math.min(
+    Math.round(window.innerWidth - box.right),
+    window.innerWidth - (chip.offsetWidth || 80) - 8));
+  chip.style.right = `${right}px`;
+
+  // Long enough to read, short enough not to outlive the glance it answers.
+  const kill = () => chip.remove();
+  chip.addEventListener('animationend', () => setTimeout(kill, 1400), { once: true });
+  setTimeout(kill, 2200);
+  return chip;
+}
+
 /* ---------- Drawer (§6.16) ----------
    Same promise as `dialog()` — a promise that resolves to the action's value,
    or null if the reader dismissed it — so a caller swaps one for the other by
@@ -1152,6 +1212,74 @@ export function wireDropdowns(root = document) {
  * where the reader is adjusting several things and closing after each one
  * would mean reopening after each one.
  */
+/**
+ * Stagger a row of cards on their way in. Sets each child's position and the
+ * row's length so the stylesheet can spread them across one duration rather
+ * than a flat per-card gap (guideline §12.2 rule 7).
+ *
+ * Asked for by the paint that follows a wait, never run on every paint: the
+ * campaign list repaints on each character typed into its search, and four
+ * cards re-entering under the cursor is the failure mode this rule exists to
+ * prevent — the same reason `growBars()` is asked for rather than automatic.
+ */
+export function staggerCards(root = document) {
+  $$('.metric-grid', root).forEach((grid) => {
+    const cards = Array.from(grid.children);
+    if (cards.length < 2) return;
+    cards.forEach((card, i) => card.style.setProperty('--i', i));
+    grid.style.setProperty('--n', Math.max(1, cards.length - 1));
+    grid.dataset.stagger = 'true';
+  });
+}
+
+/* ---------- Overflow, for the scroll fade ----------
+   Kumo's `[data-overflowing]` mask (see motion-kumo.css) fades whichever edge
+   of a horizontal scroller still has content past it. CSS cannot ask whether a
+   box overflows, so the attribute is set here, which is what Kumo's own source
+   says to do.
+
+   One observer for the document rather than one per node: the console repaints
+   by replacing markup, so a per-node observer would be orphaned on the next
+   paint and a new one leaked on every render. `observeOverflow()` is called
+   after each paint and re-points the same observer at whatever `.table-scroll`
+   elements now exist. */
+let overflowObserver = null;
+
+function markOverflow(el) {
+  // A 1px tolerance: sub-pixel layout rounding otherwise flickers the
+  // attribute on and off at the exact width where the table just fits.
+  if (el.scrollWidth - el.clientWidth > 1) el.dataset.overflowing = 'true';
+  else delete el.dataset.overflowing;
+}
+
+/**
+ * Watch every horizontal scroller under `root` and keep `data-overflowing`
+ * true only while it actually overflows. Safe to call on every paint.
+ */
+export function observeOverflow(root = document) {
+  const nodes = $$('.table-scroll', root);
+  if (!nodes.length) return;
+  if (!overflowObserver) {
+    if (typeof ResizeObserver === 'undefined') { nodes.forEach(markOverflow); return; }
+    // An entry may be the scroller or the table inside it; the question is
+    // always about the scroller, so resolve upward.
+    overflowObserver = new ResizeObserver((entries) => entries.forEach((e) => {
+      const scroller = e.target.closest('.table-scroll');
+      if (scroller) markOverflow(scroller);
+    }));
+  }
+  overflowObserver.disconnect();
+  nodes.forEach((node) => {
+    markOverflow(node);
+    // Both boxes, because either side of the comparison can move: the scroller
+    // narrows when the window or the rail does, and the table widens when the
+    // Columns menu puts a column back. Watching only the scroller would leave
+    // the fade wrong until the next resize.
+    overflowObserver.observe(node);
+    if (node.firstElementChild) overflowObserver.observe(node.firstElementChild);
+  });
+}
+
 /* ---------- Pagination (§6.12) ----------
    A count and a five-cell group: first, previous, the page readout, next,
    last. Rendered from a total and a page size, so a caller only tracks which
