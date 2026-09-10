@@ -217,16 +217,31 @@ img { max-width: 100%; }
   background: var(--brand-gradient); border-color: var(--brand-600); color: var(--on-brand);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
 }
-.btn-primary:hover { background: linear-gradient(180deg, #3d88ee 0%, #1a72e8 50%, #0a68e6 100%); }
+/* One step brighter than the resting gradient, mixed off Kumo's brand so the
+   hover follows the token rather than a hex frozen at one theme. */
+.btn-primary:hover {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--brand-default) 74%, #ffffff) 0%,
+    color-mix(in srgb, var(--brand-default) 88%, #ffffff) 50%,
+    color-mix(in srgb, var(--brand-default) 96%, #ffffff) 100%
+  );
+}
 .btn-primary:active { background: var(--brand-default); box-shadow: none; }
 .btn-primary:disabled { background: var(--brand-disabled); border-color: transparent; color: var(--foreground-light); box-shadow: none; }
 
 /* Kumo's `secondary`, and the default button of the system. */
 .btn-default { background: var(--background-100); border-color: var(--border-default); color: var(--foreground-default); }
 .btn-default:hover { background: var(--surface-200); }
-/* Kumo's neutral filled Cancel, used in form, drawer and dialog footers. */
-.btn-neutral { background: #999999; border-color: transparent; color: #0a0a0a; }
-.btn-neutral:hover { background: #a8a8a8; }
+/* Kumo's neutral filled Cancel, used in form, drawer and dialog footers. The
+   fill is `contrast` stepped back off the canvas, and the label is `inverse`
+   on top of it, so the pair inverts with the theme instead of staying a grey
+   button with black text on a white page. */
+.btn-neutral {
+  background: color-mix(in srgb, var(--foreground-strong) 62%, var(--background-200));
+  border-color: transparent; color: var(--text-color-kumo-inverse);
+}
+.btn-neutral:hover { background: color-mix(in srgb, var(--foreground-strong) 72%, var(--background-200)); }
 
 .btn-outline { background: transparent; border-color: var(--border-default); color: var(--foreground-default); }
 .btn-outline:hover { color: var(--foreground-strong); border-color: var(--border-strong); }
@@ -238,10 +253,18 @@ img { max-width: 100%; }
 .btn-text:hover { color: var(--link); text-decoration: underline; }
 
 .btn-danger {
-  background: var(--destructive-gradient); border-color: #a81212; color: #ffffff;
+  background: var(--destructive-gradient);
+  border-color: color-mix(in srgb, var(--destructive) 72%, #000000);
+  color: #ffffff;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
-.btn-danger:hover { background: linear-gradient(180deg, #f74a50 0%, #f0111c 100%); }
+.btn-danger:hover {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--destructive) 78%, #ffffff) 0%,
+    color-mix(in srgb, var(--destructive) 96%, #ffffff) 100%
+  );
+}
 .btn-danger:disabled { background: var(--destructive-disabled); border-color: transparent; color: var(--foreground-light); box-shadow: none; }
 
 .btn-link { height: auto; padding: 0; background: none; color: var(--foreground-light); text-decoration: underline; text-underline-offset: 3px; }
@@ -307,26 +330,52 @@ img { max-width: 100%; }
 .check { border-radius: var(--radius-xs); }
 .radio { border-radius: var(--radius-full); }
 /* Neutral when checked, both here and in Kumo: a ticked box is a state, not
-   an action, and the blue is reserved for things you press. */
-.check:checked { background: var(--foreground-disabled); border-color: var(--border-input); }
-.radio:checked { background: transparent; border-color: var(--border-input); }
+   an action, and the blue is reserved for things you press.
+
+   Kumo fills a checked box with `contrast` — the far end of the neutral
+   ladder, near-white on this canvas — and draws the glyph in `inverse` on top
+   of it: `data-[checked]:bg-kumo-contrast data-[checked]:ring-kumo-contrast`
+   over `text-kumo-inverse`. A box filled in mid-grey instead reads as
+   *disabled* at a glance, which is the opposite of what a tick means. */
+.check:checked { background: var(--foreground-strong); border-color: var(--foreground-strong); }
+.radio:checked { background: var(--foreground-strong); border-color: var(--foreground-strong); }
 .check:checked {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230a0a0a' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
   background-size: 11px; background-position: center; background-repeat: no-repeat;
 }
-.radio:checked { box-shadow: inset 0 0 0 4px var(--foreground-light); }
+/* Kumo's radio dot is `h-2 w-2 rounded-full bg-kumo-base` punched out of the
+   filled circle, so the hole is the card colour rather than a lighter grey. */
+.radio:checked { box-shadow: inset 0 0 0 4px var(--background-100); }
 .check:disabled, .radio:disabled { opacity: .45; cursor: not-allowed; }
 
-/* Selectable option card — the repeated radio/checkbox tile */
+/* Selectable option card — the repeated radio/checkbox tile.
+
+   Kumo's Radio card is the component this is:
+
+     rounded-lg border border-kumo-hairline bg-kumo-base p-3 transition-colors
+     hover:bg-kumo-tint
+     has-[[data-checked]]:border-kumo-interact
+     has-[[data-checked]]:bg-kumo-tint
+
+   Two things follow that this did not do. The card is a *surface* — it is
+   filled, at rest, one step off the panel behind it — and picking one moves
+   the fill up the ladder rather than recolouring a hairline. A 1px border
+   change is not a selection: it is invisible at arm's length, it disappears
+   entirely against a busy row of cards, and it leaves the chosen card reading
+   exactly as heavy as the three beside it. The fill is what says "this one". */
 .opt {
   display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; cursor: pointer;
   text-align: left;
-  background: transparent; border: 1px solid var(--border-strong);
+  background: var(--background-100); border: 1px solid var(--border-muted);
   border-radius: var(--radius-md); transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
 }
-/* Selected is the border alone — Kumo adds no tint and no check glyph. */
-.opt:hover { border-color: var(--foreground-disabled); }
-.opt.is-on { border-color: var(--link); }
+.opt:hover { background: var(--surface-200); }
+/* Both spellings. The goal grid marks its choice with `data-on`, every other
+   group with `.is-on`, and for a while only one of them was styled here. */
+.opt.is-on, .opt[data-on] {
+  background: var(--surface-200); border-color: var(--border-strong);
+}
+.opt[aria-disabled="true"]:hover { background: var(--background-100); }
 .opt input { margin-top: 2px; }
 .opt-title { display: block; font-size: var(--fs-lg); font-weight: var(--fw-title); color: var(--foreground-default); }
 .opt-note { display: block; margin-top: 6px; font-size: var(--fs-body); line-height: var(--lh-body); color: var(--foreground-light); }
@@ -494,8 +543,8 @@ img { max-width: 100%; }
 .table th {
   position: sticky; top: 0; z-index: 1;
   height: 36px; padding: 0 20px; text-align: left;
-  background: var(--background-100); border-bottom: 1px solid var(--border-default);
-  font-size: var(--fs-sm); font-weight: var(--fw-label); color: var(--foreground-lighter);
+  background: var(--background-100); border-bottom: 1px solid var(--surface-200);
+  font-size: var(--fs-sm); font-weight: var(--fw-title); color: var(--foreground-lighter);
   white-space: nowrap;
 }
 /* One line per cell, so a row is the height of its first column rather than
@@ -507,8 +556,16 @@ img { max-width: 100%; }
 .table th { padding: 0 14px; }
 .table td:first-child { white-space: normal; max-width: 280px; }
 .table th:first-child { max-width: 280px; }
+/* Kumo's Table fills every row and alternates the fill — `--kumo-table-row-bg`
+   is `base` by default and `elevated` on `even:`. A table whose rows were
+   transparent would read as a hole cut in the card it sits in; striping is
+   what makes a wide row scannable across eight columns. The stripe is one
+   step on the ladder, not a tint: it separates without colouring. */
 .table td { transition: background-color var(--motion-fast) var(--ease-out); }
-.table tbody tr:hover td { background: var(--surface-100); }
+.table tbody tr { background: var(--background-100); }
+.table tbody tr:nth-child(even) { background: var(--band); }
+/* Kumo names `tint` for exactly this — "table or hover states". */
+.table tbody tr:hover td { background: var(--surface-200); }
 /* The chevron leans toward its destination on hover — the same two pixels the
    settings rows already use, so the gesture means one thing product-wide. */
 .table tbody .btn-default svg { transition: transform var(--motion-fast) var(--ease-out); }
@@ -567,18 +624,50 @@ img { max-width: 100%; }
 .dd { position: relative; display: inline-flex; }
 .dd-menu {
   position: absolute; z-index: 60; top: calc(100% + 4px); min-width: 190px; padding: 4px;
-  background: var(--background-100); border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  /* Kumo's popups sit on `control` with a `line` ring and `shadow-lg`, which is
+     a step above the `base` card they open over — a menu the same colour as
+     the surface behind it has only its border to say it is in front. */
+  background: var(--surface-100); border: 1px solid var(--border-default);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-3);
+  /* A menu is never taller than the room it has. Kumo caps every popup at the
+     space between its trigger and the viewport edge — `--available-height` —
+     and scrolls the list inside that; core.js measures the same number into
+     `--dd-max`. Without this a long menu runs off the bottom of the screen and
+     its last items cannot be reached at all. */
+  max-height: var(--dd-max, calc(100vh - 32px));
+  overflow-y: auto; overscroll-behavior: contain;
   animation: dd-in var(--motion-base) var(--ease-out);
+}
+/* Anchored against the viewport rather than against the trigger's box.
+
+   A menu positioned inside its trigger is clipped by whatever scrolls between
+   them, and two of the places this component is used scroll: `.table-scroll`
+   around the campaign list, and `.rail-groups` down the sidebar. A row menu
+   opening upward out of the last rows was being cut off at the top of the
+   table's scroller — the part you could see was the part that fitted, and the
+   items above it could not be clicked at all, because they were not painted.
+
+   Kumo's popups are portalled to the document and positioned against the
+   anchor for exactly this reason. This is the same idea with the same result:
+   openMenu() measures the trigger and writes `left`/`top` here, so the menu is
+   laid out in the viewport and no ancestor's overflow can reach it. The two
+   rail menus keep the stylesheet's own placement — they are hand-offset
+   against the sidebar and nothing clips them — and mark themselves
+   `data-anchor="css"` to opt out. */
+.dd-menu[data-anchor="fixed"] {
+  position: fixed;
+  right: auto; bottom: auto;       /* left/top come from openMenu() */
 }
 /* Scaled from the corner it is anchored to, so the menu reads as opening out
    of its own trigger rather than arriving from nowhere. */
-.dd-menu[data-align="end"] { right: 0; transform-origin: top right; }
-.dd-menu[data-align="start"] { left: 0; transform-origin: top left; }
+.dd-menu[data-align="end"] { transform-origin: top right; }
+.dd-menu[data-align="start"] { transform-origin: top left; }
+.dd-menu[data-anchor="css"][data-align="end"] { right: 0; }
+.dd-menu[data-anchor="css"][data-align="start"] { left: 0; }
 /* Flipped above its trigger where there is no room below it — a row menu near
    the bottom of the list. openMenu() in core.js measures and sets this. The
    origin follows, so it still opens out of the trigger rather than into it. */
-.dd-menu[data-drop="up"] { top: auto; bottom: calc(100% + 4px); }
+.dd-menu[data-anchor="css"][data-drop="up"] { top: auto; bottom: calc(100% + 4px); }
 .dd-menu[data-drop="up"][data-align="end"] { transform-origin: bottom right; }
 .dd-menu[data-drop="up"][data-align="start"] { transform-origin: bottom left; }
 @keyframes dd-in-up { from { opacity: 0; transform: translateY(4px) scale(.98); } }
@@ -813,7 +902,10 @@ img { max-width: 100%; }
 .rail {
   position: relative; z-index: 40;
   display: flex; flex-direction: column; flex: none; width: var(--rail-w);
-  background: var(--background-200); border-right: 1px solid var(--border-default);
+  /* Kumo's Sidebar sets `--sidebar-bg: var(--color-kumo-base)` and rings itself
+     with `border-r border-kumo-line`: it is a surface sitting on the canvas,
+     one step up from the page it navigates, not the same black as the page. */
+  background: var(--background-100); border-right: 1px solid var(--border-default);
   transition: width var(--motion-base) var(--ease-out);
 }
 .rail[data-collapsed="true"] { width: var(--rail-w-collapsed); }
@@ -1012,11 +1104,21 @@ a.crumb:hover { color: var(--foreground-default); }
   display: flex; align-items: center; flex: none; height: var(--bar-h); padding: 0 16px;
   background: var(--background-200); border-bottom: 1px solid var(--border-default);
 }
+/* Kumo's Tabs list is `relative flex min-w-0 shrink items-stretch
+   overflow-x-auto overflow-y-hidden` on a `bg-kumo-recessed` track: the strip
+   scrolls sideways rather than pushing the tabs past the edge of the window.
+   Without `min-width: 0` a flex item refuses to shrink below its content, so
+   the overflow never becomes the scroller's and the last tab is simply
+   unreachable on a narrow viewport. */
 .tabgroup {
   display: inline-flex; align-items: center; padding: 1px;
+  min-width: 0; max-width: 100%;
+  overflow-x: auto; overflow-y: hidden;
+  scroll-padding: 0 var(--scroll-fade-width, 3rem);
   background: var(--tabgroup-bg, #0b0b0b); border: 1px solid var(--tabgroup-border, #1c1c1c);
   border-radius: var(--radius-md);
 }
+.tabgroup > * { flex: none; }
 .tabgroup-tab {
   display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px;
   border: 1px solid transparent; border-radius: var(--radius-sm);
@@ -1775,7 +1877,15 @@ body[data-leaving="true"] { opacity: 0; transition: opacity var(--motion-fast) v
   position: fixed; right: var(--sp-lg); bottom: var(--sp-lg);
   z-index: 80;                     /* over dropdowns and tooltips, under dialogs and toasts */
   display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-sm);
+  /* The closed card keeps its 320x380 box — it hides with `visibility`, not
+     `display`, so the reveal has something to animate from. That made this
+     container a 320x436 hole in the bottom-right corner of every page that
+     ate clicks on whatever was under it: the last rows' Open and ... buttons,
+     the footer links, the corner of a wide table. The panel is transparent to
+     the pointer and its two children take it back. */
+  pointer-events: none;
 }
+.asst-bubble, .asst[data-open="true"] .asst-card { pointer-events: auto; }
 
 /* The wizard is the one screen carrying a bar of its own along the bottom edge,
    and at the default 16px the 44px launcher lands on top of Next — the primary

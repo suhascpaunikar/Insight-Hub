@@ -333,6 +333,28 @@
   }
 }
 
+/* ...except while a menu is open inside one.
+
+   `mask-image` makes its element a containing block for `position: fixed`
+   descendants and clips them to its own box — the same rule `filter` and
+   `transform` follow. That turned this fade into a lid on the row action
+   menus: a menu flipping upward out of the last rows was cut off at the top
+   of the scroller, and the items above the cut could not be clicked, because
+   they were never painted. Base UI, which is what Kumo's own popups are built
+   on, sidesteps this by portalling every popup to the document; this console
+   delegates its actions from the section that owns them, so a portalled menu
+   would be a menu whose items no longer reach their handlers.
+
+   The fade stands down instead. It says "there is more to the right", which is
+   worth a great deal while you are reading the table and nothing at all while
+   you are reading a menu that covers it. */
+[data-overflowing]:has(.dd-menu:not([hidden])) {
+  @supports (animation-timeline: scroll()) {
+    mask-image: none;
+    animation-name: none;
+  }
+}
+
 /* Where the fade runs it *is* the affordance, so the scrollbar it replaces
    goes; where it does not, the scrollbar stays and is the only thing saying
    there is more. Kumo does exactly this on its own tab list. */
