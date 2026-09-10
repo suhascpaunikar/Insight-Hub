@@ -266,14 +266,34 @@ done before this list was last read. What they were, and what closing them taugh
 
 ### New since that pass
 
-1. **The chart readout is painted over by a `.metric-head`.** Measured while adding the
-   card hover lift: the readout escapes its card upward and is not the topmost element at
-   its own centre. It is **not** caused by the lift — it measures identically with the
-   lift, with the lift and no `z-index`, and with no lift at all — so it is a pre-existing
-   z-order bug and the best remaining item in the app. The lift carries a `z-index`
-   anyway, so that whoever fixes this does not have to discover the lift first.
-2. **The stat strip wraps to two rows at 1440px with the sidebar expanded.** Recorded in
+1. **The stat strip wraps to two rows at 1440px with the sidebar expanded.** Recorded in
    the guideline at §6.8. A spec question, not a motion one.
+
+### Retracted: the "chart readout z-order bug"
+
+A previous revision of this file listed a z-order bug in the chart readout as the best
+remaining item in the app. **There is no such bug**, and the entry was wrong.
+
+It came from `document.elementFromPoint()` at the readout's own centre returning
+`.metric-head` rather than the readout. That was read as "the readout is painted over".
+It is not: `.chart-tip` carries `pointer-events: none` — deliberately, so the pointer can
+keep tracking the columns underneath it — and hit-testing therefore skips it and returns
+whatever is beneath. **`elementFromPoint` measures hit-testing, not paint order, and the
+two differ by design on every element with `pointer-events: none`.**
+
+What the pixels show, and what was checked before retracting this:
+
+- The readout paints above its own card's head and figures. Screenshotted and read.
+- It never escapes its card horizontally: hovering the first and last column of all four
+  metric cards, it stays inside every time, and overlaps no neighbouring card. That is
+  `fec44d2` doing its job — it opens the readout beside its column rather than on top.
+- It never escapes vertically on Insights either, and runs into none of the cards that
+  follow it.
+
+The historical version of this concern was real — the note on `.lazy-in` in `supabase.css`
+records the readout being painted over by the next section down, which is why that rule
+must not use a `forwards` fill. That was fixed, and then fixed again from a different
+angle by `fec44d2`. Neither regressed.
 
 ### Blocked on the render path
 
@@ -362,6 +382,12 @@ time:**
 3. **Scroll the target into view before hovering.** The insights chart sits at y≈779, below a
    720px viewport, so a synthetic mouse never reaches it and the component looks broken. If
    `document.elementFromPoint()` returns `none`, that is the tell.
+4. **Do not use `elementFromPoint` to ask what is on top.** It answers what a *click* would
+   hit, and it skips every element with `pointer-events: none` — which the chart readout and
+   every tooltip in this product have, deliberately, so the pointer keeps tracking what is
+   underneath. Asking it whether the readout was painted over produced a confident false
+   positive that reached two documents and a CSS comment. **Paint order is a question for
+   pixels**: screenshot the overlap with a `clip` box and look at it.
 
 To measure a skeleton against real content, capture `getBoundingClientRect().height` for both
 states and diff them — that is how the current blocks were tuned to ~1px.

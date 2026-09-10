@@ -225,17 +225,17 @@
    than being left to argue with this code.
 
    One technical constraint shapes the lift. See the note on `.lazy-in` in
-   supabase.css: a transform makes a stacking context, and a stat card is
-   exactly the element a chart readout has to escape — so lifting a card risks
-   sealing its own readout inside it. `position: relative; z-index` is carried
-   against that.
+   supabase.css: a transform makes a stacking context, and a stat card would be
+   exactly the element a chart readout has to escape — so lifting a card could
+   in principle seal its own readout inside it. `position: relative; z-index` is
+   carried against that.
 
-   Measured, it changes nothing today: the readout is painted over by a
-   `.metric-head` whether the card is lifted, lifted without the z-index, or
-   not lifted at all. That is a pre-existing z-order bug in the readout, logged
-   in docs/motion-handover.md, and it is *not* what this z-index is for. The
-   z-index is here so that fixing that bug does not have to remember this lift.
-   Do not remove it on the grounds that removing it changes nothing.
+   It is insurance and not a fix, because the readout does not escape its card:
+   `fec44d2` opens it beside its column and clamps it inside the card at every
+   column of every card, which was measured rather than assumed. What the
+   z-index buys today is only that the lifted card's own edge stays crisp over
+   its neighbour's. If the readout is ever allowed out of the card again, this
+   is what stops the lift trapping it.
    ========================================================================== */
 
 /* A card the reader is scanning. One pixel and a brighter edge: enough to say
@@ -250,7 +250,8 @@
 .opt:hover {
   transform: translateY(-1px);
   border-color: var(--border-strong);
-  /* Insurance, not decoration — see the header. */
+  /* Insurance against the stacking context the transform makes, and it keeps
+     the lifted edge over its neighbour's — see the header. */
   position: relative;
   z-index: 2;
 }

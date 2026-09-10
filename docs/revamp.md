@@ -217,10 +217,12 @@ forbids, and neither has a host that would make it mean anything.
 4. **Filter chips on Insights.** Unchanged from the last handover, and still a data
    problem before it is a UI one: five `<select>`s of which only `range` changes anything.
    The honest fix is fewer controls.
-5. **The chart readout is painted over by a `.metric-head`.** Found while adding the card
-   hover lift, and measured three ways to establish the lift did not cause it: identical
-   with the lift, with the lift and no `z-index`, and with no lift at all. A pre-existing
-   z-order bug, and the best remaining item in the app.
+5. ~~**The chart readout is painted over by a `.metric-head`.**~~ **Retracted — there is
+   no such bug.** It was `document.elementFromPoint()` returning what sits beneath the
+   readout, because `.chart-tip` carries `pointer-events: none` so the pointer can keep
+   tracking the columns under it. Hit-testing is not paint order. The readout paints
+   correctly over its own card, never escapes it at any column of any card, and overlaps
+   no neighbouring or later card. `docs/motion-handover.md` carries the full retraction.
 
 ### 6.3 Deliberately left alone
 
@@ -264,6 +266,12 @@ forbids, and neither has a host that would make it mean anything.
   ``Kumo's `refresh` keyframe`` inside an HTML comment in a tagged template ended the
   literal, and the file still *parsed* — so `node --check` passed and the page died at
   runtime with "Unexpected identifier". **`node --check` is not enough; load the page.**
+- **`elementFromPoint` is not paint order.** It skips anything with
+  `pointer-events: none`, so it returns whatever is *beneath* such an element. Used to
+  check whether the chart readout was on top, it reported a z-order bug that does not
+  exist — and that false finding was written into two documents and a CSS comment before
+  a screenshot of the same pixels contradicted it. **To answer "is this on top", look at
+  the pixels; to answer "what will the click hit", use `elementFromPoint`.**
 - **A screenshot is not evidence and neither is a reading of the block.** Two animations
   looked stilled under reduced motion and were not: the card stagger reuses the `lazy-in`
   keyframe through a different selector, and the hover lift is a transition rather than an
