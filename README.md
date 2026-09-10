@@ -75,6 +75,9 @@ Tokens and primitives: `assets/css/supabase.css`.
 **Planned restyle:** the console is moving to the Cloudflare dashboard's dark look. The
 specification — colour, type, spacing, shell, every component, and a migration map from the
 current primitives — is [`docs/ui-guidelines-cloudflare-dark.md`](docs/ui-guidelines-cloudflare-dark.md).
+Its token remap ships as `assets/css/tokens-cloudflare.css`, a drop-in override that is not
+linked from the pages yet; load it after `supabase.css` to preview the palette on the
+current primitives.
 
 ---
 

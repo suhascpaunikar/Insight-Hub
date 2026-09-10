@@ -11,7 +11,7 @@
 
 | Question | Decision |
 | --- | --- |
-| Deliverable | This Markdown guideline. No token file or reference page yet. |
+| Deliverable | This Markdown guideline, plus `assets/css/tokens-cloudflare.css` (the §10.1 remap as a drop-in override, added on request). No reference page yet. |
 | Accent | Cloudflare blue for every action and link. Emerald is retired as the action colour and survives only as the *Live* / success status green. |
 | Shell | The full Cloudflare shell: 56px icon rail, 58px breadcrumb bar, pill tab strip, centred content widths, footer. |
 | Depth | Visual spec plus a migration map from the current CSS primitives. No implementation plan. |
@@ -779,6 +779,9 @@ ask box is a 38px search-style input; orb and border beam unchanged; message bub
 ### 10.1 Token remap (`assets/css/supabase.css` `:root`)
 
 Keep the names so nothing downstream breaks; change the values. Add the new ones.
+Shipped as `assets/css/tokens-cloudflare.css`: load it after `supabase.css` and the
+primitives take the palette unchanged; its header lists the interim effects until §10.2
+is applied. Alpha companions (`-400` / `-200`) are re-based on their new base colour.
 
 | Token | Now | Becomes | Note |
 | --- | --- | --- | --- |
@@ -809,12 +812,12 @@ Keep the names so nothing downstream breaks; change the values. Add the new ones
 | *(new)* `--success` | — | `#00d492` | Live dot, toggle |
 | `--destructive` | `#e5484d` | `#ec2527` | button mid-stop |
 | `--destructive-fg` | `#ff9592` | `#fe9f97` | |
-| `--destructive-400` / `-200` | red tints | keep values | only for the error border/fill on fields |
+| `--destructive-400` / `-200` | `rgba(229,72,77,.35 / .12)` | `rgba(236,37,39,.35 / .12)` | re-based; only for the error border/fill on fields |
 | `--warning` | `#ffb224` | `#f0b620` | |
-| `--warning-fg` | `#ffcb62` | `#f6c75a` | |
-| `--info` | `#3e9bff` | `#4693ff` | |
+| `--warning-fg` | `#ffcb62` | `#f6c75a` | `-400` / `-200` re-based on `#f0b620` |
+| `--info` | `#3e9bff` | `#4693ff` | `--info-fg` `#82b6ff`; `-400` / `-200` re-based |
 | `--ai` | `#a78bfa` | `#7367e5` | |
-| `--ai-fg` | `#c4b5fd` | `#a9a2f0` | |
+| `--ai-fg` | `#c4b5fd` | `#a9a2f0` | `-400` / `-200` re-based on `#7367e5` |
 | `--rating-1…5` | `#e5484d … #3ecf8e` | `#ff6467 · #f76b15 · #f0b620 · #7cc47f · #00d492` | |
 | `--radius-xs` | 4px | 4px | inline chip only |
 | `--radius-sm` / `-md` / `-lg` | 6 / 8 / 12 | 6 / 8 / 12 | unchanged; usage changes (§4) |
@@ -824,7 +827,7 @@ Keep the names so nothing downstream breaks; change the values. Add the new ones
 | `--rail-item` | 30px | 32px | |
 | `--bar-h` | 48px | 58px | top bar and tab strip |
 | *(new)* `--strip-h` | — | 76px | stat strip |
-| *(new)* `--foot-h` (site footer) | — | 60px | the wizard's `--foot-h` becomes 72px |
+| *(new)* `--site-foot-h` | — | 60px | site footer; the wizard's `--foot-h` becomes 72px |
 | `--content-max` | 1400px | 1352px | plus `--content-list` 1024, `--content-form` 800, `--content-settings` 954 |
 | *(new)* `--control-sm/md/lg` | — | 30 / 38 / 42px | |
 

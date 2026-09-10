@@ -1,0 +1,189 @@
+/* ==========================================================================
+   InsightHub — Cloudflare dashboard, dark: design tokens
+
+   A drop-in override for the `:root` tokens in supabase.css. Load it AFTER
+   that file and nothing else has to change for the palette to switch:
+
+     <link rel="stylesheet" href="assets/css/supabase.css" />
+     <link rel="stylesheet" href="assets/css/tokens-cloudflare.css" />
+
+   Every existing token keeps its name and takes the value from the token
+   remap in docs/ui-guidelines-cloudflare-dark.md §10.1, so the primitives
+   pick the new palette up unchanged. Tokens the guideline introduces follow
+   in their own blocks. Nothing here restyles a primitive: sizes that are
+   hard-coded in supabase.css (button heights, table rows, type sizes) do not
+   move until the migration map in §10.2 is applied.
+
+   Interim effects while only this file is loaded — all expected:
+
+   - `--brand-default` now means the action blue, so everything that borrowed
+     the brand green to mean "live" or "on" turns blue until its primitive
+     migrates: the Live status pill and its pulse (target: `--success`),
+     checked checkboxes, radios and switches (target: the neutral fills and
+     the green track of §6.3), the Production environment pill, the current
+     rail item's bar and the wizard's current-step marker (target: §5.1 fills).
+   - Chart series drawn with `var(--brand-default)` in insights.js and
+     dashboard.js turn blue, which is the guideline's primary series colour.
+   - `--on-brand` is white, so `.btn-primary` reads white-on-blue at once.
+   - The three shadows are `none`; dialogs, menus and the readout lose their
+     lift until they get the frame and backdrop of §6.15.
+   - core.js keeps the rating ramp as five hex literals (`RAMP`) that
+     ratingColor() interpolates between, and the AI accent as one
+     (`AI_ACCENT`). They are not tokens: the ramp keeps its old colours until
+     those literals are changed to the `--rating-*` / `--ai` values below.
+   ========================================================================== */
+
+:root {
+  /* ---------- Neutral surfaces (§2.1) ---------- */
+  --background-200: #030303;   /* canvas: page, rail, top bar, footer, stat strip */
+  --background-100: #0f0f0f;   /* raised: cards, tables, dialogs, secondary buttons */
+  --surface-100: #171717;      /* inset: search inputs, empty states, hover on raised */
+  --surface-200: #1f1f1f;      /* pressed fill, pagination cells */
+  --surface-300: #262626;      /* scrollbar thumb; the strongest neutral fill */
+  --well: #000000;             /* inset well: settings panels, form fields, tab-strip band */
+  --band: #060606;             /* chart-card header, table category rows */
+  --panel: #0a0a0a;            /* drawer, card body under a header */
+
+  /* ---------- Borders ---------- */
+  --border-muted: #262626;     /* implied rules: card header, settings panel, message panel */
+  --border-default: #333333;   /* every default 1px border */
+  --border-strong: #404040;    /* tracks, toggle-off, emphasised rules */
+  --border-overlay: #333333;   /* overlays no longer lift by border */
+  --border-input: #797979;     /* form fields inside forms, drawers and dialogs */
+
+  /* ---------- Text (§2.2) ---------- */
+  --foreground-muted: #797979;     /* form labels, tertiary meta; the 4.5:1 floor */
+  --foreground-lighter: #a1a1a1;   /* descriptions, table headers, stat labels, inactive tabs */
+  --foreground-light: #d9d9d9;     /* paragraph copy, key-value labels */
+  --foreground-default: #f5f5f5;   /* titles, values, cells, labels — never #ffffff */
+
+  /* ---------- Brand = the action blue (§2.3) ---------- */
+  --brand-default: #005fec;
+  --brand-600: #004dcc;                        /* primary-button border, pressed */
+  --brand-400: rgba(8, 112, 255, 0.35);        /* focus, selected borders */
+  --brand-200: rgba(8, 112, 255, 0.12);        /* selected fills */
+  --on-brand: #ffffff;
+  --brand-gradient: linear-gradient(180deg, #2674f0 0%, #1169ee 50%, #005eec 100%);
+  --link: #0870ff;          /* links in prose (underlined), selected radio-card border */
+  --link-soft: #4693ff;     /* links in tables and on raised surfaces */
+  --link-action: #82b6ff;   /* text-only action buttons ("Enable", "+ Add"), link hover */
+
+  /* ---------- Semantic (§2.4) ----------
+     Alpha companions are re-based on their new base colour. */
+  --success: #00d492;                          /* Live dot, toggle; the one green */
+
+  --destructive: #ec2527;
+  --destructive-400: rgba(236, 37, 39, 0.35);
+  --destructive-200: rgba(236, 37, 39, 0.12);
+  --destructive-fg: #fe9f97;
+
+  --warning: #f0b620;
+  --warning-400: rgba(240, 182, 32, 0.35);
+  --warning-200: rgba(240, 182, 32, 0.12);
+  --warning-fg: #f6c75a;
+
+  --info: #4693ff;
+  --info-400: rgba(70, 147, 255, 0.35);
+  --info-200: rgba(70, 147, 255, 0.12);
+  --info-fg: #82b6ff;
+
+  --ai: #7367e5;                               /* machine inference only (FR-91) */
+  --ai-400: rgba(115, 103, 229, 0.35);
+  --ai-200: rgba(115, 103, 229, 0.12);
+  --ai-fg: #a9a2f0;
+
+  /* ---------- Rating ramp (§2.4), normalised to any scale (FR-79 / FR-89) ---------- */
+  --rating-1: #ff6467;
+  --rating-2: #f76b15;
+  --rating-3: #f0b620;
+  --rating-4: #7cc47f;
+  --rating-5: #00d492;                         /* shares the status green: "as good as it gets" */
+
+  /* ---------- Elevation (§4): none. Overlays separate by frame and backdrop. ---------- */
+  --shadow-1: none;
+  --shadow-2: none;
+  --shadow-3: none;
+
+  /* ---------- Chrome (§5) ---------- */
+  --rail-w: 260px;                 /* expanded sidebar */
+  --rail-w-collapsed: 56px;        /* 55px + 1px border */
+  --rail-item: 32px;               /* collapsed rail item square */
+  --bar-h: 58px;                   /* top bar; also the tab strip */
+  --strip-h: 76px;                 /* stat strip on detail pages */
+  --foot-h: 72px;                  /* wizard footer bar */
+  --site-foot-h: 60px;             /* site footer */
+  --content-max: 1352px;           /* dashboard / metrics pages */
+  --content-list: 1024px;          /* list pages */
+  --content-form: 800px;           /* single-form pages */
+  --content-settings: 954px;       /* 187px sub-nav + 27px + 740px content */
+
+  /* ---------- Control heights (§4) ---------- */
+  --control-sm: 30px;              /* dialog, drawer and form footers; in-card buttons */
+  --control-md: 38px;              /* toolbars, filters, icon buttons, search, pagination */
+  --control-lg: 42px;              /* page-header actions */
+}
+
+/* --------------------------------------------------------------------------
+   Tokens the guideline defines outside the §10.1 remap table (§2–§6). None of
+   them is referenced by supabase.css yet, so they are inert until the
+   primitives migrate; they exist so the migration can reference a token
+   rather than a literal.
+   -------------------------------------------------------------------------- */
+:root {
+  /* Text extras (§2.2) */
+  --foreground-placeholder: #777777;
+  --foreground-disabled: #595959;
+  --fill-muted: #595959;                       /* checked checkbox fill */
+
+  /* Button extras (§6.1) */
+  --brand-disabled: #425d81;                   /* flat, no gradient */
+  --destructive-gradient: linear-gradient(180deg, #f03c37 0%, #e90817 100%);
+  --destructive-disabled: #7b211e;
+  --destructive-icon: #ff6467;                 /* trash icons */
+  --neutral-button: #999999;                   /* filled Cancel in footers */
+  --on-neutral-button: #0a0a0a;
+  --focus-ring: #4693ff;                       /* 2px outline, 2px offset, everywhere */
+
+  /* Toggle on (§6.3) */
+  --success-track: #1a6535;
+  --success-knob: #55d484;
+
+  /* Shell extras (§5) */
+  --topbar-border: #252525;                    /* softer than the rail edge, deliberately */
+  --tabgroup-bg: #0b0b0b;
+  --tabgroup-border: #1c1c1c;
+
+  /* Overlays (§6.15) */
+  --backdrop: rgba(10, 10, 10, 0.85);
+  --frame: #080808;                            /* 5px dialog frame */
+
+  /* Charts (§6.19) */
+  --chart-grid: #2b2d2e;                       /* 1px dashed */
+  --chart-axis: #9da3af;                       /* axis labels; a cool grey outside the ramp */
+  --chart-0: #848589;                          /* "Total" series */
+  --chart-1: #4390f0;                          /* primary series */
+  --chart-2: #f0b620;
+  --chart-3: #e7639d;
+
+  /* Code (§6.2, §6.21) */
+  --code-bg: #313131;
+  --code-field-bg: #232628;
+  --code-accent: #52a2ff;
+
+  /* Type scale (§3) */
+  --fs-title: 30px;        /* page title */
+  --fs-section: 24px;      /* section title, stat value, empty-state title */
+  --fs-title-sm: 20px;     /* compact page title, drawer and form titles */
+  --fs-card: 18px;         /* card and form-dialog titles */
+  --fs-lg: 16px;           /* heading small, eyebrow, body large */
+  --fs-body: 14px;         /* body, UI label */
+  --fs-sm: 13px;           /* small, table headers, sub-nav */
+  --fs-xs: 12px;           /* caption, form labels, legend, axis */
+  --fw-body: 400;
+  --fw-label: 500;
+  --fw-title: 600;
+  --lh-title: 1.2;
+  --lh-body: 1.5;
+  --tracking-title: -0.02em;      /* 30px */
+  --tracking-title-sm: -0.01em;   /* 20–24px */
+}
