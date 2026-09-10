@@ -7,6 +7,18 @@
   <meta name="description" content="InsightHub feedback campaign builder — campaign dashboard." />
   <link rel="stylesheet" href="assets/css/supabase.css" />
   <link rel="stylesheet" href="assets/css/tokens-cloudflare.css" />
+  <link rel="stylesheet" href="assets/css/motion-kumo.css" />
+  <!-- The theme, before the first paint. The modules below settle it too, but
+       they are deferred: a light-mode reader would see the dark canvas for the
+       frames until they run. Reads the same key store.js persists to; kept
+       inline and tiny because a separate file would be one more round trip in
+       front of the paint it exists to protect. -->
+  <script>
+    try {
+      var s = JSON.parse(localStorage.getItem('insighthub.prototype.v2') || '{}');
+      if (s && s.theme === 'light') document.documentElement.dataset.theme = 'light';
+    } catch (e) { /* storage refused: the dark default in the tag above stands */ }
+  </script>
   <!-- Webfonts load non-blocking: a slow or unreachable CDN must never delay the
        page, and the stack below it (system-ui / ui-monospace) stands on its own. -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

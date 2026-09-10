@@ -10,7 +10,7 @@
    ========================================================================== */
 import {
   html, raw, esc, icon, $, $$, on, uid, count, relativeTime, dropdown, wireDropdowns,
-  confirmDestructive, dialog, toast, wireOnce, stepPanel, keepScroll, navigate,
+  confirmDestructive, dialog, drawer, toast, wireOnce, stepPanel, keepScroll, navigate,
 } from './core.js';
 import {
   store, createVariant, reconcileVariants, validateStep, furthestReachableStep,
@@ -886,9 +886,12 @@ async function openSegmentCreator() {
       toast('Nested groups', 'Available in the full rule builder; out of scope for this prototype.', 'warning'));
   };
 
-  const save = await dialog({
+  // §6.16 — a segment is a rule being edited, which is what the drawer is for.
+  // It was a `.dialog-lg`, and the form is unchanged; only the frame moved.
+  const save = await drawer({
     title: 'Create a segment',
-    size: 'dialog-lg',
+    description: 'Rules are evaluated when a campaign enrols, not when it is saved.',
+    docHref: '#segments',
     body: '',
     actions: [
       { label: 'Cancel', kind: 'outline', value: false },
@@ -1029,7 +1032,7 @@ function stepperHead(draft) {
              rather than two buttons that both save. -->
         <div class="push row t-xs fg-lighter" style="gap:6px">
           <span style="width:7px;height:7px;border-radius:50%;background:${raw(
-            draft.dirty ? 'var(--warning)' : 'var(--brand-default)')}"></span>
+            draft.dirty ? 'var(--warning)' : 'var(--success)')}"></span>
           ${draft.dirty ? 'Unsaved changes'
             : draft.lastSavedAt ? `Saved ${relativeTime(draft.lastSavedAt)}` : 'Nothing to save yet'}
         </div>

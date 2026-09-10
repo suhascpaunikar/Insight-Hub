@@ -18,8 +18,13 @@
 
 | Source of truth | **@cloudflare/kumo**, Cloudflare's own component library, installed in this repo. Where it and the screenshots disagree on a value, Kumo wins; where they disagree on a *composition* the screenshots plainly show, the screenshots win. §11. |
 
-**Not in scope:** light mode (values recorded in Appendix B for later), the assistant's
-orb and border beam, and content or copy changes.
+**Not in scope:** the assistant's orb and border beam, and content or copy changes.
+
+> **Two decisions have since been reversed, both deliberately.** Light mode was out of
+> scope and is now built — Appendix B. Motion was the previous system's scale carried
+> over, and §12 is now Kumo's, including the two overshoot curves the old rule 1 banned.
+> The title still says *dark* because dark is the default and every measurement here was
+> taken from a dark capture; the document covers both themes.
 
 > **§11 supersedes.** Sections 2–8 were measured from screenshots before Kumo was
 > available. Kumo confirmed almost all of it and corrected a handful of values; the
@@ -491,6 +496,14 @@ section's action right-aligned on the description's line — a text button ("Ena
 "+ Add" (16px plus + label, `#82b6ff`). Content (panel, table or message panel) 16px
 below. Sections are 32px apart.
 
+**Built** — `docsChip()` in `settings.js`, on six of the seven sections. "Prototype
+state" has none: it is this build's own scaffolding and there is nothing to document.
+
+The chip has its own token, `--docs-chip`, even though it holds the same `#7367e5` as
+`--ai`. FR-91 reserves the AI violet for machine inference — a violet element is a claim,
+never a measurement — and a link to a manual is neither. One value, two ideas; naming them
+apart is what lets the AI accent move later without dragging the chip with it.
+
 ### 6.8 Stat strip (detail pages)
 
 76px band under the tab strip: `#030303`, 1px `#333333` bottom border, 20px side
@@ -498,6 +511,17 @@ padding, content vertically centred. Each column: label 12px `#a1a1a1` + 14px �
 14px 600 `#f5f5f5` 6px below (a value may carry a 16px leading icon, e.g. "🌐 Enabled").
 Columns are content-sized with an 80px gap. Five columns fit 1440px; beyond five, drop
 the least important rather than shrink the gap.
+
+**Built** — `.statstrip`, owned by `chrome.js` via `setStrip()`, sitting between the tab
+strip and `#content` because it is chrome rather than page content.
+
+One reconciliation was needed. §6.8 asks for an 80px gap, which assumes the band is
+nothing but columns; §9.2 then puts the campaign's four actions at its right end. At
+1352px the two cannot both hold, so **the gap gives way rather than the actions** — 48px,
+with any column that would still overflow truncating and carrying its full text on the
+tooltip. With the rail collapsed the five columns and four buttons fit one row; with the
+sidebar expanded the band wraps to two and grows, which is why `--strip-h` is a
+`min-height` and not a `height`.
 
 ### 6.9 Stat card
 
@@ -563,6 +587,13 @@ drawn in the chart palette (§6.19). The card grows to 112px when it carries one
 outer border, 1px `#2b2b2b` inner rules, radius 6; current page cell `#171717` with 14px
 `#f5f5f5`; disabled arrows `#353535`. Compact variant (08.18.10): two cells only.
 
+**Built** — `.pager`, from `pager()` and `pageSlice()` in `core.js`. The group is drawn
+even when everything fits on one page, with the arrows disabled: a list that gains a
+control the moment it crosses a threshold reads as the layout jumping. The seeded list is
+seven campaigns against a page size of ten, so it renders in exactly the state this
+section describes. Every control that changes what the list *contains* resets to page one;
+paging itself is the only one that does not.
+
 ### 6.13 Pills, badges, dots
 
 | Kind | Spec |
@@ -617,6 +648,12 @@ rule. Body: 20px padding, form controls per §6.2–6.3, group headings 16px 600
 above. Footer: 72px, 1px `#303030` rule, neutral-filled Cancel + primary sm, right
 aligned, 12px gap. Use for editing a rule, a segment, an alert — anything that today
 opens a `.dialog-lg` with a form.
+
+**Built** — `drawer()` in `core.js`, same promise-returning shape as `dialog()` so a
+caller swaps one for the other by changing the word. The segment builder in `builder.js`
+was the `.dialog-lg` this section names and now opens here; the form is unchanged, only
+the frame moved. The response detail on Insights stays a dialog: it is a read-only view,
+not an edit.
 
 ### 6.17 Dropdown menu *(derived)*
 
@@ -1092,22 +1129,39 @@ documentation" — and, if the console is ever rebuilt in React, as the replacem
 | `.badge` | **Badge** | 18 variants; our Beta badge is its `beta`, our neutral its `outline` |
 | `.pill` (status) | **Badge** `outline` + a dot | Kumo has no status-dot pill; ours stays |
 | `.notice` | **Banner** | `default` / `alert` / `error` / `secondary`, base and sm |
-| `.table` | **Table** | Kumo stripes even rows (`elevated`); we keep flat rows, per the screenshots |
+| `.table` | **Table** | Kumo stripes even rows (`elevated`); **we keep flat rows** — settled, not open. See §11.4a |
 | `.tabs` / the shell's tab group | **Tabs** | `variant: segmented` is the group, `underline` the sub-tabs — exactly our two |
 | `.dd-menu` `.dd-item` | **DropdownMenu** | `variant: danger` for the destructive item |
 | `.dialog` | **Dialog** | sizes sm / base / lg / xl |
+| `.drawer` | **Sheet** *(none in the 48)* | Built per §6.16; composed from Dialog's frame and a side anchor |
 | `.toast` | **Toasty** | Rings the toast in its colour rather than tabbing one edge |
 | `.tip` / `.rail-tip` | **Tooltip** | `TooltipProvider` groups the open delay |
 | `.zero` | **Empty** | sizes sm / base / lg |
 | `.rail` / sidebar | **Sidebar** | `variant`: sidebar / floating / inset, with collapse built in |
 | `.crumbs` | **Breadcrumbs** | sizes sm (h-10) / base (h-12) |
-| pagination | **Pagination** | |
+| `.pager` | **Pagination** | Built per §6.12 |
 | `.bar-track` / `.bar-fill` | **Meter** | A measured value in a known range |
 | quick search | **CommandPalette** | What our ⌘K popover is a sketch of |
 | `.chart` and the metric plots | **Chart**, **TimeseriesChart** | ECharts underneath |
 | `.card` `.well` | **Surface**, **LayerCard** | |
 | `.skel` | *(none)* | Kumo has **Loader**, a spinner; skeletons stay ours |
 | the assistant card | *(none)* | Product-specific |
+
+### 11.4a Table striping — decided
+
+Kumo's `Table` stripes even rows with `elevated`. The screenshots show flat rows. This was
+listed as open in the handover; it is closed now, and the answer is **flat**.
+
+Two reasons, and the second is the one that matters. The screenshots are the compositional
+authority under §4, and they are unambiguous here. But beyond that, this product's tables
+already encode meaning with row background: `.table tbody tr[data-flash]` marks a restored
+row, hover fills a row, and the campaign list colours its rating cells on the ramp. A
+stripe is a background that means *nothing* — it is a reading aid — and putting one behind
+marks that do mean something makes the meaningful ones harder to see. The 56px two-line
+rows and the hairline between them already do the work a stripe would.
+
+If Kumo's own `Table` is ever adopted for real, pass it the unstriped variant rather than
+overriding the stripe in CSS.
 
 ### 11.5 How to adopt it
 
@@ -1134,77 +1188,138 @@ mirror it. The mirror is only defensible while it is complete.
 
 ## 12. Motion
 
-The repository already has a motion system, and it is good: one scale, an
-open/close asymmetry, delays used as intent gates, and a global reduced-motion block.
-This section is the console's version of it and supersedes `DESIGN.md` → *Motion*,
-which described the same scale for the Supabase-derived build.
+**Rewritten.** This section used to carry the scale the console inherited from the
+Supabase build — 120/180/320ms on `cubic-bezier(0.22, 0.61, 0.36, 1)`, with "nothing
+overshoots" as its first rule. That scale was never Cloudflare's; it was the previous
+system's, kept because the restyle had not yet looked at motion.
+
+It has now. §4 says **Kumo wins on values**, and Kumo has opinions about motion: a
+different base duration, a different ease-out curve, two overshoot curves, and five
+keyframes. Those are the values, so those are the values here.
+
+Tokens live in `assets/css/tokens-cloudflare.css`; the keyframes and the decision about
+where a bounce is allowed live in `assets/css/motion-kumo.css`, which loads third.
 
 ### 12.1 The scale
 
-| Token | Value | Used for |
-| --- | --- | --- |
-| `--motion-fast` | 120ms | Anything that only changes colour: hover, focus, a menu opening, a page leaving |
-| `--motion-base` | 180ms | Anything that moves or resizes a box: toasts, dialogs, the rail's width, arriving content |
-| `--motion-slow` | 320ms | A chart redrawing its whole series, and nothing else |
-| `--ease-out` | `cubic-bezier(0.22, 0.61, 0.36, 1)` | Everything. The system has no bounce. |
+| Token | Value | Source | Used for |
+| --- | --- | --- | --- |
+| `--motion-fast` | 100ms | Kumo `--default-transition-duration` | Anything that only changes colour: hover, focus, a menu opening, a page leaving |
+| `--motion-base` | 200ms | Tailwind `duration-200` | Anything that moves or resizes a box: toasts, dialogs, the rail's width, arriving content |
+| `--motion-slow` | 300ms | Tailwind `duration-300` | A chart redrawing its whole series, and nothing else |
+| `--motion-bounce` | 400ms | Kumo `.animate-bounce-in`, `.animate-toast-bump` | The three completions in §12.2 |
+| `--ease-out` | `cubic-bezier(0, 0, .2, 1)` | Kumo `--ease-out` | Everything that does not overshoot |
+| `--ease-bounce` | `cubic-bezier(0.2, 0, 0, 1.5)` | Kumo `--ease-bounce` | A selection landing |
+| `--ease-back` | `cubic-bezier(0.34, 1.56, 0.64, 1)` | Kumo, on both of its toast bumps | A toast arriving or re-firing |
+| `--shimmer-duration` | 1.5s | Kumo `.skeleton-line` | The skeleton sweep |
+| `--shimmer-duration-chart` | 1.8s | Kumo `.kumo-chart-shimmer` | The same sweep over a chart |
+| `--spin-duration` | 0.5s | Kumo `--animate-refresh` | A spinner |
+
+Kumo declares only the first duration; Tailwind's `duration-*` utilities supply the rest,
+which is why base and slow are that scale's next two steps rather than numbers invented
+here. The old scale's 120/180/320 were close enough to 100/200/300 that no screen needed
+re-tuning — only the curve visibly changed.
 
 ### 12.2 The rules
 
-1. **Nothing overshoots.** This is a console. A spring on a status pill reads as a bug,
-   not as polish.
-2. **Nothing loops** except while something is genuinely still happening. The only
-   perpetual animation in the product is the ring on a Live campaign's dot.
+Rule 1 is the one that changed. The other five are unchanged and still hold.
+
+1. **Overshoot marks a completion, and nothing else.** The old rule banned it outright.
+   Kumo does not: it ships `--ease-bounce`, a `bounce-in` that scales to 1.2, and a
+   back-out curve on both of its toast bumps. So the ban becomes a boundary. Exactly
+   three moments in this product overshoot, and they have one thing in common — something
+   the reader was waiting on has just finished:
+
+   | Moment | Animation |
+   | --- | --- |
+   | A wizard step completes: the badge trades its number for a check | Kumo's `bounce-in`, badge and check on one curve |
+   | A toast arrives, or re-fires while one is already up | `--ease-back` on the entrance; Kumo's `toast-bump` in place on a repeat |
+   | A rating is picked in the preview | `rate-mark` on `--ease-bounce` |
+
+   A hover has not finished anything. Neither has a menu opening, a row highlighting, a
+   rail expanding, or a status pill. None of them moves. **The original rule's real
+   target was a spring on a status pill, and that is still forbidden** — what has changed
+   is that "this is a console" is no longer an argument against motion that marks a
+   finish.
+2. **Nothing loops** except while something is genuinely still happening. The Live dot's
+   ring and the skeleton sweep are the only perpetual animations in the product.
 3. **Anything that animates in animates out.** A toast that slides in and then vanishes
-   on one frame reads as a glitch rather than a dismissal.
+   on one frame reads as a glitch rather than a dismissal. The drawer holds this too: it
+   travels back off its edge before the node goes.
 4. **A close is not an open played backwards.** Opening is an invitation and takes
    `--motion-base`; closing gets out of the way at `--motion-fast`, travelling less and
-   scaling less far. Dropdowns, dialogs and toasts all follow it.
+   scaling less far. Dropdowns, dialogs, drawers and toasts all follow it.
 5. **Delay is an intent gate, never padding.** A tooltip waits 80ms so a cursor crossing
-   the toolbar does not trail three of them. The collapsed rail waits 1.5s, because
-   there the tooltip *is* the label and the strip is eight items tall. Nothing waits
-   before leaving.
-6. **Motion is never the only carrier of a state change.** Every transition here
-   decorates something already legible in text, colour or position — which is what makes
-   the `prefers-reduced-motion` block at the foot of the stylesheet safe: it stills
-   travel, scale and loops, and the product loses nothing but the movement.
-7. **A stagger is a fraction of one duration, not a fixed per-item gap.** A flat gap
-   makes a gesture as long as the data is: at 24 columns an 8ms count reads as an edge
+   the toolbar does not trail three of them. The collapsed rail waits 1.5s, because there
+   the tooltip *is* the label and the strip is eight items tall. Nothing waits before
+   leaving.
+6. **Motion is never the only carrier of a state change.** Every transition here decorates
+   something already legible in text, colour or position — which is what makes the
+   reduced-motion blocks safe. There are now two, one per stylesheet: `motion-kumo.css`
+   loads after `supabase.css`, so its rules are out of reach of that file's block and are
+   stilled again at its own foot. **A new animation needs an entry in the block of the
+   file it was written in.**
+7. **A stagger is a fraction of one duration, not a fixed per-item gap.** A flat gap makes
+   a gesture as long as the data is: at 24 columns an 8ms count reads as an edge
    travelling across, at 7 columns it reads as the whole strip rising at once. One chart
-   is not allowed two entrances. The exception is a *list* of distribution bars, where
-   the row count is the answer rather than a framing of one series.
+   is not allowed two entrances. The exception is a *list* of distribution bars, where the
+   row count is the answer rather than a framing of one series.
 
-### 12.3 Where the `motion` library earns its place
+### 12.3 Kumo's keyframes
 
-`motion` (13.2.0, the library formerly published as Framer Motion) is installed. It is
-**not wired into the pages**, and that is deliberate: everything the console animates
-today is a transition between two states of one element, which is what CSS is for, and
-a 40KB runtime that re-implements it would be a dependency bought for nothing.
+All five are transcribed into `motion-kumo.css` and also exposed under Kumo's own class
+names — `.animate-bounce-in`, `.animate-toast-bump`, `.animate-clipboard-toast-bump`,
+`.animate-refresh` — so a component lifted from Kumo's docs animates correctly when it is
+pasted in, and so adopting Kumo's real components later is a deletion here rather than a
+translation.
+
+| Keyframe | Shape |
+| --- | --- |
+| `bounce-in` | scale .6 → 1.2 → 1, opacity 0 → 1 |
+| `toast-bump` | scale 1 → 1.02 → 1 |
+| `clipboard-toast-bump` | scale 1 → 1.04 → 1 |
+| `shimmer` | translateX −100% → 100% |
+| `refresh` | rotate 360° with scale .9 |
+
+`clipboard-toast-bump` is carried unused: there is no clipboard toast in this product yet,
+and it is two lines to keep rather than a decision to re-make.
+
+### 12.4 Where the `motion` library earns its place
+
+`motion` (13.2.0, the library formerly published as Framer Motion) is installed and
+**still not wired into the pages**. Everything the console animates is a transition
+between two states of one element, which is what CSS is for, and a 40KB runtime that
+re-implements it would be a dependency bought for nothing.
 
 Reach for it only where CSS genuinely cannot go:
 
 | Case | Why CSS cannot | What to use |
 | --- | --- | --- |
 | A row or card that must animate **between two positions in the DOM** — a reordered table, a card moving between columns | CSS transitions cannot interpolate a layout change | `animate()` with a FLIP measurement |
-| **Spring** physics, where the settle should depend on the distance travelled | `cubic-bezier` is fixed-duration | `spring()` — and only if rule 1 is being deliberately relaxed |
+| **Spring** physics, where the settle should depend on the distance travelled | `cubic-bezier` is fixed-duration | `spring()` |
 | **Scroll-linked** progress, where the position is the input rather than time | Scroll-driven animations are still uneven across browsers | `scroll()` |
 | **Sequenced** timelines with overlapping offsets | Keyframes cannot express one element waiting on another | `animate()` sequences |
 
-Prefer the `motion/mini` entry point when one of these does come up: it is a few
-kilobytes and covers `animate` on the Web Animations API.
+The spring row no longer carries "and only if rule 1 is being deliberately relaxed" —
+rule 1 now permits overshoot at a completion, and `--ease-bounce` covers that in CSS. A
+spring is still only worth the runtime where the settle must depend on distance travelled.
 
-Loading it here needs one decision, because the prototype has no bundler and
-`node_modules` is not committed. Either vendor the built ESM file into `assets/vendor/`
-and import it relatively — which keeps "clone it and open `index.html`" true — or add an
-import map to the four documents and require `pnpm install` first. Vendoring is the one
-that does not break the promise in the README.
+Loading it needs one decision, because the prototype has no bundler and `node_modules` is
+not committed. Vendor the built ESM into `assets/vendor/` and import it relatively, rather
+than adding an import map — that is the one that keeps "clone it and open `index.html`"
+true.
 
-### 12.4 What the colour change does to existing motion
+### 12.5 What the colour change did to existing motion
 
 Nothing structural. Four animated pieces referred to the emerald that is now the action
-blue, and each has moved to the colour its *meaning* calls for rather than following the
+blue, and each moved to the colour its *meaning* calls for rather than following the
 token: the Live pulse ring is green (`--success`), the tab marker and the current rail
-item take the blue, and the step-change marks in the builder stay neutral. The
-durations, easing and stagger arithmetic are untouched.
+item take the blue, and the step-change marks in the builder stay neutral. The stagger
+arithmetic is untouched.
+
+The skeleton sweep is the one piece the theme work changed: it was a literal
+`rgba(255,255,255,.045)`, which is invisible on a white card, and is now `--skel-sweep` —
+white on dark, black on light.
 
 
 ## Appendix A — measured anchors
@@ -1248,11 +1363,65 @@ Numbers a reviewer is most likely to challenge, with their source.
 | Content widths | 1321–1353 / 1025 / 800 / 954 (187 + 27 + 740) | 08.18.34, 08.19.19, 08.23.22, 08.19.31, 08.18.51 |
 | Type | title cap 22–23.5px → 30–32px; body cap 10.5px → 14px; small cap 9.5px → 13px; caption cap 9px → 12px | many |
 
-## Appendix B — light mode (recorded, not specified)
+## Appendix B — light mode
 
-From 06.39.55, for when a light theme is wanted: page, sidebar and bar `#fbfbfb`; cards
-`#ffffff`; card header band `#f9f9f9`; borders `#e3e3e3`; active nav item `#f3f3f3`;
-tab group `#f3f3f3` with the active tab `#ffffff`; text `#171717` / `#737373`; icons
-`#8a8a8a`; primary gradient `#3583ff → #0d70ff` with a `#055fde` edge. The expanded
-sidebar is 260px with the account switcher on row 1 and "Quick search ⌘K" on row 2. The
-neutral ramp is the dark ramp mirrored: black at the same opacities over white.
+**Built.** This appendix used to say "recorded, not specified", and the token file was
+dark-only on the stated grounds that the console has one theme. It now has two.
+
+Dark is still the default and still the theme every measurement in this document was
+taken from. Light is the alternate: `:root[data-theme="light"]` at the foot of
+`assets/css/tokens-cloudflare.css`, switched from **Settings → General → Appearance** and
+persisted as `store.state.theme`.
+
+### What was measured
+
+From 06.39.55: page, sidebar and bar `#fbfbfb`; cards `#ffffff`; card header band
+`#f9f9f9`; borders `#e3e3e3`; active nav item `#f3f3f3`; tab group `#f3f3f3` with the
+active tab `#ffffff`; text `#171717` / `#737373`; icons `#8a8a8a`; primary gradient
+`#3583ff → #0d70ff` with a `#055fde` edge. The expanded sidebar is 260px with the account
+switcher on row 1 and "Quick search ⌘K" on row 2. The neutral ramp is the dark ramp
+mirrored: black at the same opacities over white.
+
+### What had to be derived
+
+The appendix records surfaces, borders and text. It does not record the three palettes
+that carry meaning, because a dark-only build never had to ask. **A palette tuned to sit
+on `#030303` does not survive being dropped onto `#fbfbfb`** — the mid-greens and ambers
+that read clearly against near-black fall under 3:1 against white — so these were
+re-picked rather than reused:
+
+- **Semantic colours.** Each `-fg` is the text weight and clears 4.5:1 on a white card;
+  each base is the fill or the dot; each tint is the low-alpha wash behind a badge. The
+  toggle inverts: on dark the track was a dim green with a bright knob, on light the
+  track *is* the green and the knob is white.
+- **The rating ramp** (FR-79 / FR-89). Red barely moves. The amber and both greens move a
+  long way, because those are the stops that disappear. Order and spacing are unchanged,
+  so a colour still means on this theme what it means on the other — which is the whole
+  point of the ramp.
+- **The chart series** (§6.19). Same rule: the neutral and the amber move most.
+
+Two further derivations follow the *rule* of the dark theme rather than its values:
+
+- **The focus ring.** Kumo focuses with the highest-contrast neutral against the canvas.
+  On near-black that was near-white (`#e9e9e9`); on near-white it is near-black
+  (`#171717`). Same rule, read the other way.
+- **`--link`.** The appendix's gradient fill `#0d70ff` is about 3.6:1 on white, under the
+  floor for text. The edge colour `#055fde` clears it at 5.3:1, so links take the edge.
+
+### The two things that made it work
+
+- **`--skel-sweep`.** The skeleton sweep was a literal `rgba(255,255,255,.045)` in two
+  places and is the only colour in the stylesheets that a theme swap could not reach.
+  It is a token now.
+- **`readPalette()`** in `core.js`. The ramp and the AI accent are read *out of* the
+  tokens at boot and re-read on a theme change, because `ratingColor()` interpolates them
+  as literal colours into markup. A screen that has already painted holds the old
+  palette until it paints again, which is why the theme handler repaints.
+
+### No-flash boot
+
+Each document carries a five-line inline script in its `<head>` that reads
+`insighthub.prototype.v2` and stamps `data-theme="light"` before the first paint. Without
+it a light-mode reader sees the dark canvas for the frames until the deferred modules
+run. It duplicates the storage key in four files on purpose: a separate file would be one
+more round trip in front of the paint it exists to protect.

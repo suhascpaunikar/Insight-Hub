@@ -20,7 +20,7 @@ import {
   CONVERSION_FUNNEL, CONVERSION, HOLDOUT, OFFER, ANNOUNCE_VARIANTS,
   ANNOUNCE_AI_SUGGESTIONS,
 } from './data.js';
-import { setTabs, setCrumbs } from './chrome.js';
+import { setTabs, setCrumbs, setStrip } from './chrome.js';
 
 /**
  * FR-88 — the tab set belongs to the kind, not to the page. A feedback campaign
@@ -255,11 +255,11 @@ function wireChart(host) {
 
     tip.innerHTML = html`
       <div class="chart-tip-row">
-        <i style="background:var(--brand-default);opacity:.28"></i>
+        <i style="background:var(--chart-0)"></i>
         <span>Sent</span><b>${count(sends)}</b>
       </div>
       <div class="chart-tip-row">
-        <i style="background:var(--brand-default)"></i>
+        <i style="background:var(--chart-1)"></i>
         <span>${doneLabel} (${percent((done / sends) * 100, 1)})</span><b>${count(done)}</b>
       </div>
       <div class="chart-tip-foot">${col.dataset.date} · version ${col.dataset.version}</div>`;
@@ -373,9 +373,9 @@ function deliveryTab(c) {
           <h3 class="t-h2">Delivery over time</h3>
           <span class="row" style="gap:12px">
             <span class="row t-xs fg-lighter" style="gap:5px">
-              <span style="width:9px;height:9px;border-radius:2px;background:var(--brand-default);opacity:.35"></span>Sends</span>
+              <span style="width:9px;height:9px;border-radius:2px;background:var(--chart-0)"></span>Sends</span>
             <span class="row t-xs fg-lighter" style="gap:5px">
-              <span style="width:9px;height:9px;border-radius:2px;background:var(--brand-default)"></span>${doneLabel}</span>
+              <span style="width:9px;height:9px;border-radius:2px;background:var(--chart-1)"></span>${doneLabel}</span>
           </span>
         </div>
         <div class="card-body">
@@ -394,8 +394,8 @@ function deliveryTab(c) {
                   <span class="chart-col" data-date="${p.date}" data-sends="${p.sends}"
                         data-done="${p.done}" data-version="${p.version}">
                     <!-- The sends that never got there sit above the ones that did. -->
-                    <span class="chart-seg" style="height:${((p.sends - p.done) / plotTop) * CHART_H}px;background:var(--brand-default);opacity:.28"></span>
-                    <span class="chart-seg" style="height:${(p.done / plotTop) * CHART_H}px;background:var(--brand-default)"></span>
+                    <span class="chart-seg" style="height:${((p.sends - p.done) / plotTop) * CHART_H}px;background:var(--chart-0);opacity:.38"></span>
+                    <span class="chart-seg" style="height:${(p.done / plotTop) * CHART_H}px;background:var(--chart-1)"></span>
                   </span>`;
               })}
             </div>
@@ -657,7 +657,7 @@ function openResponseDetail(id) {
 function engagementTab(c) {
   const e = ENGAGEMENT;
   const outcomes = [
-    { label: 'Tapped', count: e.taps, color: 'var(--brand-default)',
+    { label: 'Tapped', count: e.taps, color: 'var(--chart-1)',
       note: 'Opened the app from the notification' },
     { label: 'Dismissed', count: e.dismissals, color: 'var(--foreground-muted)',
       note: 'Swiped away — a deliberate no' },
@@ -685,7 +685,7 @@ function engagementTab(c) {
               <div class="dist-row" style="grid-template-columns:78px 1fr 132px">
                 <span class="t-sm fg-light truncate">${r.label}</span>
                 <span class="bar-track">
-                  <span class="bar-fill" style="width:${(pctOf / 20) * 100}%;background:var(--brand-default)"></span>
+                  <span class="bar-fill" style="width:${(pctOf / 20) * 100}%;background:var(--chart-1)"></span>
                 </span>
                 <span class="row" style="justify-content:flex-end;gap:8px">
                   <span class="num t-xs fg-lighter">${count(r.taps)}</span>
@@ -785,7 +785,7 @@ function engagementTab(c) {
               <div class="dist-row" style="grid-template-columns:96px 1fr 116px">
                 <span class="mono t-xs fg-light">${t.bucket}</span>
                 <span class="bar-track">
-                  <span class="bar-fill" style="width:${(t.count / tapMax) * 100}%;background:var(--brand-default);opacity:.75"></span>
+                  <span class="bar-fill" style="width:${(t.count / tapMax) * 100}%;background:var(--chart-1);opacity:.75"></span>
                 </span>
                 <span class="row" style="justify-content:flex-end;gap:8px">
                   <span class="num t-sm">${count(t.count)}</span>
@@ -809,7 +809,7 @@ function engagementTab(c) {
               <div class="dist-row" style="grid-template-columns:1fr 96px 116px">
                 <span class="t-sm fg-light truncate">${d.label}</span>
                 <span class="bar-track">
-                  <span class="bar-fill" style="width:${(d.count / destMax) * 100}%;background:var(--brand-default);opacity:.75"></span>
+                  <span class="bar-fill" style="width:${(d.count / destMax) * 100}%;background:var(--chart-1);opacity:.75"></span>
                 </span>
                 <span class="row" style="justify-content:flex-end;gap:8px">
                   <span class="num t-sm">${count(d.count)}</span>
@@ -909,9 +909,9 @@ function feedbackImpactTab(c) {
                       <span class="row" style="justify-content:flex-end;gap:6px">
                         <span class="bar-track" style="width:52px;height:6px">
                           <span class="bar-fill" style="width:${(Math.abs(d.drag) / dragMax) * 100}%;
-                            background:${raw(d.drag > 0 ? 'var(--destructive)' : 'var(--brand-default)')}"></span>
+                            background:${raw(d.drag > 0 ? 'var(--destructive)' : 'var(--success)')}"></span>
                         </span>
-                        <span class="num t-sm" style="color:${raw(d.drag > 0 ? 'var(--destructive-fg)' : 'var(--brand-default)')}">
+                        <span class="num t-sm" style="color:${raw(d.drag > 0 ? 'var(--destructive-fg)' : 'var(--success-fg)')}">
                           ${d.drag > 0 ? '−' : '+'}${Math.abs(d.drag).toFixed(2)}
                         </span>
                       </span>
@@ -1094,7 +1094,7 @@ function announcementImpactTab(c) {
             </div>
             <div class="well">
               <span class="t-micro fg-muted">Lift</span>
-              <span class="num t-display" style="display:block;margin-top:2px;color:var(--brand-default)">+${percent(lift, 0)}</span>
+              <span class="num t-display" style="display:block;margin-top:2px;color:var(--success-fg)">+${percent(lift, 0)}</span>
             </div>
           </div>
           <div class="notice">
@@ -1167,7 +1167,7 @@ function announcementImpactTab(c) {
                   <div class="grid g3" style="margin-top:12px;gap:8px">
                     <span class="col" style="gap:0">
                       <span class="t-micro fg-muted">Tap-through</span>
-                      <span class="num t-h1" ${raw(ctr === ctrMax ? 'style="color:var(--brand-default)"' : '')}>${percent(ctr)}</span>
+                      <span class="num t-h1" ${raw(ctr === ctrMax ? 'style="color:var(--success-fg)"' : '')}>${percent(ctr)}</span>
                     </span>
                     <span class="col" style="gap:0">
                       <span class="t-micro fg-muted">Orders</span>
@@ -1361,6 +1361,7 @@ function paintInsights(host, { pending = false, entering = false } = {}) {
       </div></div></div>`;
     setCrumbs([{ label: 'Campaigns', href: 'index.html', icon: 'megaphone' }, { label: 'Not found' }]);
     setTabs(null);
+    setStrip(null);
     return;
   }
 
@@ -1392,43 +1393,23 @@ function paintInsights(host, { pending = false, entering = false } = {}) {
 
   host.innerHTML = html`
     <div class="page">
-      <!-- FR-86 — identity, state and the running context, with the actions. -->
-      <header class="row-between wrap" style="align-items:flex-start;gap:16px;
-             padding-bottom:18px;border-bottom:1px solid var(--border-default)">
-        <div style="min-width:0">
-          <!-- FR-86 — identity is the breadcrumb's job on a detail page (§9.2);
-               what is left here is the state the breadcrumb cannot carry. -->
-          <div class="row wrap" style="gap:10px">
-            <span class="pill" data-status="${c.status}"><span class="dot"></span>${c.status}</span>
-            <!-- The kind decides the tab set, so the reader is told which screen
-                 this is before the tabs surprise them. -->
-            <span class="badge tip" data-tip="${feedback
-              ? 'Collects answers — rating, follow-up questions, open text'
-              : 'Collects no answers — reach, engagement and what it converted'}"
-              >${KIND_LABEL[campaignKind(c)]}</span>
-            ${raw(c.versions > 1
-              ? `<span class="badge badge-mono">${icon('layers')}${c.versions} versions</span>` : '')}
-          </div>
-          <div class="kv" style="margin-top:6px">
-            <span class="mono">${c.campaignId}</span>
-            <span class="mono">${c.triggerLabel}</span>
-            ${raw(c.channel ? `<span>${esc(CHANNEL_LABEL[c.channel] || c.channel)}</span>` : '')}
-            <span>${c.audienceLabel}</span>
-            <span>${c.runningDates}</span>
-            <span class="mono">${count(volumeOf(c))} ${volumeLabel(c)}</span>
-          </div>
-        </div>
-        <div class="row wrap" style="gap:8px">
-          ${raw(isRunning || isPaused ? html`
-            <button class="btn btn-outline btn-sm" data-act="toggle-status">
-              ${raw(icon(isRunning ? 'pause' : 'play'))}${isRunning ? 'Pause' : 'Resume'}
-            </button>` : '')}
-          ${raw(isRunning || isPaused ? html`
-            <button class="btn btn-outline btn-sm" data-act="stop">${raw(icon('stop'))}Stop</button>` : '')}
-          <button class="btn btn-outline btn-sm" data-act="edit">${raw(icon('pencil'))}Edit</button>
-          <button class="btn btn-default btn-sm" data-act="export">${raw(icon('download'))}Export</button>
-        </div>
-      </header>
+      <!-- FR-86 — identity is the breadcrumb's job on a detail page, and the
+           five columns the reader checks first are the stat strip's (§9.2).
+           What is left here is the rest: the kind, which decides the tab set,
+           and the two facts that did not earn a column. -->
+      <div class="row wrap" style="gap:10px;align-items:center;
+           padding-bottom:16px;border-bottom:1px solid var(--border-default)">
+        <span class="badge tip" data-tip="${feedback
+          ? 'Collects answers — rating, follow-up questions, open text'
+          : 'Collects no answers — reach, engagement and what it converted'}"
+          >${KIND_LABEL[campaignKind(c)]}</span>
+        ${raw(c.versions > 1
+          ? `<span class="badge badge-mono">${icon('layers')}${c.versions} versions</span>` : '')}
+        <span class="kv">
+          <span class="mono">${c.campaignId}</span>
+          <span>${c.runningDates}</span>
+        </span>
+      </div>
 
       <!-- FR-92 — filters apply across all four tabs and persist between them. -->
       <div class="row wrap" style="gap:8px;margin:16px 0">
@@ -1476,6 +1457,37 @@ function paintInsights(host, { pending = false, entering = false } = {}) {
     onSelect: (key) => selectTab(host, key),
   });
 
+  // §6.8 / §9.2 — the five facts a reader checks before reading any panel, and
+  // the campaign's own actions. Five, not six: the spec says the sixth does not
+  // fit 1352px, so `Started` stays with the ID above the filters. Set on every
+  // paint, the skeleton's included, so the strip does not blink while a panel
+  // loads. The actions call the same handlers the header's buttons did — the
+  // strip is chrome and outside `#content`, so they route through `onAction`
+  // rather than the page's delegated clicks.
+  setStrip({
+    items: [
+      { label: 'Status',
+        value: `<span class="pill" data-status="${esc(c.status)}"><span class="dot"></span>${esc(c.status)}</span>` },
+      { label: 'Trigger', value: esc(c.triggerLabel), mono: true },
+      ...(c.channel ? [{ label: 'Channel', value: esc(CHANNEL_LABEL[c.channel] || c.channel) }] : []),
+      // The longest value on the strip by some way, and the one most likely to
+      // be cut — so it carries its own full text.
+      { label: 'Audience', value: esc(c.audienceLabel), hint: c.audienceLabel },
+      { label: volumeLabel(c)[0].toUpperCase() + volumeLabel(c).slice(1),
+        value: count(volumeOf(c)), mono: true },
+    ],
+    actions: [
+      ...(isRunning || isPaused
+        ? [{ key: 'toggle-status', label: isRunning ? 'Pause' : 'Resume',
+             glyph: icon(isRunning ? 'pause' : 'play') },
+           { key: 'stop', label: 'Stop', glyph: icon('stop') }]
+        : []),
+      { key: 'edit', label: 'Edit', glyph: icon('pencil') },
+      { key: 'export', label: 'Export', glyph: icon('download'), kind: 'default' },
+    ],
+    onAction: (key) => campaignActions[key]?.(host),
+  });
+
   // Only the panel fades up. The chrome above it never left.
   if (entering) $$('[data-enter]', host).forEach((node) => node.classList.add('lazy-in'));
 
@@ -1507,26 +1519,27 @@ function selectTab(host, key) {
   drawNext(host, () => renderInsights(host));
 }
 
-function wire(host) {
-  const rerender = () => renderInsights(host);
-  // Resolved per event, never captured — the row this page shows can change.
-  const c = () => campaign();
+/* ---------- Campaign actions ----------
+   Pause/Resume, Stop, Edit and Export. They used to be buttons in the page
+   header and were wired through `wire()`'s delegated clicks; §9.2 moves them to
+   the right end of the stat strip, which chrome.js owns and which sits outside
+   `#content`. So they are functions here rather than closures in `wire()`, and
+   the strip calls them by key.
 
-  on(host, 'change', '[data-act="filter"]', (e, el) => {
-    filters[el.dataset.key] = el.value;
-    redraw(host, rerender);
-  });
-
-  on(host, 'click', '[data-act="toggle-status"]', () => {
-    const next = c().status === 'Live' ? 'Paused' : 'Live';
-    store.setCampaignStatus(c().id, next);
+   Each takes the host it should repaint and resolves the campaign per call —
+   never captured, because the row this page shows can change under it. */
+const campaignActions = {
+  'toggle-status'(host) {
+    const c = campaign();
+    const next = c.status === 'Live' ? 'Paused' : 'Live';
+    store.setCampaignStatus(c.id, next);
     toast(next === 'Paused' ? 'Campaign paused' : 'Campaign resumed',
       next === 'Paused' ? 'Enrolment is held. Nothing already sent is affected.' : 'Rolling enrolment has resumed.');
-    rerender();
-  });
+    renderInsights(host);
+  },
 
   // FR-48 — the explicit manual stop a "Never" campaign needs.
-  on(host, 'click', '[data-act="stop"]', async () => {
+  async stop(host) {
     const ok = await dialog({
       title: 'Stop this campaign?',
       body: html`<p class="t-body fg-light">
@@ -1539,18 +1552,19 @@ function wire(host) {
       ],
     });
     if (!ok) return;
-    store.setCampaignStatus(c().id, 'Stopped');
+    store.setCampaignStatus(campaign().id, 'Stopped');
     toast('Campaign stopped', 'Enrolment has ended. Collected responses remain here.');
-    rerender();
-  });
+    renderInsights(host);
+  },
 
   // FR-87 — Edit routes back into the builder, warning that saving versions it.
-  on(host, 'click', '[data-act="edit"]', async () => {
+  async edit() {
+    const c = campaign();
     const ok = await dialog({
       title: 'Edit a live campaign?',
       body: html`<p class="t-body fg-light">
         This campaign stays editable while it runs. Saving any change to its content, audience or
-        schedule creates <strong>version ${c().versions + 1}</strong> and timestamps it — responses
+        schedule creates <strong>version ${c.versions + 1}</strong> and timestamps it — responses
         collected before and after are split at that boundary, so an edited question never blends
         two datasets into one series. Renaming a variant is exempt.</p>`,
       actions: [
@@ -1559,12 +1573,13 @@ function wire(host) {
       ],
     });
     if (!ok) return;
-    store.editCampaign(c().id);
+    store.editCampaign(c.id);
     navigate('builder.html');
-  });
+  },
 
   // FR-110 — the current filtered view exports with its filter state and wording.
-  on(host, 'click', '[data-act="export"]', () => {
+  export() {
+    const c = campaign();
     const active = Object.entries(filters).filter(([, v]) => v !== 'all').map(([k, v]) => `${k}=${v}`);
     dialog({
       title: 'Export this view',
@@ -1575,11 +1590,11 @@ function wire(host) {
         <ul class="stack-sm" style="margin-top:12px">
           ${[
             `Filter state: ${active.length ? active.join(' · ') : 'no filters applied'}`,
-            `Version boundaries across ${c().versions} version${c().versions === 1 ? '' : 's'}`,
-            isFeedback(c())
+            `Version boundaries across ${c.versions} version${c.versions === 1 ? '' : 's'}`,
+            isFeedback(c)
               ? 'Full question wording as configured at each version'
               : 'Creative, CTA labels and the attribution window as configured',
-            `Tab: ${currentTab(c())}`,
+            `Tab: ${currentTab(c)}`,
           ].map((line) => html`
             <li class="row-start t-sm fg-light">${raw(icon('check', 'fg-brand'))}<span>${line}</span></li>`)}
         </ul>`,
@@ -1588,6 +1603,17 @@ function wire(host) {
         { label: 'Download CSV', kind: 'primary', value: true },
       ],
     }).then((ok) => ok && toast('Export queued', 'A download link will arrive by email when it is ready.'));
+  },
+};
+
+function wire(host) {
+  const rerender = () => renderInsights(host);
+  // Resolved per event, never captured — the row this page shows can change.
+  const c = () => campaign();
+
+  on(host, 'change', '[data-act="filter"]', (e, el) => {
+    filters[el.dataset.key] = el.value;
+    redraw(host, rerender);
   });
 
   /* Responses tab */

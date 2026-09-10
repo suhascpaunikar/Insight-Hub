@@ -508,6 +508,12 @@ const PATHS = {
   info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
   left: '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
   right: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  /* Pagination's four arrows (§6.12). Chevrons rather than the arrows above:
+     a page step is a nudge through a sequence, not a navigation away. */
+  chevLeft: '<path d="m15 18-6-6 6-6"/>',
+  chevRight: '<path d="m9 18 6-6-6-6"/>',
+  first: '<path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/>',
+  last: '<path d="m13 17 5-5-5-5"/><path d="m6 17 5-5-5-5"/>',
   updown: '<path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/>',
   down: '<path d="m6 9 6 6 6-6"/>',
   up: '<path d="m18 15-6-6-6 6"/>',
@@ -616,12 +622,89 @@ export const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
 /* ---------- Rating ramp ----------
    FR-79 / FR-89 — one ramp, scaled to whichever rating element the campaign
    uses (star 1–5, NPS 1–5, NPS 1–10), so a colour reads identically on the
-   dashboard column, the distribution bars and the driver rows. */
-export const RAMP = ['#e5484d', '#f76b15', '#ffb224', '#7cc47f', '#3ecf8e'];
-/** Reserved for machine inference only — never a measurement (FR-91). */
-export const AI_ACCENT = '#a78bfa';
+   dashboard column, the distribution bars and the driver rows.
 
-const hexToRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+   The stylesheet owns these values, not this file. The ramp used to be
+   declared three times — once here and once in each stylesheet's `:root` —
+   with only this copy actually reaching the screen, because `ratingColor()`
+   interpolates the array directly. Two of the three were decorative.
+
+   CSS won the tie because the ramp is now theme-dependent: five stops tuned
+   to read on a near-black canvas are not the five that read on `#fbfbfb`, and
+   a `light-dark()` pair in the token file expresses that where a JS constant
+   cannot. So the tokens are the source and this module resolves them once the
+   document exists, then again whenever the theme changes. The literals below
+   are a fallback for the moment before the stylesheet has applied — and for
+   any consumer importing this module without a document. */
+const FALLBACK_RAMP = ['#ff6467', '#ff8904', '#ffac00', '#7cc47f', '#00d492'];
+const FALLBACK_AI = '#7367e5';
+
+/** Live bindings: `readPalette()` reassigns them and every importer sees it. */
+export let RAMP = [...FALLBACK_RAMP];
+/** Reserved for machine inference only — never a measurement (FR-91). */
+export let AI_ACCENT = FALLBACK_AI;
+
+/* Accepts what a custom property can actually hold. `getPropertyValue` returns
+   a custom property's substitution value as authored, so these are the hex
+   literals in the token file — but a hand-edited token could be `rgb()` or a
+   three-digit hex, and returning `null` for those would silently flatten the
+   ramp to one colour. Anything unparseable keeps the previous stop. */
+function parseColor(input) {
+  const s = String(input || '').trim();
+  const short = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i.exec(s);
+  if (short) return short.slice(1, 4).map((c) => parseInt(c + c, 16));
+  const long = /^#([0-9a-f]{6})$/i.exec(s);
+  if (long) return [0, 2, 4].map((i) => parseInt(long[1].slice(i, i + 2), 16));
+  const fn = /^rgba?\(([^)]+)\)$/i.exec(s);
+  if (fn) {
+    const parts = fn[1].split(/[\s,/]+/).filter(Boolean).slice(0, 3).map(Number);
+    if (parts.length === 3 && parts.every(Number.isFinite)) return parts;
+  }
+  return null;
+}
+
+/** Read `--rating-1..5` and `--ai` off the root element. Safe to call anytime. */
+export function readPalette() {
+  if (typeof document === 'undefined') return;
+  const cs = getComputedStyle(document.documentElement);
+  const ramp = FALLBACK_RAMP.map((fallback, i) => {
+    const token = cs.getPropertyValue(`--rating-${i + 1}`);
+    return parseColor(token) ? token.trim() : fallback;
+  });
+  RAMP = ramp;
+  const ai = cs.getPropertyValue('--ai');
+  AI_ACCENT = parseColor(ai) ? ai.trim() : FALLBACK_AI;
+}
+
+const hexToRgb = (h) => parseColor(h) || [128, 128, 128];
+
+/**
+ * Switch the document between the two themes and re-resolve everything that
+ * was read out of the tokens.
+ *
+ * The attribute is what the stylesheet keys off; `readPalette()` is what keeps
+ * the JS side honest, because the ramp and the AI accent differ between the
+ * themes and both are baked into markup as literal colours at render time.
+ * A caller that has already painted must repaint after this — the colours in
+ * the DOM are from the palette that was live when it ran.
+ */
+export function applyTheme(theme) {
+  const next = theme === 'light' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  readPalette();
+  return next;
+}
+
+/* Module scripts are deferred, so they run after the document is parsed and
+   after the blocking stylesheets in `<head>` have applied — the tokens are
+   readable by the time this line executes. The webfont link is deliberately
+   non-blocking and carries no colour, so it cannot race this.
+
+   The theme itself is already on the element: the inline script in each
+   document's <head> sets it before the first paint, because doing it here
+   would show a dark page for the frames before this module runs. This line
+   only has to read the palette that decision left in place. */
+readPalette();
 
 /** Normalise any score on `max` to the 1–5 ramp position, then interpolate. */
 export function ratingColor(value, max = 5) {
@@ -714,9 +797,32 @@ function toastHost() {
  * decide you meant it.
  */
 export function toast(title, description = '', kind = 'success', action = null) {
+  // Kumo's `.animate-toast-bump` exists for the case where a toast that is
+  // already up says the same thing again: the stack grows by a second
+  // identical card, which reads as two events when there was one. Bump the
+  // card that is already there instead. Only for the plain case — a toast
+  // carrying an action owns an undo that belongs to one specific deletion,
+  // so those never merge.
+  if (!action) {
+    const live = $$('.toasts .toast').find(
+      (el) => el.dataset.leaving !== 'true' && el.dataset.title === title);
+    if (live) {
+      // Cleared and re-set across a forced reflow so a third and fourth
+      // identical call each restart the animation. Under reduced motion the
+      // animation is `none` and `animationend` never fires, which is why the
+      // attribute is cleared here rather than only in the listener.
+      delete live.dataset.bump;
+      void live.offsetWidth;
+      live.dataset.bump = 'true';
+      live.addEventListener('animationend', () => { delete live.dataset.bump; }, { once: true });
+      return;
+    }
+  }
+
   const node = document.createElement('div');
   node.className = 'toast';
   node.dataset.kind = kind;
+  node.dataset.title = title;
   node.innerHTML = html`
     <div class="row-between">
       <div class="grow">
@@ -823,6 +929,80 @@ export function dialog({ title, body = '', actions = [], size = '', onMount } = 
 
 export function closeDialog() {
   if (openScrim) { openScrim.remove(); openScrim = null; }
+}
+
+/* ---------- Drawer (§6.16) ----------
+   Same promise as `dialog()` — a promise that resolves to the action's value,
+   or null if the reader dismissed it — so a caller swaps one for the other by
+   changing the word. What differs is the shape and what it means: a dialog
+   interrupts and must be answered, a drawer edits one thing beside work that
+   is still on screen.
+
+   Use it for editing a rule, a segment or an alert. A read-only detail is not
+   an edit and stays a dialog. */
+let openDrawer = null;
+
+export function closeDrawerNow() {
+  if (openDrawer) { openDrawer.remove(); openDrawer = null; }
+}
+
+export function drawer({ title, description = '', docHref = '', body = '', actions = [], onMount } = {}) {
+  return new Promise((resolve) => {
+    closeDrawerNow();
+    const scrim = document.createElement('div');
+    scrim.className = 'drawer-scrim';
+    scrim.innerHTML = html`
+      <aside class="drawer" role="dialog" aria-modal="true" aria-label="${title}">
+        <div class="drawer-head">
+          <h2 class="drawer-title">
+            <span>${title}</span>
+            <button class="btn btn-ghost btn-icon btn-sm" data-dismiss aria-label="Close">${raw(icon('x'))}</button>
+          </h2>
+          ${raw(description ? `<p class="drawer-desc">${esc(description)}</p>` : '')}
+          ${raw(docHref ? `<a class="drawer-doc" href="${esc(docHref)}" data-act="foot-stub"
+            >Documentation${icon('external')}</a>` : '')}
+        </div>
+        <div class="drawer-body" data-body>${raw(body)}</div>
+        <div class="drawer-foot">
+          ${raw(actions.map((a, i) =>
+            `<button class="btn btn-${a.kind || 'default'} btn-sm" data-i="${i}">${esc(a.label)}</button>`).join(''))}
+        </div>
+      </aside>`;
+    document.body.appendChild(scrim);
+    openDrawer = scrim;
+
+    // Anything that animates in animates out: the panel travels back off the
+    // edge before the node goes, so a cancel reads as a dismissal rather than
+    // as the panel blinking out. The promise settles immediately either way —
+    // the caller should not wait on an animation.
+    let closing = false;
+    const finish = (value) => {
+      if (closing) return;
+      closing = true;
+      resolve(value);
+      scrim.dataset.closing = 'true';
+      const done = () => { if (openDrawer === scrim) openDrawer = null; scrim.remove(); };
+      const panel = scrim.querySelector('.drawer');
+      let settled = false;
+      const once = () => { if (!settled) { settled = true; done(); } };
+      panel.addEventListener('animationend', once, { once: true });
+      // Reduced motion stills the exit, so `animationend` never arrives.
+      setTimeout(once, 400);
+    };
+
+    scrim.addEventListener('click', (e) => { if (e.target === scrim) finish(null); });
+    document.addEventListener('keydown', function onKey(e) {
+      if (e.key === 'Escape' && openDrawer === scrim) { document.removeEventListener('keydown', onKey); finish(null); }
+    });
+    scrim.querySelectorAll('[data-i]').forEach((btn) =>
+      btn.addEventListener('click', () => finish(actions[Number(btn.dataset.i)].value ?? true)));
+    scrim.querySelector('[data-dismiss]').addEventListener('click', () => finish(null));
+
+    if (onMount) onMount(scrim.querySelector('[data-body]'), finish);
+
+    const first = scrim.querySelector('[autofocus], input, select, textarea, button');
+    if (first) first.focus();
+  });
 }
 
 /** FR-3 / FR-34 — name what will be lost and require explicit confirmation. */
@@ -972,6 +1152,53 @@ export function wireDropdowns(root = document) {
  * where the reader is adjusting several things and closing after each one
  * would mean reopening after each one.
  */
+/* ---------- Pagination (§6.12) ----------
+   A count and a five-cell group: first, previous, the page readout, next,
+   last. Rendered from a total and a page size, so a caller only tracks which
+   page it is on.
+
+   The group is always drawn, even when everything fits on one page — the
+   arrows simply disable. That is what the dashboard does, and it means a list
+   does not gain a control the moment it crosses a threshold, which is the
+   version that reads as the layout jumping. */
+
+/** Slice `rows` for `page` (1-based), clamped so a filter that shortens the
+    list can never strand the reader on a page that no longer exists. */
+export function pageSlice(rows, page, size) {
+  const pages = Math.max(1, Math.ceil(rows.length / size));
+  const current = Math.min(Math.max(1, page), pages);
+  const from = (current - 1) * size;
+  return { rows: rows.slice(from, from + size), page: current, pages, from, total: rows.length };
+}
+
+/**
+ * `slice` is what `pageSlice` returned. `noun` names what is being counted.
+ * Buttons carry `data-page` with the page to go to, so one delegated handler
+ * covers all four.
+ */
+export function pager(slice, noun = 'items') {
+  const { page, pages, from, rows, total } = slice;
+  const shown = rows.length
+    ? `Showing ${count(from + 1)}\u2013${count(from + rows.length)} of ${count(total)}`
+    : `No ${esc(noun)}`;
+  const cell = (target, label, glyph, disabled) => `
+    <button class="pager-cell" data-page="${target}" aria-label="${esc(label)}"
+            ${disabled ? 'disabled' : ''}>${icon(glyph)}</button>`;
+
+  return `
+    <nav class="pager" aria-label="Pagination">
+      <span class="pager-count">${shown}</span>
+      <div class="pager-group">
+        ${cell(1, 'First page', 'first', page === 1)}
+        ${cell(page - 1, 'Previous page', 'chevLeft', page === 1)}
+        <span class="pager-cell pager-page" aria-current="page"
+              aria-label="Page ${page} of ${pages}">${page}</span>
+        ${cell(page + 1, 'Next page', 'chevRight', page === pages)}
+        ${cell(pages, 'Last page', 'last', page === pages)}
+      </div>
+    </nav>`;
+}
+
 export function dropdown({
   trigger, label, items, align = 'end',
   triggerClass = 'btn btn-default btn-sm', dismissOnSelect = false,

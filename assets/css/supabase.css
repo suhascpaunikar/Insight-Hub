@@ -373,6 +373,39 @@ img { max-width: 100%; }
   padding: 14px var(--sp-lg); border-top: 1px solid var(--border-default);
   background: var(--background-200); border-radius: 0 0 var(--radius-md) var(--radius-md);
 }
+/* Pagination (§6.12): the count on the left, then a five-cell button group —
+   first, previous, the page itself, next, last. The cells share one border
+   rather than each carrying their own, so the group reads as a single control:
+   an outer 1px frame with 1px inner rules drawn as left borders on every cell
+   but the first. */
+.pager {
+  display: flex; align-items: center; justify-content: flex-end; gap: 20px;
+  flex-wrap: wrap; margin-top: 40px;
+}
+.pager-count { font-size: var(--fs-sm); color: var(--foreground-lighter); }
+.pager-group {
+  display: inline-flex; align-items: center; height: 38px;
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+  background: var(--surface-100); overflow: hidden;
+}
+.pager-cell {
+  display: grid; place-items: center; width: 43px; align-self: stretch;
+  border-left: 1px solid var(--border-muted);
+  font-size: var(--fs-body); color: var(--foreground-lighter);
+  transition: background-color var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out);
+}
+.pager-cell:first-child { border-left: 0; }
+.pager-cell:hover:not(:disabled) { background: var(--surface-200); color: var(--foreground-default); }
+.pager-cell:disabled { color: var(--foreground-disabled); cursor: not-allowed; }
+/* The page number is not a button — it is the group's readout, and styling it
+   as one would invite a click that does nothing. */
+.pager-page {
+  background: var(--background-100); color: var(--foreground-default);
+  font-variant-numeric: tabular-nums;
+}
+.pager-cell svg { width: 15px; height: 15px; }
+
 .well {
   background: var(--well); border: 1px solid var(--border-muted);
   border-radius: var(--radius-md); padding: var(--sp-lg);
@@ -446,6 +479,11 @@ img { max-width: 100%; }
    place the "never tint" rule does not hold, and the reason it is stated as
    an exception in §8 rather than left as a contradiction. */
 .notice-danger { background: var(--destructive-200); border-color: transparent; color: var(--destructive-fg); }
+/* The icon runs a step brighter than the copy beside it: on the danger tint the
+   body text is already at the edge of comfortable, and the glyph is what makes
+   the notice readable as a category before any of it is read. */
+.notice-danger svg { color: var(--destructive-icon, var(--destructive-fg)); }
+.dd-item[data-tone="danger"] svg { color: var(--destructive-icon, var(--destructive-fg)); }
 .notice-warning { background: var(--warning-200); border-color: transparent; color: var(--warning-fg); }
 .notice-info { background: var(--info-200); border-color: transparent; color: var(--info-fg); }
 .notice-ai { background: var(--ai-200); border-color: transparent; color: var(--ai-fg); }
@@ -616,6 +654,78 @@ img { max-width: 100%; }
 }
 @keyframes fade { from { opacity: 0; } }
 @keyframes pop { from { opacity: 0; transform: translateY(6px) scale(.99); } }
+
+/* ---------- Drawer (§6.16) ----------
+   400px in from the right for editing one thing — a rule, a segment, an alert.
+   The distinction from a dialog is what the shape says: a dialog interrupts and
+   has to be answered, a drawer is a side panel over work that is still there.
+   So it starts under the top bar rather than over it, and the rail stays
+   uncovered: the reader can see where they still are.
+
+   Same column construction as the dialog, and for the same reason — the head
+   and the foot hold their place while only the body scrolls. */
+.drawer-scrim {
+  position: fixed; inset: var(--bar-h) 0 0 0; z-index: 100;
+  background: var(--backdrop);
+  animation: fade var(--motion-fast) var(--ease-out);
+}
+.drawer {
+  position: absolute; top: 0; right: 0; bottom: 0;
+  display: flex; flex-direction: column;
+  width: 400px; max-width: 100%;
+  background: var(--panel); border-left: 1px solid var(--border-strong);
+  animation: drawer-in var(--motion-base) var(--ease-out);
+}
+/* Travels rather than fades: where it came from is the whole point of the
+   shape. Out at --motion-fast and over a shorter distance — a close gets out
+   of the way, it is not an open played backwards. */
+@keyframes drawer-in { from { transform: translateX(100%); } }
+@keyframes drawer-out { to { transform: translateX(20%); opacity: 0; } }
+.drawer-scrim[data-closing="true"] { animation: fade var(--motion-fast) var(--ease-out) reverse; }
+.drawer-scrim[data-closing="true"] .drawer { animation: drawer-out var(--motion-fast) var(--ease-out) forwards; }
+
+.drawer-head { flex: none; padding: var(--sp-xl); border-bottom: 1px solid var(--border-default); }
+.drawer-title {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-md);
+  font-size: var(--fs-title-sm); font-weight: var(--fw-title); line-height: var(--lh-title);
+  letter-spacing: var(--tracking-title-sm); color: var(--foreground-default);
+}
+.drawer-desc {
+  margin-top: var(--sp-sm); font-size: var(--fs-body); line-height: var(--lh-body);
+  color: var(--foreground-lighter); max-width: 46ch;
+}
+.drawer-doc {
+  display: inline-flex; align-items: center; gap: 5px; margin-top: var(--sp-md);
+  font-size: var(--fs-body); color: var(--link); text-decoration: underline;
+}
+.drawer-doc svg { width: 14px; height: 14px; }
+.drawer-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 20px; }
+/* A group heading inside a drawer, per §6.16 — 24px of air above it, and none
+   above the first, which already has the head's rule over it. */
+.drawer-group {
+  margin-top: var(--sp-xl); font-size: var(--fs-lg); font-weight: var(--fw-title);
+  color: var(--foreground-default);
+}
+.drawer-body > .drawer-group:first-child { margin-top: 0; }
+.drawer-foot {
+  display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-md);
+  flex: none; min-height: var(--foot-h); padding: var(--sp-md) 20px;
+  border-top: 1px solid var(--border-default); background: var(--background-200);
+}
+
+/* Below the drawer's own width there is nothing to sit beside, so it takes the
+   screen and the distinction from a dialog stops being worth drawing. */
+@media (max-width: 560px) {
+  .drawer-scrim { inset: 0; }
+  .drawer { width: 100%; border-left: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer-scrim, .drawer,
+  .drawer-scrim[data-closing="true"],
+  .drawer-scrim[data-closing="true"] .drawer { animation: none; }
+  .drawer-scrim[data-closing="true"] { opacity: 0; }
+}
 
 /* ---------- Toast ---------- */
 .toasts { position: fixed; z-index: 200; right: var(--sp-lg); bottom: var(--sp-lg); display: flex; flex-direction: column; gap: 8px; width: 340px; }
@@ -935,6 +1045,55 @@ a.crumb:hover { color: var(--foreground-default); }
   background: transparent; color: var(--link-soft, #4693ff); font-size: 11px; letter-spacing: 0;
 }
 
+/* The stat strip (§6.8): the band under the tab strip on a detail page,
+   carrying the state the breadcrumb cannot — status, trigger, channel,
+   audience, volume — with the campaign's own actions at the right end.
+
+   It is chrome rather than content, so it sits between the tab strip and
+   `.content` and is owned by chrome.js. `--strip-h` is a minimum, not a fixed
+   height: at narrow widths the columns wrap and the band grows rather than
+   clipping a value. */
+.statstrip {
+  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+  flex: none; min-height: var(--strip-h); padding: 12px 20px;
+  background: var(--background-200); border-bottom: 1px solid var(--border-default);
+}
+.statstrip-cols {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 16px 48px; min-width: 0;
+}
+/* §6.8 asks for an 80px gap, which assumes the band is nothing but columns.
+   §9.2 then puts the campaign's four actions at its right end, and the two
+   cannot both hold at 1352px — so the gap gives way rather than the actions,
+   and a column that would still overflow truncates with its full text on the
+   tooltip. The alternative, letting the band wrap to two rows, moves the
+   content below it every time a value changes length. */
+.statstrip-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; max-width: 260px; }
+.statstrip-label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: var(--fs-xs); line-height: 1; color: var(--foreground-lighter); white-space: nowrap;
+}
+.statstrip-label svg { width: 14px; height: 14px; color: var(--foreground-muted); }
+.statstrip-value {
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+  font-size: var(--fs-body); font-weight: var(--fw-title); line-height: 1.2;
+  color: var(--foreground-default); white-space: nowrap;
+}
+.statstrip-value .truncate { min-width: 0; }
+.statstrip-value svg { width: 16px; height: 16px; color: var(--foreground-lighter); }
+/* A value that is an identifier or a figure is monospaced, so the strip's
+   numbers line up with the same values wherever else they are printed. */
+.statstrip-value.mono { font-family: var(--font-mono); font-weight: var(--fw-label); }
+/* The status pill brings its own height; it must not stretch the row. */
+.statstrip-value .pill { font-weight: var(--fw-label); }
+.statstrip-acts { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; flex: none; }
+
+/* Below the point where five columns and four buttons stop fitting, the
+   actions drop under the columns rather than the columns shrinking — a
+   truncated audience label is worse than a taller band. */
+@media (max-width: 1100px) {
+  .statstrip { flex-direction: column; align-items: flex-start; gap: 12px; }
+}
+
 /* The site footer (§5.7). */
 .site-foot {
   display: flex; align-items: center; justify-content: center; gap: 20px; flex: none;
@@ -1194,7 +1353,27 @@ a.crumb:hover { color: var(--foreground-default); }
    screen of four groups still has one obvious first line. */
 .section-head { margin: var(--sp-xxl) 0 var(--sp-lg); }
 .section-head:first-child { margin-top: 0; }
-.section-head h2 { font-size: var(--fs-lg); font-weight: var(--fw-title); line-height: 1.4; }
+.section-head h2 {
+  display: flex; align-items: center; gap: var(--sp-md);
+  font-size: var(--fs-lg); font-weight: var(--fw-title); line-height: 1.4;
+}
+
+/* The documentation chip (§6.7): a 30×20 violet pill beside a section title,
+   linking out to the docs for that section.
+
+   It has its own token rather than reading `--ai`, even though the two hold
+   the same hex today. FR-91 reserves the AI violet for machine inference — a
+   violet element is a claim, never a measurement — and a link to a manual is
+   neither. One value, two ideas: naming them apart is what lets the AI accent
+   move later without dragging the chip with it. */
+.docs-chip {
+  display: inline-grid; place-items: center; flex: none; width: 30px; height: 20px;
+  background: var(--docs-chip, #7367e5); border-radius: var(--radius-full);
+  color: #ffffff;
+  transition: opacity var(--motion-fast) var(--ease-out);
+}
+.docs-chip:hover { opacity: .85; }
+.docs-chip svg { width: 12px; height: 12px; }
 .section-head p { margin-top: 8px; max-width: 62ch; font-size: var(--fs-body); line-height: var(--lh-body); color: var(--foreground-light); }
 
 /* ---------- Icon tile ----------
@@ -1488,7 +1667,7 @@ a.crumb:hover { color: var(--foreground-default); }
    travel together — one pass across the section, not twenty out of step. */
 .skel::after {
   content: ""; position: absolute; inset: 0; transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.045), transparent);
+  background: linear-gradient(90deg, transparent, var(--skel-sweep, rgba(255, 255, 255, 0.045)), transparent);
   animation: skel-sweep 1.4s ease-in-out infinite;
 }
 @keyframes skel-sweep { to { transform: translateX(100%); } }

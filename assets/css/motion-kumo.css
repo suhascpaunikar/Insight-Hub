@@ -1,0 +1,157 @@
+/* ==========================================================================
+   InsightHub — Kumo's motion
+
+   Load LAST, after supabase.css and tokens-cloudflare.css:
+
+     <link rel="stylesheet" href="assets/css/supabase.css" />
+     <link rel="stylesheet" href="assets/css/tokens-cloudflare.css" />
+     <link rel="stylesheet" href="assets/css/motion-kumo.css" />
+
+   The durations and curves are tokens and live in tokens-cloudflare.css with
+   the rest of them. This file is the part that is not a value: the keyframes
+   Kumo ships, and the decision about which of this product's moments earn the
+   two overshoot curves.
+
+   **This supersedes the "nothing overshoots" rule.** The console inherited a
+   scale from the Supabase build whose first rule was that a spring on a status
+   pill reads as a bug. Kumo disagrees — it ships `--ease-bounce`
+   (`cubic-bezier(0.2, 0, 0, 1.5)`), a back-out curve on both of its toast
+   bumps, and a `bounce-in` that scales to 1.2 — and §4 of the guideline says
+   Kumo wins on values. So the rule is narrowed rather than dropped: overshoot
+   marks a *completion*, and nothing else. See §12 of
+   docs/ui-guidelines-cloudflare-dark.md for where the line now sits.
+
+   Everything the old rule set said that was not about overshoot still holds:
+   anything that animates in animates out, a close is not an open played
+   backwards, delay is an intent gate, and motion is never the only carrier of
+   a state change — which is what keeps the reduced-motion block at the foot of
+   this file honest.
+
+   Keyframes are Kumo's own, transcribed from
+   node_modules/@cloudflare/kumo/dist/styles/kumo-binding.css (2.13.2).
+   ========================================================================== */
+
+/* ---------- Kumo's keyframes, verbatim ---------- */
+@keyframes bounce-in {
+  0%   { opacity: 0; transform: scale(0.6); }
+  50%  { opacity: 1; transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+@keyframes toast-bump {
+  0%   { transform: scale(1); }
+  20%  { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+@keyframes clipboard-toast-bump {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+@keyframes refresh {
+  to { transform: rotate(360deg) scale(0.9); }
+}
+
+/* ---------- Kumo's utility classes, under Kumo's names ----------
+   Nothing in this repo needs them to be called this. They carry Kumo's names
+   so a component lifted from Kumo's docs animates correctly when it is pasted
+   in, and so the eventual move onto Kumo's own components is a deletion here
+   rather than a translation. */
+.animate-bounce-in { animation: bounce-in var(--motion-bounce) var(--ease-out); }
+.animate-toast-bump { animation: toast-bump var(--motion-bounce) var(--ease-back); transform-origin: center; }
+.animate-clipboard-toast-bump { animation: clipboard-toast-bump 350ms var(--ease-back); transform-origin: center; }
+.animate-refresh { animation: var(--animate-refresh); }
+
+/* ==========================================================================
+   Where this product overshoots
+
+   Three moments, and they have one thing in common: something the user was
+   waiting on has just finished. A hover has not finished anything, a menu
+   opening has not finished anything, and neither of them moves here.
+   ========================================================================== */
+
+/* 1. A wizard step completes. The badge trades its number for a check, which
+      is the single clearest "that is done" in the product, and it is the one
+      Kumo's own `bounce-in` was written for — a badge arriving at a count.
+      The check inside it pops on the same curve a beat later, so the two read
+      as one event rather than as a scale and then a fade. */
+.step[data-changed="complete"] .step-num {
+  animation: bounce-in var(--motion-bounce) var(--ease-out);
+}
+.step[data-changed="complete"] .step-num svg {
+  animation: bounce-in var(--motion-bounce) var(--ease-out) both;
+}
+
+/* 2. A toast arrives. Kumo bumps its toasts on the back-out curve rather than
+      easing them; the travel stays the existing 14px slide, because a toast
+      that scaled up from nothing would fight the stack it lands in. The curve
+      is the whole change. */
+.toast {
+  animation: slidein var(--motion-base) var(--ease-back);
+}
+/* A toast that fires again while one is already up bumps in place instead of
+   re-entering — Kumo's `.animate-toast-bump`, which is what it is for. JS sets
+   the attribute; the animation clears it. */
+.toast[data-bump="true"] {
+  animation: toast-bump var(--motion-bounce) var(--ease-back);
+  transform-origin: center;
+}
+
+/* 3. A rating is picked in the preview. A selection landing is a completion,
+      and this is the only mark in the product that answers a tap directly. */
+.rate-btn.is-on,
+.star-btn.is-on {
+  animation: rate-mark var(--motion-bounce) var(--ease-bounce);
+}
+
+/* ==========================================================================
+   Kumo's loading motion
+
+   Both of these loop, which the rules allow only while something is genuinely
+   pending — and a skeleton is the definition of pending.
+   ========================================================================== */
+
+/* Kumo runs the skeleton sweep at 1.5s and paints it at .05 white on dark;
+   the inherited sweep was 1.4s at .045. Close enough that nothing looks
+   different, and now it is one number with a source. */
+.skel::after {
+  animation: shimmer var(--shimmer-duration) ease-in-out infinite;
+  background: linear-gradient(90deg, transparent 0%, var(--skel-sweep) 50%, transparent 100%);
+}
+
+/* A chart's skeleton is slower than a row's, because the shape behind it is
+   static and a fast wave over a still plot reads as the plot flickering. */
+.chart .skel::after,
+.metric-plot .skel::after {
+  animation-duration: var(--shimmer-duration-chart);
+}
+
+/* ==========================================================================
+   Reduced motion
+
+   This file loads after supabase.css, so its own reduced-motion block cannot
+   reach these rules — they have to be stilled again here. Every one of them
+   decorates a change that is already legible without it: the step badge still
+   becomes a check, the toast still appears, the skeleton still holds the
+   layout. Nothing is lost but the movement.
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .animate-bounce-in,
+  .animate-toast-bump,
+  .animate-clipboard-toast-bump,
+  .animate-refresh,
+  .step[data-changed="complete"] .step-num,
+  .step[data-changed="complete"] .step-num svg,
+  .toast,
+  .toast[data-bump="true"],
+  .rate-btn.is-on,
+  .star-btn.is-on,
+  .skel::after {
+    animation: none;
+  }
+  /* `both` on the check's fill-mode left it at the keyframe's opacity 0. */
+  .step[data-changed="complete"] .step-num svg { opacity: 1; transform: none; }
+}

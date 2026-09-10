@@ -74,6 +74,58 @@ export function applyTabs() {
   if (dock) dock.update();
 }
 
+/* ---------- Stat strip ----------
+   Same contract as the tab strip, and for the same reason: the page describes
+   the columns, the shell owns the band, and a shell repaint can put it back
+   without waiting for the page to paint again (§6.8). */
+let stripSpec = null;
+
+/**
+ * { items: [{ label, value, hint?, mono?, glyph? }], actions?: [{ key, label,
+ * glyph?, kind? }], onAction(key) } — or null to remove the strip. `value` and
+ * `glyph` are trusted markup, so a column can carry a status pill or an icon;
+ * `label` and a button's `label` are escaped here.
+ */
+export function setStrip(spec) {
+  stripSpec = spec && spec.items && spec.items.length ? spec : null;
+  applyStrip();
+}
+
+export function applyStrip() {
+  const strip = $('#app .statstrip');
+  if (!strip) return;
+
+  if (!stripSpec) {
+    strip.hidden = true;
+    strip.innerHTML = '';
+    return;
+  }
+
+  const cols = stripSpec.items.map((col) => `
+    <div class="statstrip-col">
+      <span class="statstrip-label">${esc(col.label)}${col.hint ? `<span class="tip" data-tip="${esc(col.hint)}">${icon('info')}</span>` : ''}</span>
+      <span class="statstrip-value${col.mono ? ' mono' : ''}">${col.glyph || ''}<span class="truncate">${col.value}</span></span>
+    </div>`).join('');
+
+  const acts = (stripSpec.actions || []).map((act) => `
+    <button class="btn btn-${act.kind || 'outline'} btn-sm" data-strip-act="${esc(act.key)}">
+      ${act.glyph || ''}${esc(act.label)}
+    </button>`).join('');
+
+  strip.hidden = false;
+  strip.innerHTML = `<div class="statstrip-cols">${cols}</div>${acts ? `<div class="statstrip-acts">${acts}</div>` : ''}`;
+
+  // The strip is a sibling of #content, so the page's own delegated handlers
+  // cannot see these buttons. Assigned rather than added, for the same reason
+  // the tab group's is: the band survives repaints and a listener per paint
+  // would fire the action N times.
+  strip.onclick = (event) => {
+    const btn = event.target.closest('[data-strip-act]');
+    if (!btn || !stripSpec || !stripSpec.onAction) return;
+    stripSpec.onAction(btn.dataset.stripAct);
+  };
+}
+
 /**
  * The strip scrolls away with the page; once it has, its group docks into the
  * bar in place of the breadcrumb, and comes back when the page scrolls up. The

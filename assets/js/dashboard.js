@@ -6,6 +6,7 @@ import {
   html, raw, esc, icon, $, $$, on, count, percent, relativeTime, absoluteTime,
   ratingValue, ratingColor, dropdown, wireDropdowns, toast, dialog, wireOnce, keepScroll,
   lazySection, skel, countUp, growPlots, swapCharts, navigate, placeChartTip,
+  pageSlice, pager,
 } from './core.js';
 import { store } from './store.js';
 import {
@@ -31,8 +32,15 @@ const view = {
   field: 'name',
   sort: 'updated',
   range: '30d',
+  page: 1,
   columns: { trigger: true, responses: true, rating: true, updated: true },
 };
+
+/* §6.12 — a page holds ten rows. The seeded list is shorter than that, so the
+   control renders in its one-page state (both arrows disabled, "Showing 1–7 of
+   7"), which is exactly the state the dashboard's own pagination is in. It
+   starts paging for real as soon as publishing pushes the list past ten. */
+const PAGE_SIZE = 10;
 
 const FIELD_LABEL = { name: 'campaign name', id: 'campaign ID', trigger: 'trigger' };
 
@@ -318,7 +326,7 @@ function activityStrip(campaigns) {
           rows,
           axis,
           series: [
-            { label: 'Delivered', of: (r) => r.sent - r.failed, fill: 'var(--brand-default)', opacity: '.32' },
+            { label: 'Delivered', of: (r) => r.sent - r.failed, fill: 'var(--chart-1)', opacity: '.32' },
             { label: 'Failed', of: (r) => r.failed, fill: 'var(--destructive)' },
           ],
         }))}
@@ -331,7 +339,7 @@ function activityStrip(campaigns) {
           rows,
           axis,
           series: [
-            { label: 'Completed', of: (r) => r.completed, fill: 'var(--brand-default)' },
+            { label: 'Completed', of: (r) => r.completed, fill: 'var(--chart-1)' },
             { label: 'Abandoned', of: (r) => r.abandoned, fill: 'var(--warning)' },
           ],
         }))}
@@ -345,7 +353,7 @@ function activityStrip(campaigns) {
           axis: bandAxis(rows.map(dayRate), (v) => percent(v, 0)),
           series: [{
             label: 'Completion', of: dayRate, read: (r) => percent(dayRate(r), 0),
-            fill: 'var(--brand-default)', opacity: '.75',
+            fill: 'var(--chart-1)', opacity: '.75',
           }],
         }))}
 
@@ -558,7 +566,12 @@ export function renderDashboard(host) {
 
 function paintDashboard(host, { pending = false, entering = false } = {}) {
   const source = store.state.emptyDashboard ? [] : store.state.campaigns;
-  const list = rows();
+  const matched = rows();
+  // Clamped inside pageSlice: a search that shortens the list must not strand
+  // the reader on a page that no longer exists.
+  const slice = pageSlice(matched, view.page, PAGE_SIZE);
+  view.page = slice.page;
+  const list = slice.rows;
   const cols = view.columns;
 
   const columnItems = Object.entries(COLUMN_LABELS).map(([key, label]) => html`
@@ -617,7 +630,7 @@ function paintDashboard(host, { pending = false, entering = false } = {}) {
             ${raw(dropdown({ trigger: `${icon('sort')}${esc(SORTS[view.sort])}`, label: 'Sort by', items: sortItems }))}
           </div>
 
-          ${raw(list.length === 0 ? html`
+          ${raw(matched.length === 0 ? html`
             <div class="zero">
               <p class="t-body fg">No campaigns match “${view.query}”.</p>
               <button class="btn btn-link" style="margin-top:8px" data-act="clear">Clear search</button>
@@ -639,14 +652,17 @@ function paintDashboard(host, { pending = false, entering = false } = {}) {
               </table>
             </div>`)}
 
-          <!-- FR-63 — the footer count reflects filter and search state. -->
+          <!-- FR-63 — the sort note stays in the card; the count it used to sit
+               beside is now the pager's, below the table (§6.12 / §9.1). -->
           <div class="card-foot row-between">
-            <span class="mono t-xs fg-muted">
-              ${count(list.length)} of ${count(source.length)} campaigns${raw(view.query ? ' · filtered' : '')}
+            <span class="t-xs fg-muted">
+              ${raw(view.query
+                ? `Filtered by ${esc(FIELD_LABEL[view.field])} · ${count(matched.length)} of ${count(source.length)} campaigns`
+                : 'Default sort: most recently updated')}
             </span>
-            <span class="t-xs fg-muted">Default sort: most recently updated</span>
           </div>
-        </section>`)}
+        </section>
+        ${raw(matched.length === 0 ? '' : pager(slice, 'campaigns'))}`)}
 
       <p class="t-xs fg-muted" style="margin-top:16px">
         Prototype data. <button class="btn btn-link t-xs" data-act="toggle-empty">
@@ -870,8 +886,16 @@ function wire(host) {
     });
   });
 
+  on(host, 'click', '.pager-cell[data-page]', (event, btn) => {
+    view.page = Number(btn.dataset.page);
+    rerender();
+  });
+
   on(host, 'input', '[data-act="search"]', (event) => {
     view.query = event.target.value;
+    // A narrower list is a different list: stay on page four of it and the
+    // reader is looking at nothing.
+    view.page = 1;
     const caret = event.target.selectionStart;
     rerender();
     const next = $('[data-act="search"]', host);
@@ -879,9 +903,9 @@ function wire(host) {
     next?.setSelectionRange(caret, caret);
   });
 
-  on(host, 'change', '[data-act="set-field"]', (event) => { view.field = event.target.value; rerender(); });
-  on(host, 'click', '[data-act="clear"]', () => { view.query = ''; rerender(); });
-  on(host, 'click', '[data-act="set-sort"]', (event, btn) => { view.sort = btn.dataset.key; rerender(); });
+  on(host, 'change', '[data-act="set-field"]', (event) => { view.field = event.target.value; view.page = 1; rerender(); });
+  on(host, 'click', '[data-act="clear"]', () => { view.query = ''; view.page = 1; rerender(); });
+  on(host, 'click', '[data-act="set-sort"]', (event, btn) => { view.sort = btn.dataset.key; view.page = 1; rerender(); });
   /* Re-slices the figures and the sparklines together — they read the same
      rows, so a number and the shape behind it change meaning at the same
      moment. Without the swap the four cards hard-cut and the reader cannot

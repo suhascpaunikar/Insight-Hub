@@ -12,7 +12,7 @@
 import { html, raw, icon, esc, $, $$, dropdown, wireDropdowns, wireOnce, on, toast } from './core.js';
 import { store } from './store.js';
 import { mountAssistant, openAssistant } from './assistant.js';
-import { crumbsMarkup, applyTabs, wireDock } from './chrome.js';
+import { crumbsMarkup, applyTabs, applyStrip, wireDock } from './chrome.js';
 
 export { setCrumbs, setTabs } from './chrome.js';
 
@@ -177,6 +177,7 @@ export function renderShell(active, { crumbs } = {}) {
       ${raw(topBar(crumbs || defaultCrumbs(active)))}
       <div class="scroll">
         <div class="tabstrip" hidden><div class="tabgroup" role="tablist"></div></div>
+        <div class="statstrip" hidden></div>
         <div class="content" id="content"></div>
         ${raw(siteFooter())}
       </div>
@@ -192,8 +193,10 @@ export function renderShell(active, { crumbs } = {}) {
     document.dispatchEvent(new CustomEvent('shell:rerender'));
   });
   wireDock(root);
-  // A page that already described its tabs keeps them across a shell repaint.
+  // A page that already described its tabs or its stat strip keeps them
+  // across a shell repaint.
   applyTabs();
+  applyStrip();
 
   // #app outlives every repaint, so the delegated handlers are bound once.
   wireOnce(root, 'shellWired', (node) => {
@@ -201,15 +204,27 @@ export function renderShell(active, { crumbs } = {}) {
       event.preventDefault();
       openAssistant();
     });
-    on(node, 'click', '[data-act="foot-stub"], [data-act="help"]', (event, el) => {
-      event.preventDefault();
-      toast(`${el.textContent.trim()} is not part of the prototype`,
-        'The control is here for the shape of the page.');
-    });
   });
 
   return $('#content', root);
 }
+
+/* ---------- Unbuilt destinations ----------
+   Bound on the document rather than on `#app`, because the controls that carry
+   this action are no longer all inside it: a drawer and a dialog mount on
+   `document.body`, and the drawer's "Documentation" link is one of these.
+
+   The label comes from `aria-label` before `textContent`, since the
+   documentation chip (§6.7) is an icon with no text at all — reading its
+   textContent would announce " is not part of the prototype". */
+document.addEventListener('click', (event) => {
+  const el = event.target.closest('[data-act="foot-stub"], [data-act="help"]');
+  if (!el) return;
+  event.preventDefault();
+  const label = (el.getAttribute('aria-label') || el.textContent || '').trim();
+  toast(label ? `${label} is not part of the prototype` : 'Not part of the prototype',
+    'The control is here for the shape of the page.');
+});
 
 /* ---------- Workspace, app and environment ----------
    Bound on the document once, because the switcher is rail markup and the rail

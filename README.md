@@ -1,7 +1,7 @@
 # InsightHub — Feedback Campaign Builder
 
 An HTML prototype of the campaign creation flow described in
-[`docs/prd-v5.md`](docs/prd-v5.md), built in the **Supabase design system, dark**.
+[`docs/prd-v5.md`](docs/prd-v5.md), built in the **Cloudflare dashboard's design system**.
 
 No build step, no dependencies. Open `index.html` in a browser.
 
@@ -47,21 +47,25 @@ the resulting row.
 
 ## Design system
 
-`DESIGN.md` is the output of `npx getdesign@latest add supabase`, plus a **Dark product
-surface** section appended for this repository. The generated document describes
-Supabase's marketing track, which commits to a white canvas; a product console needs the
-dashboard dark scale, so that section defines the tokens actually used —
-`#121212` canvas, `#1c1c1c` panels, the `#2e2e2e` hairline ladder, `#ededed` type, and
-`#3ecf8e` kept scarce for the single filled CTA per view.
+### What it was
 
-Two additions the marketing brand has no answer for, both documented there:
+`DESIGN.md` is the output of `npx getdesign@latest add supabase`, plus a **Dark product
+surface** section appended for this repository — `#121212` canvas, `#1c1c1c` panels, the
+`#2e2e2e` hairline ladder, `#ededed` type, and `#3ecf8e` kept scarce for the single
+filled CTA per view. It is **superseded** and kept as the record of what was replaced.
+
+Two ideas from it survive the restyle, at new values:
 
 - **The rating ramp** — five stops, red → emerald, normalised to whichever rating
   element the campaign uses (star 1–5, NPS 1–5, NPS 1–10), so one colour means one thing
-  on every surface (FR-79, FR-89).
-- **The AI accent** — `#a78bfa`, reserved for machine inference. It appears nowhere in
-  the ramp and nowhere in the status palette, so a violet element is always a claim and
-  never a measurement (FR-91).
+  on every surface (FR-79, FR-89). It now has a set of stops per theme, and the
+  stylesheet owns them: `readPalette()` in `core.js` reads them back, because the ramp is
+  interpolated into markup as literal colours.
+- **The AI accent** — reserved for machine inference, `#a78bfa` then and `#7367e5` now.
+  It appears nowhere in the ramp and nowhere in the status palette, so a violet element is
+  always a claim and never a measurement (FR-91). The documentation chip holds the same
+  hex under its own token, `--docs-chip`, precisely so this rule keeps meaning what it
+  says.
 
 A third section, **Console settings and observability patterns**, documents the compositions
 taken from the Supabase dashboard's own settings and reporting screens — the settings panel and
@@ -70,13 +74,21 @@ metric card, and the charts' dashed rules and hover readout. The rule that matte
 counts are drawn from zero and rates are not, and a rate card prints the band it is scaled
 against rather than hiding the zoom.
 
-Tokens and primitives: `assets/css/supabase.css`.
+### What it is
 
-**The console now runs in the Cloudflare dashboard's dark design system.** The
+**The console now runs in the Cloudflare dashboard's design system, in two themes.** The
 specification — colour, type, spacing, shell, every component, motion, and a migration map
 from the primitives it replaced — is
-[`docs/ui-guidelines-cloudflare-dark.md`](docs/ui-guidelines-cloudflare-dark.md), and its
-tokens are `assets/css/tokens-cloudflare.css`, loaded after `supabase.css` on all four pages.
+[`docs/ui-guidelines-cloudflare-dark.md`](docs/ui-guidelines-cloudflare-dark.md). Three
+stylesheets load in order on all four pages: `supabase.css` for the primitives,
+`tokens-cloudflare.css` for the tokens and the light theme, `motion-kumo.css` for the
+motion.
+
+**Dark is the default.** Light is the dashboard's own light scale, from Appendix B of the
+guideline, switched from **Settings → General → Appearance** and remembered per browser.
+The surfaces are measured; the three palettes that carry meaning — the semantic colours,
+the rating ramp and the chart series — are re-derived, because a palette tuned to sit on
+`#030303` falls under 3:1 against `#fbfbfb`.
 
 The values are not guesses. **[@cloudflare/kumo](https://www.npmjs.com/package/@cloudflare/kumo)**,
 Cloudflare's own component library, is a dependency, and the token file carries *its*
@@ -104,13 +116,15 @@ where it stands, how to verify it, what is left, and which decisions are already
 ```
 index.html · builder.html · insights.html
 assets/
-  css/supabase.css     tokens + component primitives
+  css/supabase.css          component primitives
+  css/tokens-cloudflare.css Cloudflare/Kumo tokens, and the light theme
+  css/motion-kumo.css       Kumo's keyframes, and where this product overshoots
   js/
     core.js            DOM helpers, icons, formatting, rating ramp, dialog/toast/dropdown
     data.js            seeded campaigns, templates, segments, insights
     store.js           draft model, variant reconciliation, step validation, persistence
     shell.js           rail, breadcrumb bar, footer
-    chrome.js          breadcrumb + tab strip, the parts a page talks to
+    chrome.js          breadcrumb, tab strip and stat strip — the parts a page talks to
     dashboard.js       campaign list
     builder.js         wizard frame, steps 1·2·3·5·6
     content-step.js    step 4 — template picker, question logic, triggers
@@ -127,7 +141,9 @@ docs/
   prd-coverage.md      FR-by-FR map, the 21 open decisions, what changed vs Magic Patterns
   insights-data-plan.md  every data point the campaign data screen can carry, by kind
   assistant.md         the companion card — what it is, and what it isn't
-DESIGN.md              Supabase design reference + dark product adaptation
+  ui-guidelines-cloudflare-dark.md  the design system: tokens, components, motion, both themes
+  revamp.md            the restyle handover — what is done, what is open, what is settled
+DESIGN.md              the superseded Supabase system, kept as the record of what it replaced
 ```
 
 ---

@@ -200,10 +200,47 @@
   --chart-2: #f0b620;
   --chart-3: #e7639d;
 
+  /* Documentation chip (§6.7). Same hex as `--ai`, deliberately a separate
+     name: FR-91 keeps the AI violet for machine inference, and a link to a
+     manual is not a claim about the data. */
+  --docs-chip: #7367e5;
+
   /* ---------- Code ---------- */
   --code-bg: #313131;
   --code-field-bg: #232628;
   --code-accent: #52a2ff;
+
+  /* ---------- Motion ----------
+     Kumo's, and this is the one place the restyle changed a rule rather than
+     a value. The scale the console inherited was built on "nothing
+     overshoots"; Kumo ships two overshoot curves and two keyframes that use
+     them, so the rule now names where a bounce is allowed instead of banning
+     it outright. docs/ui-guidelines-cloudflare-dark.md §12 carries the
+     rewrite; the rules it did not touch — animate in, animate out; a close is
+     not an open reversed; delay is an intent gate — all still hold.
+
+     `--motion-fast` is Kumo's `--default-transition-duration` exactly. Kumo
+     declares no second or third duration, because Tailwind's `duration-*`
+     utilities supply them, so base and slow are that utility scale's next two
+     steps rather than a value invented here. */
+  --motion-fast: 100ms;            /* kumo --default-transition-duration */
+  --motion-base: 200ms;            /* tailwind duration-200 */
+  --motion-slow: 300ms;            /* tailwind duration-300 */
+  --motion-bounce: 400ms;          /* kumo .animate-bounce-in / .animate-toast-bump */
+
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);          /* kumo --ease-out */
+  --ease-bounce: cubic-bezier(0.2, 0, 0, 1.5);     /* kumo --ease-bounce */
+  --ease-back: cubic-bezier(0.34, 1.56, 0.64, 1);  /* kumo, on both toast bumps */
+
+  /* Kumo runs its skeleton shimmer at 1.5s and its chart shimmer at 1.8s —
+     the chart's is slower because the wave behind it is static. */
+  --shimmer-duration: 1.5s;
+  --shimmer-duration-chart: 1.8s;
+  --spin-duration: 0.5s;           /* kumo --animate-refresh */
+
+  /* The skeleton sweep, which is the one place a literal white would not
+     survive the theme swap. */
+  --skel-sweep: rgba(255, 255, 255, 0.05);
 }
 
 /* --------------------------------------------------------------------------
@@ -252,4 +289,166 @@
   --text-color-kumo-danger: var(--destructive-fg);
   --text-color-kumo-warning: var(--warning-fg);
   --text-color-kumo-brand: #f6821f;            /* the Cloudflare orange: identity only, never a control */
+
+  --default-transition-duration: var(--motion-fast);
+  --animate-refresh: refresh var(--spin-duration) ease-in-out infinite;
+}
+
+/* ==========================================================================
+   Light mode
+
+   Dark stays the default: `<html data-theme="dark">` ships on all four pages
+   and nothing here fires unless the theme is switched to `light`. That is
+   deliberate — the console was designed on the dark scale, every screenshot
+   the guideline measures is dark, and light is the alternate rather than the
+   other half of a pair.
+
+   Values are Appendix B of docs/ui-guidelines-cloudflare-dark.md, measured
+   from the dashboard's light theme at 06.39.55, with three additions the
+   appendix does not record because a dark-only build never needed them: the
+   semantic colours re-picked for contrast on white, the rating ramp
+   re-darkened, and the chart series likewise. A palette tuned to sit on
+   `#030303` does not survive being dropped onto `#fbfbfb` — mid-greens and
+   ambers that read clearly against near-black fall under 3:1 against white —
+   so those three are re-derived rather than reused.
+
+   Only what changes is listed. Radii, control heights, type, spacing, motion
+   and the chrome measurements are all theme-independent and stay above.
+   ========================================================================== */
+:root[data-theme="light"] {
+  /* ---------- Neutral surfaces ----------
+     The dark ladder inverted, not merely lightened: the page is the tinted
+     one and the card is pure white, which is the opposite of dark mode, where
+     the page is the darkest thing and the card lifts off it. */
+  --background-200: #fbfbfb;   /* page, rail, top bar, footer */
+  --background-100: #ffffff;   /* cards, tables, dialogs, secondary buttons */
+  --surface-100: #f3f3f3;      /* inputs, inset wells, hover on the page */
+  --surface-200: #e9e9e9;      /* pressed, selected row, secondary fill */
+  --surface-300: #d4d4d4;      /* the strongest neutral fill */
+  --well: #f9f9f9;             /* settings panels and form fields */
+  --band: #f9f9f9;             /* card header band, table category rows */
+  --panel: #ffffff;            /* drawer, card body under a header */
+
+  /* ---------- Borders ---------- */
+  --border-muted: #ececec;
+  --border-default: #e3e3e3;
+  --border-strong: #d4d4d4;
+  --border-overlay: #e3e3e3;
+  --border-input: #a3a3a3;
+
+  /* ---------- Text ----------
+     The same five-step ramp read from the other end. `#171717` and `#737373`
+     are the appendix's two; the three between and beyond are the neutral
+     scale's own steps, so the ramp stays evenly spaced. */
+  --foreground-strong: #0a0a0a;
+  --foreground-default: #171717;
+  --foreground-light: #404040;
+  --foreground-lighter: #737373;
+  --foreground-muted: #8a8a8a;   /* the appendix's icon grey */
+  --foreground-disabled: #a3a3a3;
+
+  /* ---------- Brand ----------
+     The appendix records the primary button as a `#3583ff → #0d70ff` gradient
+     with a `#055fde` edge, so the gradient is taken verbatim and the flat
+     brand is its foot. `--link` takes the edge colour rather than the fill:
+     `#0d70ff` on white is about 3.6:1, which is under the floor for text,
+     and `#055fde` clears it at 5.3:1. */
+  --brand-default: #0d70ff;
+  --brand-600: #055fde;
+  --brand-400: rgba(13, 112, 255, 0.35);
+  --brand-200: rgba(13, 112, 255, 0.10);
+  --on-brand: #ffffff;
+  --brand-gradient: linear-gradient(180deg, #3583ff 0%, #0d70ff 100%);
+  --brand-disabled: #a8c8f5;
+  --link: #055fde;
+  --link-soft: #055fde;
+  --link-action: #0d70ff;
+
+  /* ---------- Semantic ----------
+     Re-picked, not reused. Kumo's dark greens and ambers are chosen to glow
+     against near-black; the same hues on white are the ones that fail. Each
+     `-fg` is the text weight and clears 4.5:1 on the card, each base is the
+     fill or dot, and each tint is the low-alpha wash behind a badge. */
+  --success: #00a06e;
+  --success-fg: #026c4c;
+  --success-tint: rgba(0, 160, 110, 0.12);
+  --success-track: #00a06e;      /* toggle, on — the fill is the colour now */
+  --success-knob: #ffffff;       /* and the knob is what sits on it */
+
+  --destructive: #d1000a;
+  --destructive-fg: #b00008;
+  --destructive-400: rgba(209, 0, 10, 0.35);
+  --destructive-200: rgba(209, 0, 10, 0.09);
+  --destructive-gradient: linear-gradient(180deg, #ef3239 0%, #d1000a 100%);
+  --destructive-disabled: #f0b3b5;
+  --destructive-icon: #d1000a;
+
+  --warning: #b45309;
+  --warning-fg: #92400e;
+  --warning-400: rgba(180, 83, 9, 0.35);
+  --warning-200: rgba(180, 83, 9, 0.10);
+
+  --info: #0284c7;
+  --info-fg: #036ba1;
+  --info-400: rgba(2, 132, 199, 0.35);
+  --info-200: rgba(2, 132, 199, 0.10);
+
+  /* AI accent — still violet, still machine inference only (FR-91), a shade
+     deeper so it holds against white as it holds against black. */
+  --ai: #6355d8;
+  --ai-fg: #4c3fbf;
+  --ai-400: rgba(99, 85, 216, 0.35);
+  --ai-200: rgba(99, 85, 216, 0.10);
+
+  /* The documentation chip is a filled pill with a white glyph on it, so it
+     keeps its hex in both themes — the glyph's contrast never changes. */
+  --docs-chip: #7367e5;
+
+  /* ---------- Rating ramp (FR-79 / FR-89) ----------
+     The same five meanings at weights that survive a white card. Red barely
+     moves; the amber and both greens move a long way, because those are the
+     stops that disappear. The order and the spacing are unchanged, so a
+     colour still means on this theme what it means on the other. */
+  --rating-1: #d1000a;
+  --rating-2: #c2410c;
+  --rating-3: #a16207;
+  --rating-4: #4d8f52;
+  --rating-5: #00875a;
+
+  /* ---------- Focus ----------
+     Kumo's focus ring is the highest-contrast neutral available against the
+     canvas. On near-black that was near-white; on near-white it is near-black.
+     The rule is the same one, read the other way. */
+  --focus-ring: #171717;
+  --focus-ring-soft: rgba(23, 23, 23, 0.45);
+
+  /* ---------- Chrome ---------- */
+  --topbar-border: #e3e3e3;
+  --tabgroup-bg: #f3f3f3;
+  --tabgroup-border: #e3e3e3;
+
+  /* ---------- Overlays ----------
+     The backdrop dims towards ink rather than towards more black, and the
+     dialog's frame is white so the 5px ring reads as a mat around the panel
+     instead of a hole cut in the page. */
+  --backdrop: rgba(23, 23, 23, 0.35);
+  --frame: #ffffff;
+
+  /* ---------- Charts ----------
+     Series darkened to the same rule as the ramp: the neutral and the amber
+     are the two that vanish on white, so they move most. */
+  --chart-grid: #e9e9e9;
+  --chart-axis: #737373;
+  --chart-0: #9a9a9e;
+  --chart-1: #2a7de1;
+  --chart-2: #c48a06;
+  --chart-3: #d1477f;
+
+  /* ---------- Code ---------- */
+  --code-bg: #f3f4f6;
+  --code-field-bg: #f9fafb;
+  --code-accent: #0757c9;
+
+  /* The sweep darkens the block instead of lightening it. */
+  --skel-sweep: rgba(0, 0, 0, 0.055);
 }

@@ -13,10 +13,21 @@
    ========================================================================== */
 import {
   html, raw, esc, icon, $, $$, on, count, dropdown, wireDropdowns, toast, dialog, wireOnce, keepScroll,
+  applyTheme,
   lazySection, skel,
 } from './core.js';
 import { store } from './store.js';
 import { setTabs } from './chrome.js';
+
+/* §6.7 — the violet pill beside a section title, linking to that section's
+   documentation. There is no docs site behind the prototype, so it carries the
+   `foot-stub` action every other unbuilt destination here uses: it says plainly
+   that the control is there for the shape of the page rather than dead-ending
+   on a 404. */
+const docsChip = (slug, section) =>
+  `<a class="docs-chip" href="#docs-${esc(slug)}" data-act="foot-stub"
+      aria-label="${esc(section)} documentation"
+      title="${esc(section)} documentation">${icon('book')}</a>`;
 
 const TABS = {
   general: 'General',
@@ -147,7 +158,7 @@ function generalTab() {
 
   return html`
     <div class="section-head">
-      <h2>Workspace</h2>
+      <h2>Workspace${raw(docsChip('workspace', 'Workspace'))}</h2>
       <p>Who this workspace is, and where its responses are stored.</p>
     </div>
 
@@ -165,7 +176,7 @@ function generalTab() {
     </section>
 
     <div class="section-head">
-      <h2>Campaign defaults</h2>
+      <h2>Campaign defaults${raw(docsChip('campaign-defaults', 'Campaign defaults'))}</h2>
       <p>What a new campaign starts with. Every one of these can be overridden in the builder.</p>
     </div>
 
@@ -183,6 +194,24 @@ function generalTab() {
         { key: 'Exclusion lists' }))}
 
       ${raw(panelFoot('defaults', 'Existing campaigns keep the element they were built with.'))}
+    </section>
+
+    <div class="section-head">
+      <h2>Appearance${raw(docsChip('appearance', 'Appearance'))}</h2>
+      <p>How the console is painted. The choice is this browser's, not the workspace's —
+        it is stored beside the rest of the prototype state and applies the moment it changes.</p>
+    </div>
+
+    <section class="spanel">
+      ${raw(srow('Theme',
+        'Dark is the console\u2019s own scale and the default. Light is the dashboard\u2019s light '
+        + 'theme: the same tokens read from the other end, with the rating ramp and the chart series '
+        + 're-weighted so a colour keeps its meaning against a white card.',
+        html`<select class="select" data-act="set-theme" aria-label="Theme">
+          <option value="dark" ${raw(store.state.theme !== 'light' ? 'selected' : '')}>Dark</option>
+          <option value="light" ${raw(store.state.theme === 'light' ? 'selected' : '')}>Light</option>
+        </select>`,
+        { top: true }))}
     </section>
 
     <div class="section-head">
@@ -216,7 +245,7 @@ function deliveryTab() {
 
   return html`
     <div class="section-head">
-      <h2>Response handling</h2>
+      <h2>Response handling${raw(docsChip('response-handling', 'Response handling'))}</h2>
       <p>How long a prompt stays answerable, and how soon the same user can be asked again.</p>
     </div>
 
@@ -250,7 +279,7 @@ function deliveryTab() {
     </section>
 
     <div class="section-head">
-      <h2>Send rate limits</h2>
+      <h2>Send rate limits${raw(docsChip('rate-limits', 'Send rate limits'))}</h2>
       <p>Ceilings on how often a user can be interrupted. They cap every campaign at once — a
          campaign cannot raise its own.</p>
     </div>
@@ -341,14 +370,14 @@ function alertsTab() {
       </div>`)}
 
     <div class="section-head" ${raw(connected ? '' : 'style="margin-top:var(--sp-xl)"')}>
-      <h2>Campaign alerts</h2>
+      <h2>Campaign alerts${raw(docsChip('alerts', 'Campaign alerts'))}</h2>
       <p>Sent as they happen. Open one to see what it watches and what it would have fired on.</p>
     </div>
 
     <section class="spanel">${raw(alertRows.join(''))}</section>
 
     <div class="section-head">
-      <h2>Digests</h2>
+      <h2>Digests${raw(docsChip('digests', 'Digests'))}</h2>
       <p>A scheduled summary across every campaign, whether or not anything alerted.</p>
     </div>
 
@@ -557,6 +586,21 @@ function wire(host) {
 
   // Applied on the spot rather than through a panel Save: it is a preference
   // for the prototype, not a value a campaign inherits.
+  on(host, 'change', '[data-act="set-theme"]', (event, el) => {
+    const theme = applyTheme(el.value);
+    store.set({ theme });
+    toast(theme === 'light' ? 'Light theme on' : 'Dark theme on',
+      theme === 'light'
+        ? 'The dashboard\u2019s light scale. Every page in this browser takes it.'
+        : 'Back to the console\u2019s own scale.');
+    // The ramp and the AI accent are baked into markup as literal colours when
+    // a screen renders, so a theme change is only half-applied until the page
+    // that is on screen paints again. `applyTheme` re-read them; this is what
+    // puts the new values into the DOM.
+    rerender();
+    document.dispatchEvent(new CustomEvent('shell:rerender'));
+  });
+
   on(host, 'change', '[data-act="set-builder-chrome"]', (event, el) => {
     store.set({ builderChrome: el.value });
     toast('Builder chrome switched',
