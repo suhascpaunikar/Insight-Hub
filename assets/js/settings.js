@@ -409,7 +409,7 @@ function paintSettings(host, { pending = false, entering = false } = {}) {
           </p>
         </div>
         <div class="page-head-actions">
-          <button class="btn btn-default btn-sm" data-act="stub" data-key="Docs">
+          <button class="btn btn-default btn-lg" data-act="stub" data-key="Docs">
             ${raw(icon('book'))}Docs
           </button>
         </div>

@@ -11,14 +11,19 @@
 
 | Question | Decision |
 | --- | --- |
-| Deliverable | This Markdown guideline, plus `assets/css/tokens-cloudflare.css` (the §10.1 remap as a drop-in override, added on request). No reference page yet. |
+| Deliverable | This Markdown guideline, plus `assets/css/tokens-cloudflare.css`. No reference page yet. |
 | Accent | Cloudflare blue for every action and link. Emerald is retired as the action colour and survives only as the *Live* / success status green. |
 | Shell | The full Cloudflare shell: 56px icon rail, 58px breadcrumb bar, pill tab strip, centred content widths, footer. |
 | Depth | Visual spec plus a migration map from the current CSS primitives. No implementation plan. |
 
-**Not in scope:** light mode (values recorded in Appendix B for later), motion (the
-existing scale in `DESIGN.md` → *Motion* stays as it is; only colours inside animated
-pieces change), the assistant's orb and border beam, and content or copy changes.
+| Source of truth | **@cloudflare/kumo**, Cloudflare's own component library, installed in this repo. Where it and the screenshots disagree on a value, Kumo wins; where they disagree on a *composition* the screenshots plainly show, the screenshots win. §11. |
+
+**Not in scope:** light mode (values recorded in Appendix B for later), the assistant's
+orb and border beam, and content or copy changes.
+
+> **§11 supersedes.** Sections 2–8 were measured from screenshots before Kumo was
+> available. Kumo confirmed almost all of it and corrected a handful of values; the
+> corrections are folded into those sections and every one of them is listed in §11.2.
 
 ---
 
@@ -229,18 +234,23 @@ and stat values. Nothing heavier than 600, nothing lighter than 400.
 
 **Control heights**
 
-| Size | Height | Used for |
-| --- | --- | --- |
-| sm | 30px | Dialog, drawer and form footers; "Show all"-type in-card buttons (measured 28–33) |
-| md | 38px | Toolbars, filters, icon buttons, search inputs, pagination, table actions, tab group (measured 38 ×5) |
-| lg | 42px | Page-header actions ("Documentation", "Create bucket") |
+Kumo's Button, Input and Select share one size scale, and it is the scale to build on:
 
-Form fields inside forms and drawers are **36px** (34 + borders); search fields are 38px.
+| Size | Height | Radius | Text | Used for |
+| --- | --- | --- | --- | --- |
+| xs | 20px | 4px | 12px | Inline chips; rare |
+| sm | 26px | 6px | 12px | In-card buttons, dense filters, footers' secondary actions |
+| **base** | **36px** | **8px** | 14px | The default: toolbars, filters, icon buttons, search, form fields, table actions |
+| lg | 40px | 8px | 14px | Page-header actions ("Documentation", "Create campaign") |
 
-**Radii:** 6px on controls (buttons, inputs, selects, active tab, code fields); 8px on
-containers (cards, tables, dialogs, drawers' inner panels, tab group outer, radio cards,
-empty states); 12px on the dialog frame; full on pills, badges, dots, avatars. Nothing
-uses 4px any more except the inline code chip.
+Measuring the screenshots gave 30 / 38 / 42; Kumo's real values are 26 / 36 / 40, and
+those are what the tokens carry (§11.2).
+
+**Radii:** **8px on controls at base and lg** (buttons, inputs, selects) and 6px at sm;
+8px on containers (cards, tables, dialogs, tab group, radio cards, empty states); 12px
+on the dialog frame; full on pills, badges, dots, avatars. 4px survives only on the
+inline code chip. The screenshots read the control radius as 6px throughout; Kumo's
+`rounded-lg` says 8px.
 
 **Borders:** always 1px. Never 2px except the sub-tab underline and the 3px sub-nav bar.
 
@@ -670,7 +680,7 @@ Blocks `#171717` with the existing sweep at `rgba(255,255,255,.04)`. Sized as to
 | Hover, link | `#82b6ff`; prose links keep their underline |
 | Active / pressed | primary flat `#005eec`; surfaces `#1f1f1f` |
 | Selected | 1px `#0870ff` border; rows `rgba(8,112,255,.08)` fill; no check icon |
-| Focus-visible | 2px `#4693ff` outline, 2px offset, on everything interactive — not observed in the captures; mandatory anyway |
+| Focus-visible | **1.5px `#e9e9e9`** ring — Kumo focuses with a near-white ring, not a coloured one, so focus never collides with the blue that means *action*. On everything interactive. |
 | Disabled | flat desaturated fill (`#425d81` / `#7b211e`), text `#d9d9d9`; neutral controls `#595959` text on unchanged surfaces; `cursor: not-allowed` |
 | Loading | skeleton; primary button keeps its label and shows a 16px spinner before it |
 | Error | border `#ff6467`, message `#fe9f97` 12px under the field |
@@ -702,8 +712,10 @@ in the captures shows motion; nothing here contradicts the existing rules.
 **Don't**
 
 - Don't use `#ffffff` for text, or `#000000` for the page.
-- Don't tint pills, notices or buttons with the status colour at 12% — Cloudflare never
-  fills with a tint; it borders and dots.
+- Don't tint **pills or buttons** with a status colour — the pill stays neutral and the
+  dot carries the hue. The one exception is the **notice / banner**, which Kumo does fill
+  with a low-alpha tint of its own colour; that is a component rule, not a licence to
+  tint elsewhere.
 - Don't uppercase and track-out labels; sentence case at 12–13px does the job.
 - Don't put more than one primary button in view. Secondary is the default.
 - Don't reintroduce emerald as an action colour anywhere. It is a status now.
@@ -942,6 +954,240 @@ sets the breadcrumb. Every other group is still at its current value.
 | `.asst-pointer-ring` | violet | `#4693ff` | |
 
 ---
+
+---
+
+## 11. Kumo — the source of truth
+
+`@cloudflare/kumo` is Cloudflare's own component library, and it is installed here:
+
+```bash
+pnpm add @cloudflare/kumo motion
+```
+
+It ships the real design tokens (`dist/styles/theme-kumo.css`), a compiled stylesheet,
+48 React components, and a machine-readable registry of every component's props and
+size classes. That registry is also a CLI, which is the fastest way to settle a question
+about a component without reading the source:
+
+```bash
+npx @cloudflare/kumo ls            # the 48 components, by category
+npx @cloudflare/kumo doc Button    # one component's props, sizes and variants
+```
+
+Kumo's tokens are authored in oklch behind `light-dark()`, so they cannot be read off
+the file directly. Every value quoted here was resolved by loading `theme-kumo.css` in
+a browser with `data-mode="dark"`, painting each custom property to a canvas and
+reading the sRGB bytes back.
+
+### 11.1 What matched
+
+The screenshot-derived palette and Kumo's shipped tokens are the same system. These
+were **exact** matches, to the byte:
+
+| Role | Value | Kumo token |
+| --- | --- | --- |
+| Page canvas | `#030303` | `canvas` |
+| Card, table, dialog, secondary button | `#0f0f0f` | `base` |
+| Chart-card header, category rows | `#060606` | `elevated` |
+| Default 1px border | `#333333` | `line` |
+| Softer rule | `#262626` | `hairline` |
+| Emphasised border, tracks | `#404040` | `interact` |
+| Primary type | `#f5f5f5` | `text default` |
+| Secondary type | `#a1a1a1` | `text subtle` |
+| Success / Live | `#00d492` | `success` |
+| Danger text and icons | `#ff6467` | `text danger` |
+
+The type scale matched exactly as well. Kumo declares four steps — `--text-xs: 12px`,
+`--text-sm: 13px`, `--text-base: 14px`, `--text-lg: 16px` — which is the 12 / 13 / 14 /
+16 ladder §3 arrived at by measuring cap heights. Its `Text` component supplies the
+display sizes: `heading1` 30px semibold, `heading2` 24px semibold, `heading` 16px
+semibold, matching §3's page title, section title and heading-small.
+
+That two independent derivations agree this closely is the strongest evidence available
+that §2–§8 describe the real system rather than one screenshot's rendering.
+
+### 11.2 What Kumo corrected
+
+Everything below has been changed in `tokens-cloudflare.css` and in the section it
+belongs to. The measured value is kept in the last column because it is what the
+dashboard actually renders today, and a difference is worth seeing rather than burying.
+
+| Thing | Now (Kumo) | Was (measured) | Note |
+| --- | --- | --- | --- |
+| Control heights | 20 / 26 / **36** / 40 | 30 / 38 / 42 | Kumo's Button, Input and Select share one scale |
+| Control radius | **8px** at base and lg | 6px throughout | Kumo `rounded-lg`; 6px survives at sm |
+| Brand | `#045ede` | `#005fec` | Kumo's brand is flat; the dashboard paints a gradient over it, which §6.1 keeps and re-bases |
+| Brand hover / border | `#1447e6` | `#004dcc` | |
+| Link | `#51a2ff` | `#4693ff` / `#0870ff` | Kumo has one link colour for dark, not two |
+| Danger | `#e7000b` | `#ec2527` | |
+| Warning | `#db6809`, text `#ff8904` | `#f0b620` | The measured amber was a *chart* series, not the warning role; it stays as `--chart-2` |
+| Info | `#00a6f4` | `#4693ff` | |
+| Placeholder | `#737373` | `#777777` | |
+| Disabled type | `#525252` | `#595959` | |
+| Recessed surface | `#0b0b0b` | `#0a0a0a` | |
+| Inset / control fill | `#18181b` | `#171717` | Kumo's `control` carries a trace of blue |
+| Focus ring | **`#e9e9e9` at 1.5px** | 2px `#4693ff` | The biggest correction: Kumo focuses near-white, so focus never reads as an action |
+| Checked checkbox | neutral `#525252` | brand fill | Kumo keeps state controls neutral |
+| Toggle, on | track `#1a6535`, knob `#55d484` | same | measured; Kumo has no toggle colour token |
+| Beta badge | dashed **brand** border, link text | dotted `#005aeb` | Kumo's `beta` badge variant is `border-dashed` |
+| Notice / banner | **tinted** with its own colour | untinted | Kumo's Banner fills; §8's "never tint" was too broad and now names the exception |
+| Switch | 42 × 26 | 40 × 22 | Kumo `Switch` base is `h-6.5 w-10.5` |
+| Dialog widths | 288 / 384 / 512 / 768 | 500 / 720 / 960 | Kumo's `sm` / `base` / `lg` / `xl` |
+| Empty state | `px-10 py-16`, 24px gap | 48px padding | Kumo `Empty` base |
+
+Three things Kumo has no answer for, which stay as measured: the **chart series
+palette** (Kumo defers charts to ECharts and ships none), the **form-field border**
+`#737373` that the dashboard's inputs carry, and the **`#d4d4d4` body-copy step**
+between `text default` and `text subtle` — Kumo's ramp has no rung there, so it is
+snapped to neutral-300, the nearest colour that is genuinely in the palette.
+
+### 11.3 The component inventory
+
+48 components in eight categories. The ones with no InsightHub counterpart are listed
+because they are what to reach for rather than build.
+
+| Category | Components |
+| --- | --- |
+| Action | Button · ClipboardText |
+| Display | Badge · Breadcrumbs · Code · Collapsible · Empty · LayerCard · Meter · Text |
+| Input | Autocomplete · Checkbox · Combobox · DatePicker · DateRangePicker · Field · Input · InputArea · InputGroup · Label · Radio · SensitiveInput · Select · Switch |
+| Navigation | CommandPalette · MenuBar · Pagination · Sidebar · Tabs · TableOfContents · Toolbar |
+| Overlay | Dialog · DropdownMenu · Popover · Tooltip |
+| Feedback | Banner · Loader · Toasty |
+| Layout | Grid · Surface |
+| Data viz | Chart · TimeseriesChart · SankeyChart · BubbleMap · ChoroplethMap |
+| Other | CloudflareLogo · Link · Table |
+
+### 11.4 Our primitives, and the Kumo component each one is
+
+Read this as "when a component is wanted, this is its name, its props and its
+documentation" — and, if the console is ever rebuilt in React, as the replacement list.
+
+| InsightHub primitive | Kumo component | Notes |
+| --- | --- | --- |
+| `.btn` + variants | **Button** | `variant`: primary / secondary / ghost / outline / destructive / secondary-destructive. Our `.btn-default` is `secondary`, its default. |
+| `.input` `.textarea` `.select` | **Input**, **InputArea**, **Select** | One size scale with Button |
+| `.field` `.label` `.hint` `.error` | **Field**, **Label** | Field wraps label, description and error around any control |
+| `.check` `.radio` `.switch` | **Checkbox**, **Radio**, **Switch** | |
+| `.opt` (radio card) | **Radio** + **Surface** | No single Kumo card-radio; compose it |
+| `.badge` | **Badge** | 18 variants; our Beta badge is its `beta`, our neutral its `outline` |
+| `.pill` (status) | **Badge** `outline` + a dot | Kumo has no status-dot pill; ours stays |
+| `.notice` | **Banner** | `default` / `alert` / `error` / `secondary`, base and sm |
+| `.table` | **Table** | Kumo stripes even rows (`elevated`); we keep flat rows, per the screenshots |
+| `.tabs` / the shell's tab group | **Tabs** | `variant: segmented` is the group, `underline` the sub-tabs — exactly our two |
+| `.dd-menu` `.dd-item` | **DropdownMenu** | `variant: danger` for the destructive item |
+| `.dialog` | **Dialog** | sizes sm / base / lg / xl |
+| `.toast` | **Toasty** | Rings the toast in its colour rather than tabbing one edge |
+| `.tip` / `.rail-tip` | **Tooltip** | `TooltipProvider` groups the open delay |
+| `.zero` | **Empty** | sizes sm / base / lg |
+| `.rail` / sidebar | **Sidebar** | `variant`: sidebar / floating / inset, with collapse built in |
+| `.crumbs` | **Breadcrumbs** | sizes sm (h-10) / base (h-12) |
+| pagination | **Pagination** | |
+| `.bar-track` / `.bar-fill` | **Meter** | A measured value in a known range |
+| quick search | **CommandPalette** | What our ⌘K popover is a sketch of |
+| `.chart` and the metric plots | **Chart**, **TimeseriesChart** | ECharts underneath |
+| `.card` `.well` | **Surface**, **LayerCard** | |
+| `.skel` | *(none)* | Kumo has **Loader**, a spinner; skeletons stay ours |
+| the assistant card | *(none)* | Product-specific |
+
+### 11.5 How to adopt it
+
+Kumo is a **React** library: its peer dependencies are React 18/19, `@phosphor-icons/react`,
+`echarts` and `zod`, and its styles assume Tailwind v4. This prototype is four static
+HTML documents with vanilla ES modules and no build step, so its components cannot be
+dropped in as they stand. Two honest positions, in order of cost:
+
+1. **Today — mirror it, which is what this repo does.** Every primitive is built to the
+   spec above, and `tokens-cloudflare.css` carries Kumo's own values, aliased to Kumo's
+   own token names at the foot of the file. A screen built here and the same screen
+   built in Kumo should be hard to tell apart, and the table in §11.4 is the diff.
+2. **When the prototype becomes an application — use it.** Kumo replaces the whole of
+   §6 and most of §5. At that point the work is React plus a bundler plus Tailwind v4,
+   `@import "@cloudflare/kumo/styles/tailwind"` **before** `@import "tailwindcss"`, and
+   a `@source` directive pointing at `node_modules/@cloudflare/kumo/dist` so Tailwind
+   discovers the utility classes the components use. The token layer written here does
+   not need to change: it already resolves to the same colours.
+
+What must **not** happen is a third position where some screens use Kumo and others
+mirror it. The mirror is only defensible while it is complete.
+
+---
+
+## 12. Motion
+
+The repository already has a motion system, and it is good: one scale, an
+open/close asymmetry, delays used as intent gates, and a global reduced-motion block.
+This section is the console's version of it and supersedes `DESIGN.md` → *Motion*,
+which described the same scale for the Supabase-derived build.
+
+### 12.1 The scale
+
+| Token | Value | Used for |
+| --- | --- | --- |
+| `--motion-fast` | 120ms | Anything that only changes colour: hover, focus, a menu opening, a page leaving |
+| `--motion-base` | 180ms | Anything that moves or resizes a box: toasts, dialogs, the rail's width, arriving content |
+| `--motion-slow` | 320ms | A chart redrawing its whole series, and nothing else |
+| `--ease-out` | `cubic-bezier(0.22, 0.61, 0.36, 1)` | Everything. The system has no bounce. |
+
+### 12.2 The rules
+
+1. **Nothing overshoots.** This is a console. A spring on a status pill reads as a bug,
+   not as polish.
+2. **Nothing loops** except while something is genuinely still happening. The only
+   perpetual animation in the product is the ring on a Live campaign's dot.
+3. **Anything that animates in animates out.** A toast that slides in and then vanishes
+   on one frame reads as a glitch rather than a dismissal.
+4. **A close is not an open played backwards.** Opening is an invitation and takes
+   `--motion-base`; closing gets out of the way at `--motion-fast`, travelling less and
+   scaling less far. Dropdowns, dialogs and toasts all follow it.
+5. **Delay is an intent gate, never padding.** A tooltip waits 80ms so a cursor crossing
+   the toolbar does not trail three of them. The collapsed rail waits 1.5s, because
+   there the tooltip *is* the label and the strip is eight items tall. Nothing waits
+   before leaving.
+6. **Motion is never the only carrier of a state change.** Every transition here
+   decorates something already legible in text, colour or position — which is what makes
+   the `prefers-reduced-motion` block at the foot of the stylesheet safe: it stills
+   travel, scale and loops, and the product loses nothing but the movement.
+7. **A stagger is a fraction of one duration, not a fixed per-item gap.** A flat gap
+   makes a gesture as long as the data is: at 24 columns an 8ms count reads as an edge
+   travelling across, at 7 columns it reads as the whole strip rising at once. One chart
+   is not allowed two entrances. The exception is a *list* of distribution bars, where
+   the row count is the answer rather than a framing of one series.
+
+### 12.3 Where the `motion` library earns its place
+
+`motion` (13.2.0, the library formerly published as Framer Motion) is installed. It is
+**not wired into the pages**, and that is deliberate: everything the console animates
+today is a transition between two states of one element, which is what CSS is for, and
+a 40KB runtime that re-implements it would be a dependency bought for nothing.
+
+Reach for it only where CSS genuinely cannot go:
+
+| Case | Why CSS cannot | What to use |
+| --- | --- | --- |
+| A row or card that must animate **between two positions in the DOM** — a reordered table, a card moving between columns | CSS transitions cannot interpolate a layout change | `animate()` with a FLIP measurement |
+| **Spring** physics, where the settle should depend on the distance travelled | `cubic-bezier` is fixed-duration | `spring()` — and only if rule 1 is being deliberately relaxed |
+| **Scroll-linked** progress, where the position is the input rather than time | Scroll-driven animations are still uneven across browsers | `scroll()` |
+| **Sequenced** timelines with overlapping offsets | Keyframes cannot express one element waiting on another | `animate()` sequences |
+
+Prefer the `motion/mini` entry point when one of these does come up: it is a few
+kilobytes and covers `animate` on the Web Animations API.
+
+Loading it here needs one decision, because the prototype has no bundler and
+`node_modules` is not committed. Either vendor the built ESM file into `assets/vendor/`
+and import it relatively — which keeps "clone it and open `index.html`" true — or add an
+import map to the four documents and require `pnpm install` first. Vendoring is the one
+that does not break the promise in the README.
+
+### 12.4 What the colour change does to existing motion
+
+Nothing structural. Four animated pieces referred to the emerald that is now the action
+blue, and each has moved to the colour its *meaning* calls for rather than following the
+token: the Live pulse ring is green (`--success`), the tab marker and the current rail
+item take the blue, and the step-change marks in the builder stay neutral. The
+durations, easing and stagger arithmetic are untouched.
+
 
 ## Appendix A — measured anchors
 

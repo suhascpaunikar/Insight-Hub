@@ -586,8 +586,11 @@ function paintDashboard(host, { pending = false, entering = false } = {}) {
           </p>
         </div>
         <div class="page-head-actions">
+          <button class="btn btn-default btn-lg" data-act="stub" data-key="Documentation">
+            ${raw(icon('book'))}Documentation
+          </button>
           <!-- FR-72 — the only route into campaign creation. -->
-          <button class="btn btn-primary" data-act="new">${raw(icon('plus'))}New Campaign</button>
+          <button class="btn btn-primary btn-lg" data-act="new">${raw(icon('plus'))}New Campaign</button>
         </div>
       </header>
 

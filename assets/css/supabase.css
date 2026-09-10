@@ -145,19 +145,22 @@ img { max-width: 100%; }
 /* ---------- Type helpers ---------- */
 .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
-.t-display { font-size: 22px; font-weight: 500; letter-spacing: -0.3px; line-height: 1.2; }
-.t-h1 { font-size: 18px; font-weight: 500; letter-spacing: -0.16px; line-height: 1.3; }
-.t-h2 { font-size: 15px; font-weight: 500; line-height: 1.35; }
-.t-h3 { font-size: 13px; font-weight: 500; line-height: 1.4; }
-.t-body { font-size: 13px; line-height: 1.55; }
-.t-sm { font-size: 12px; line-height: 1.5; }
-.t-xs { font-size: 11px; line-height: 1.45; }
-.t-micro { font-size: 10px; line-height: 1.4; letter-spacing: 0.04em; text-transform: uppercase; }
+.t-display { font-size: var(--fs-title); font-weight: var(--fw-title); letter-spacing: var(--tracking-title); line-height: var(--lh-title); }
+.t-section { font-size: var(--fs-section); font-weight: var(--fw-title); letter-spacing: var(--tracking-title-sm); line-height: var(--lh-title); }
+.t-h1 { font-size: var(--fs-title-sm); font-weight: var(--fw-title); letter-spacing: var(--tracking-title-sm); line-height: 1.3; }
+.t-h2 { font-size: var(--fs-lg); font-weight: var(--fw-title); line-height: 1.4; }
+.t-h3 { font-size: var(--fs-body); font-weight: var(--fw-label); line-height: 1.4; }
+.t-body { font-size: var(--fs-body); line-height: var(--lh-body); }
+.t-sm { font-size: var(--fs-sm); line-height: var(--lh-body); }
+.t-xs { font-size: var(--fs-xs); line-height: 1.45; }
+/* Sentence case at 12px, not uppercase and tracked out: Kumo has no
+   all-caps label style and the dashboard never sets one. */
+.t-micro { font-size: var(--fs-xs); line-height: 1.4; color: var(--foreground-lighter); }
 .fg { color: var(--foreground-default); }
 .fg-light { color: var(--foreground-light); }
 .fg-lighter { color: var(--foreground-lighter); }
 .fg-muted { color: var(--foreground-muted); }
-.fg-brand { color: var(--brand-default); }
+.fg-brand { color: var(--link); }
 .fg-danger { color: var(--destructive-fg); }
 .fg-warning { color: var(--warning-fg); }
 .fg-ai { color: var(--ai-fg); }
@@ -199,64 +202,87 @@ img { max-width: 100%; }
 /* ---------- Button ---------- */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  height: 30px; padding: 0 12px;
-  border: 1px solid transparent; border-radius: var(--radius-sm);
-  font-size: 13px; font-weight: 500; line-height: 1; white-space: nowrap;
+  height: var(--control-md); padding: 0 12px;
+  border: 1px solid transparent; border-radius: var(--radius-control);
+  font-size: var(--fs-body); font-weight: var(--fw-label); line-height: 1; white-space: nowrap;
   transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
 }
 .btn:disabled, .btn[aria-disabled="true"] { opacity: .5; cursor: not-allowed; pointer-events: none; }
 .btn svg { width: 14px; height: 14px; flex: none; }
 
-.btn-primary { background: var(--brand-default); border-color: var(--brand-600); color: var(--on-brand); }
-.btn-primary:hover { background: var(--brand-600); }
-.btn-primary:active { background: var(--brand-600); }
+/* The dashboard's primary is a gradient over Kumo's flat brand, with a 1px
+   inner highlight along the top edge. Kumo ships the colour; the dashboard
+   paints the lift. */
+.btn-primary {
+  background: var(--brand-gradient); border-color: var(--brand-600); color: var(--on-brand);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+.btn-primary:hover { background: linear-gradient(180deg, #3d88ee 0%, #1a72e8 50%, #0a68e6 100%); }
+.btn-primary:active { background: var(--brand-default); box-shadow: none; }
+.btn-primary:disabled { background: var(--brand-disabled); border-color: transparent; color: var(--foreground-light); box-shadow: none; }
 
-.btn-default { background: var(--surface-100); border-color: var(--border-strong); color: var(--foreground-default); }
-.btn-default:hover { background: var(--surface-200); border-color: var(--border-overlay); }
+/* Kumo's `secondary`, and the default button of the system. */
+.btn-default { background: var(--background-100); border-color: var(--border-default); color: var(--foreground-default); }
+.btn-default:hover { background: var(--surface-200); }
+/* Kumo's neutral filled Cancel, used in form, drawer and dialog footers. */
+.btn-neutral { background: #999999; border-color: transparent; color: #0a0a0a; }
+.btn-neutral:hover { background: #a8a8a8; }
 
-.btn-outline { background: transparent; border-color: var(--border-strong); color: var(--foreground-light); }
-.btn-outline:hover { background: var(--surface-100); color: var(--foreground-default); }
+.btn-outline { background: transparent; border-color: var(--border-default); color: var(--foreground-default); }
+.btn-outline:hover { color: var(--foreground-strong); border-color: var(--border-strong); }
 
-.btn-ghost { background: transparent; color: var(--foreground-light); }
-.btn-ghost:hover { background: var(--surface-200); color: var(--foreground-default); }
+.btn-ghost { background: transparent; color: var(--foreground-default); }
+.btn-ghost:hover { background: var(--surface-200); }
+/* Text-only action ("+ Add", "Enable"): no box at all until it is hovered. */
+.btn-text { background: transparent; color: var(--link-action); }
+.btn-text:hover { color: var(--link); text-decoration: underline; }
 
-.btn-danger { background: var(--destructive-200); border-color: var(--destructive-400); color: var(--destructive-fg); }
-.btn-danger:hover { background: rgba(229, 72, 77, 0.2); }
+.btn-danger {
+  background: var(--destructive-gradient); border-color: #a81212; color: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+.btn-danger:hover { background: linear-gradient(180deg, #f74a50 0%, #f0111c 100%); }
+.btn-danger:disabled { background: var(--destructive-disabled); border-color: transparent; color: var(--foreground-light); box-shadow: none; }
 
 .btn-link { height: auto; padding: 0; background: none; color: var(--foreground-light); text-decoration: underline; text-underline-offset: 3px; }
 .btn-link:hover { color: var(--foreground-default); }
 
-.btn-sm { height: 26px; padding: 0 9px; font-size: 12px; }
-.btn-lg { height: 36px; padding: 0 16px; font-size: 14px; }
-.btn-icon { width: 30px; padding: 0; }
-.btn-icon.btn-sm { width: 26px; }
+.btn-sm { height: var(--control-sm); padding: 0 8px; font-size: var(--fs-xs); border-radius: var(--radius-control-sm); }
+.btn-lg { height: var(--control-lg); padding: 0 16px; font-size: var(--fs-body); }
+.btn-icon { width: var(--control-md); padding: 0; }
+.btn-icon.btn-sm { width: var(--control-sm); }
+.btn svg { width: 16px; height: 16px; }
+.btn-sm svg { width: 14px; height: 14px; }
 
 /* ---------- Form ---------- */
 .field { display: flex; flex-direction: column; gap: 6px; }
-.label { font-size: 12px; font-weight: 500; color: var(--foreground-light); }
-.hint { font-size: 11px; color: var(--foreground-lighter); }
-.error { font-size: 11px; color: var(--destructive-fg); }
+.label { font-size: var(--fs-xs); font-weight: var(--fw-label); color: var(--foreground-muted); }
+.hint { font-size: var(--fs-xs); color: var(--foreground-lighter); }
+.error { font-size: var(--fs-xs); color: var(--destructive-fg); }
 
 .input, .textarea, .select {
-  width: 100%; height: 32px; padding: 0 10px;
-  background: var(--background-200);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  color: var(--foreground-default); font-size: 13px;
-  transition: border-color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out);
+  width: 100%; height: var(--control-md); padding: 0 12px;
+  background: var(--well);
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-control);
+  color: var(--foreground-default); font-size: var(--fs-body);
+  transition: border-color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out);
 }
 .input::placeholder, .textarea::placeholder { color: var(--foreground-muted); }
-.input:hover, .textarea:hover, .select:hover { border-color: var(--border-overlay); }
+.input:hover, .textarea:hover, .select:hover { border-color: var(--foreground-lighter); }
+/* Kumo focuses with a near-white 1.5px ring, not a coloured one: on this
+   canvas it is the highest-contrast mark available, and it never collides
+   with the blue that means "action". */
 .input:focus, .textarea:focus, .select:focus {
-  outline: none; border-color: var(--brand-default); box-shadow: 0 0 0 2px var(--brand-200);
+  outline: none; border-color: var(--focus-ring); box-shadow: 0 0 0 1.5px var(--focus-ring-soft);
 }
 .input[aria-invalid="true"], .textarea[aria-invalid="true"] { border-color: var(--destructive); }
-.input[aria-invalid="true"]:focus { box-shadow: 0 0 0 2px var(--destructive-200); }
+.input[aria-invalid="true"]:focus { border-color: var(--destructive); box-shadow: 0 0 0 1.5px var(--destructive-400); }
 .input:disabled, .select:disabled, .textarea:disabled {
   background: var(--surface-100); color: var(--foreground-muted); cursor: not-allowed;
 }
-.textarea { height: auto; min-height: 68px; padding: 8px 10px; resize: vertical; line-height: 1.5; }
-.input-sm, .select-sm { height: 28px; font-size: 12px; }
+.textarea { height: auto; min-height: 96px; padding: 10px 12px; resize: vertical; line-height: var(--lh-body); }
+.input-sm, .select-sm { height: var(--control-sm); padding: 0 8px; font-size: var(--fs-xs); border-radius: var(--radius-control-sm); }
 
 .select {
   appearance: none; padding-right: 26px; cursor: pointer;
@@ -265,41 +291,45 @@ img { max-width: 100%; }
 }
 .select option { background: var(--background-100); color: var(--foreground-default); }
 
-.input-search { padding-left: 30px; }
+.input-search { padding-left: 36px; background: var(--surface-100); border-color: var(--border-default); }
 .search-wrap { position: relative; display: block; }
 .search-wrap > svg {
-  position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
-  width: 14px; height: 14px; color: var(--foreground-muted); pointer-events: none;
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  width: 16px; height: 16px; color: var(--foreground-muted); pointer-events: none;
 }
 
 /* Checkbox + radio */
 .check, .radio {
-  appearance: none; flex: none; width: 15px; height: 15px; margin: 0;
-  background: var(--background-200); border: 1px solid var(--border-overlay);
+  appearance: none; flex: none; width: 16px; height: 16px; margin: 0;
+  background: transparent; border: 1px solid var(--border-input);
   cursor: pointer; transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
 }
 .check { border-radius: var(--radius-xs); }
 .radio { border-radius: var(--radius-full); }
-.check:checked, .radio:checked { background: var(--brand-default); border-color: var(--brand-default); }
+/* Neutral when checked, both here and in Kumo: a ticked box is a state, not
+   an action, and the blue is reserved for things you press. */
+.check:checked { background: var(--foreground-disabled); border-color: var(--border-input); }
+.radio:checked { background: transparent; border-color: var(--border-input); }
 .check:checked {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23121212' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
   background-size: 11px; background-position: center; background-repeat: no-repeat;
 }
-.radio:checked { box-shadow: inset 0 0 0 3px var(--background-200); }
+.radio:checked { box-shadow: inset 0 0 0 4px var(--foreground-light); }
 .check:disabled, .radio:disabled { opacity: .45; cursor: not-allowed; }
 
 /* Selectable option card — the repeated radio/checkbox tile */
 .opt {
-  display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; cursor: pointer;
+  display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; cursor: pointer;
   text-align: left;
-  background: var(--background-100); border: 1px solid var(--border-default);
+  background: transparent; border: 1px solid var(--border-strong);
   border-radius: var(--radius-md); transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
 }
-.opt:hover { background: var(--surface-100); border-color: var(--border-strong); }
-.opt.is-on { background: var(--surface-100); border-color: var(--brand-400); box-shadow: inset 0 0 0 1px var(--brand-200); }
+/* Selected is the border alone — Kumo adds no tint and no check glyph. */
+.opt:hover { border-color: var(--foreground-disabled); }
+.opt.is-on { border-color: var(--link); }
 .opt input { margin-top: 2px; }
-.opt-title { display: block; font-size: 12.5px; font-weight: 500; color: var(--foreground-default); }
-.opt-note { display: block; margin-top: 2px; font-size: 11px; color: var(--foreground-lighter); }
+.opt-title { display: block; font-size: var(--fs-lg); font-weight: var(--fw-title); color: var(--foreground-default); }
+.opt-note { display: block; margin-top: 6px; font-size: var(--fs-body); line-height: var(--lh-body); color: var(--foreground-light); }
 
 /* Icon tile for .opt cards (step 1 goals, step 4 channels). align-self keeps it
    28px wide inside a stretched column rather than spanning the card. */
@@ -311,21 +341,21 @@ img { max-width: 100%; }
 }
 .opt-icon svg { width: 15px; height: 15px; }
 .opt.is-on .opt-icon, .opt[data-on] .opt-icon {
-  background: var(--brand-200); border-color: var(--brand-400); color: var(--brand-default);
+  background: var(--brand-200); border-color: var(--brand-400); color: var(--link);
 }
 
 /* Switch */
 .switch {
-  appearance: none; position: relative; flex: none; width: 34px; height: 19px; margin: 0;
-  background: var(--surface-300); border: 1px solid var(--border-overlay);
+  appearance: none; position: relative; flex: none; width: 42px; height: 26px; margin: 0;
+  background: var(--surface-300); border: 1px solid transparent;
   border-radius: var(--radius-full); cursor: pointer; transition: background-color var(--motion-base) var(--ease-out), border-color var(--motion-base) var(--ease-out);
 }
 .switch::after {
-  content: ""; position: absolute; top: 2px; left: 2px; width: 13px; height: 13px;
+  content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px;
   background: var(--foreground-light); border-radius: var(--radius-full); transition: transform var(--motion-base) var(--ease-out), background-color var(--motion-base) var(--ease-out);
 }
-.switch:checked { background: var(--brand-default); border-color: var(--brand-600); }
-.switch:checked::after { transform: translateX(15px); background: var(--on-brand); }
+.switch:checked { background: var(--success-track); border-color: transparent; }
+.switch:checked::after { transform: translateX(16px); background: var(--success-knob); }
 
 /* ---------- Card / panel ---------- */
 .card {
@@ -336,50 +366,58 @@ img { max-width: 100%; }
 .card-pad { padding: var(--sp-lg); }
 .card-head {
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-md);
-  padding: 10px var(--sp-lg); border-bottom: 1px solid var(--border-default);
+  min-height: 44px; padding: 0 var(--sp-lg); border-bottom: 1px solid var(--border-muted);
 }
 .card-body { padding: var(--sp-lg); }
-.card-foot { padding: 8px var(--sp-lg); border-top: 1px solid var(--border-default); }
+.card-foot {
+  padding: 14px var(--sp-lg); border-top: 1px solid var(--border-default);
+  background: var(--background-200); border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
 .well {
-  background: var(--background-200); border: 1px solid var(--border-default);
-  border-radius: var(--radius-md); padding: var(--sp-md);
+  background: var(--well); border: 1px solid var(--border-muted);
+  border-radius: var(--radius-md); padding: var(--sp-lg);
 }
 
 /* ---------- Badge / pill ---------- */
 .badge {
-  display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 6px;
-  border: 1px solid var(--border-strong); border-radius: var(--radius-xs);
-  background: var(--surface-100); color: var(--foreground-light);
-  font-size: 10px; font-weight: 500; letter-spacing: .02em; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 6px; height: 20px; padding: 0 8px;
+  border: 1px solid var(--border-default); border-radius: var(--radius-full);
+  background: var(--background-100); color: var(--foreground-lighter);
+  font-size: var(--fs-xs); font-weight: var(--fw-label); white-space: nowrap;
 }
 .badge-mono { font-family: var(--font-mono); }
-.badge-ai { background: var(--ai-200); border-color: var(--ai-400); color: var(--ai-fg); }
-.badge-brand { background: var(--brand-200); border-color: var(--brand-400); color: var(--brand-default); }
-.badge-warning { background: var(--warning-200); border-color: var(--warning-400); color: var(--warning-fg); }
-.badge-danger { background: var(--destructive-200); border-color: var(--destructive-400); color: var(--destructive-fg); }
+/* Kumo's `beta` badge is a dashed brand border on nothing, with link-coloured
+   type. The AI variant is the same shape in the violet that means inference. */
+.badge-brand { background: transparent; border: 1px dashed var(--brand-default); color: var(--link); }
+.badge-ai { background: transparent; border: 1px dashed var(--ai-400); color: var(--ai-fg); }
+.badge-warning { background: var(--warning-200); border-color: transparent; color: var(--warning-fg); }
+.badge-danger { background: var(--destructive-200); border-color: transparent; color: var(--destructive-fg); }
+.badge svg { width: 14px; height: 14px; }
 
 .pill {
-  display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 9px;
-  border: 1px solid var(--border-strong); border-radius: var(--radius-full);
-  background: var(--surface-100); color: var(--foreground-light);
-  font-size: 11px; font-weight: 500; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 8px; height: 22px; padding: 0 10px;
+  border: 1px solid var(--border-default); border-radius: var(--radius-full);
+  background: transparent; color: var(--foreground-default);
+  font-size: var(--fs-xs); font-weight: var(--fw-label); white-space: nowrap;
 }
-.pill .dot { width: 6px; height: 6px; border-radius: var(--radius-full); background: currentColor; flex: none; }
-/* FR-76 — the label carries the meaning, the dot reinforces it. */
-.pill[data-status="Draft"] { color: var(--foreground-lighter); }
-.pill[data-status="Scheduled"] { color: var(--info-fg); border-color: var(--info-400); background: var(--info-200); }
-.pill[data-status="Live"] { color: var(--brand-default); border-color: var(--brand-400); background: var(--brand-200); }
-.pill[data-status="Paused"] { color: var(--warning-fg); border-color: var(--warning-400); background: var(--warning-200); }
-.pill[data-status="Completed"] { color: var(--foreground-light); }
-.pill[data-status="Stopped"] { color: var(--destructive-fg); border-color: var(--destructive-400); background: var(--destructive-200); }
+/* FR-76 — the label carries the meaning, the dot reinforces it. The pill
+   itself stays neutral: the dot is the only thing that changes colour, which
+   is what keeps six statuses from becoming six differently-coloured chips. */
+.pill .dot { width: 6px; height: 6px; border-radius: var(--radius-full); background: var(--dot, var(--foreground-lighter)); flex: none; }
+.pill[data-status="Draft"] { --dot: var(--foreground-muted); }
+.pill[data-status="Scheduled"] { --dot: var(--link); }
+.pill[data-status="Live"] { --dot: var(--success); }
+.pill[data-status="Paused"] { --dot: var(--warning-fg); }
+.pill[data-status="Completed"] { --dot: var(--foreground-lighter); }
+.pill[data-status="Stopped"] { --dot: var(--destructive-fg); }
 /* Live is the one status still happening, so it is the one that moves. The
    ring is a pseudo-element animating transform and opacity rather than the
    dot's own box-shadow: a shadow animation repaints every frame, this one
    composites, and it runs for as long as the tab is open. */
-.pill[data-status="Live"] .dot { position: relative; box-shadow: 0 0 0 3px var(--brand-200); }
+.pill[data-status="Live"] .dot { position: relative; box-shadow: 0 0 0 3px var(--success-tint); }
 .pill[data-status="Live"] .dot::after {
   content: ""; position: absolute; inset: 0; border-radius: var(--radius-full);
-  box-shadow: 0 0 0 3px var(--brand-400);
+  box-shadow: 0 0 0 3px rgba(0, 212, 146, 0.45);
   animation: pill-pulse 2.4s var(--ease-out) infinite;
 }
 @keyframes pill-pulse {
@@ -389,8 +427,8 @@ img { max-width: 100%; }
 
 .chip {
   display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 4px 0 10px;
-  background: var(--surface-100); border: 1px solid var(--border-strong);
-  border-radius: var(--radius-full); font-size: 11px; color: var(--foreground-default);
+  background: var(--background-100); border: 1px solid var(--border-default);
+  border-radius: var(--radius-full); font-size: var(--fs-xs); color: var(--foreground-default);
 }
 .chip button { display: grid; place-items: center; width: 16px; height: 16px; border-radius: var(--radius-full); color: var(--foreground-lighter); }
 .chip button:hover { background: var(--surface-300); color: var(--foreground-default); }
@@ -398,27 +436,39 @@ img { max-width: 100%; }
 
 /* ---------- Notices ---------- */
 .notice {
-  display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px;
+  display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px;
   border: 1px solid var(--border-default); border-radius: var(--radius-md);
-  background: var(--background-100); color: var(--foreground-light); font-size: 12px;
+  background: var(--background-100); color: var(--foreground-light); font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
-.notice svg { width: 14px; height: 14px; flex: none; margin-top: 2px; }
-.notice-danger { background: var(--destructive-200); border-color: var(--destructive-400); color: var(--destructive-fg); }
-.notice-warning { background: var(--warning-200); border-color: var(--warning-400); color: var(--warning-fg); }
-.notice-info { background: var(--info-200); border-color: var(--info-400); color: var(--info-fg); }
-.notice-ai { background: var(--ai-200); border-color: var(--ai-400); color: var(--ai-fg); }
+.notice svg { width: 16px; height: 16px; flex: none; margin-top: 3px; }
+/* Kumo's Banner does fill with a low-alpha tint of its own colour — the one
+   place the "never tint" rule does not hold, and the reason it is stated as
+   an exception in §8 rather than left as a contradiction. */
+.notice-danger { background: var(--destructive-200); border-color: transparent; color: var(--destructive-fg); }
+.notice-warning { background: var(--warning-200); border-color: transparent; color: var(--warning-fg); }
+.notice-info { background: var(--info-200); border-color: transparent; color: var(--info-fg); }
+.notice-ai { background: var(--ai-200); border-color: transparent; color: var(--ai-fg); }
 .notice strong { color: inherit; font-weight: 600; }
 
 /* ---------- Table ---------- */
 .table { width: 100%; border-collapse: collapse; }
 .table th {
   position: sticky; top: 0; z-index: 1;
-  padding: 8px 12px; text-align: left;
-  background: var(--surface-100); border-bottom: 1px solid var(--border-default);
-  font-size: 11px; font-weight: 500; color: var(--foreground-lighter);
-  letter-spacing: .03em; text-transform: uppercase; white-space: nowrap;
+  height: 36px; padding: 0 20px; text-align: left;
+  background: var(--background-100); border-bottom: 1px solid var(--border-default);
+  font-size: var(--fs-sm); font-weight: var(--fw-label); color: var(--foreground-lighter);
+  white-space: nowrap;
 }
-.table td { padding: 9px 12px; border-bottom: 1px solid var(--border-muted); font-size: 12.5px; vertical-align: middle; }
+/* One line per cell, so a row is the height of its first column rather than
+   of whichever column happened to wrap. The first column carries the name,
+   its id and a description, and is the one that is allowed to run on — it is
+   also capped, so a long description cannot push the row's actions off the
+   right edge of the table. */
+.table td { padding: 12px 14px; border-bottom: 1px solid var(--border-default); font-size: var(--fs-body); vertical-align: middle; white-space: nowrap; }
+.table th { padding: 0 14px; }
+.table td:first-child { white-space: normal; max-width: 280px; }
+.table th:first-child { max-width: 280px; }
 .table td { transition: background-color var(--motion-fast) var(--ease-out); }
 .table tbody tr:hover td { background: var(--surface-100); }
 /* The chevron leans toward its destination on hover — the same two pixels the
@@ -430,11 +480,11 @@ img { max-width: 100%; }
 .table-scroll { overflow-x: auto; }
 
 /* ---------- Tabs ---------- */
-.tabs { display: flex; align-items: center; gap: 2px; border-bottom: 1px solid var(--border-default); }
+.tabs { display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border-muted); }
 .tab {
-  position: relative; padding: 8px 12px; margin-bottom: -1px;
+  position: relative; padding: 0 12px 12px; margin-bottom: -1px;
   border-bottom: 2px solid transparent;
-  font-size: 12.5px; font-weight: 500; color: var(--foreground-lighter);
+  font-size: var(--fs-body); font-weight: var(--fw-label); color: var(--foreground-lighter);
   transition: color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
 }
 .tab:hover { color: var(--foreground-default); }
@@ -479,8 +529,8 @@ img { max-width: 100%; }
 .dd { position: relative; display: inline-flex; }
 .dd-menu {
   position: absolute; z-index: 60; top: calc(100% + 4px); min-width: 190px; padding: 4px;
-  background: var(--background-100); border: 1px solid var(--border-overlay);
-  border-radius: var(--radius-md); box-shadow: var(--shadow-3);
+  background: var(--background-100); border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
   animation: dd-in var(--motion-base) var(--ease-out);
 }
 /* Scaled from the corner it is anchored to, so the menu reads as opening out
@@ -511,12 +561,12 @@ img { max-width: 100%; }
 }
 .dd-sep { height: 1px; margin: 4px 0; background: var(--border-default); }
 .dd-item {
-  display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px;
-  border-radius: var(--radius-xs); font-size: 12.5px; color: var(--foreground-light); text-align: left;
+  display: flex; align-items: center; gap: 8px; width: 100%; height: 36px; padding: 0 8px;
+  border-radius: var(--radius-sm); font-size: var(--fs-body); color: var(--foreground-default); text-align: left;
 }
-.dd-item:hover { background: var(--surface-200); color: var(--foreground-default); }
+.dd-item:hover { background: var(--surface-100); color: var(--foreground-default); }
 .dd-item[aria-checked="true"] { color: var(--foreground-default); }
-.dd-item svg { width: 14px; height: 14px; flex: none; }
+.dd-item svg { width: 16px; height: 16px; flex: none; color: var(--foreground-lighter); }
 
 /* An action that destroys something is coloured before it is pressed, not
    after. Kept legible in greyscale (FR-65) by sitting last in its menu under a
@@ -533,7 +583,7 @@ img { max-width: 100%; }
 /* ---------- Dialog ---------- */
 .scrim {
   position: fixed; inset: 0; z-index: 100; display: grid; place-items: center;
-  background: rgba(0, 0, 0, 0.6); padding: var(--sp-xl);
+  background: var(--backdrop); padding: var(--sp-xl);
   animation: fade var(--motion-fast) var(--ease-out);
 }
 /* A column, not a single scrolling box: the head and the foot hold their
@@ -541,22 +591,27 @@ img { max-width: 100%; }
    long form instead of scrolling out of the frame with it. */
 .dialog {
   display: flex; flex-direction: column;
-  width: 100%; max-width: 480px; max-height: 85vh; overflow: hidden;
-  background: var(--background-100); border: 1px solid var(--border-overlay);
-  border-radius: var(--radius-md); box-shadow: var(--shadow-3);
+  width: 100%; max-width: 512px; max-height: 85vh; overflow: hidden;
+  background: var(--background-100); border: 1px solid var(--border-muted);
+  border-radius: var(--radius-md);
+  /* The frame: 5px of near-black around the panel with the page's own hairline
+     on its outer edge, which is how a Cloudflare dialog separates from the
+     backdrop without a shadow. */
+  outline: 5px solid var(--frame); outline-offset: 0;
+  box-shadow: 0 0 0 6px var(--border-default);
   animation: pop var(--motion-base) var(--ease-out);
 }
-.dialog-lg { max-width: 720px; }
-.dialog-xl { max-width: 900px; }
+.dialog-lg { max-width: 640px; }
+.dialog-xl { max-width: 768px; }
 .dialog-head {
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-md);
-  flex: none; padding: var(--sp-md) var(--sp-lg);
+  flex: none; min-height: 56px; padding: var(--sp-md) var(--sp-xl);
   border-bottom: 1px solid var(--border-default);
 }
-.dialog-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: var(--sp-lg); }
+.dialog-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: var(--sp-xl); }
 .dialog-foot {
   display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-sm);
-  flex: none; padding: var(--sp-md) var(--sp-lg); border-top: 1px solid var(--border-default);
+  flex: none; min-height: 68px; padding: var(--sp-md) var(--sp-xl); border-top: 1px solid var(--border-default);
   background: var(--background-200); border-radius: 0 0 var(--radius-md) var(--radius-md);
 }
 @keyframes fade { from { opacity: 0; } }
@@ -565,15 +620,17 @@ img { max-width: 100%; }
 /* ---------- Toast ---------- */
 .toasts { position: fixed; z-index: 200; right: var(--sp-lg); bottom: var(--sp-lg); display: flex; flex-direction: column; gap: 8px; width: 340px; }
 .toast {
-  padding: 11px 13px; background: var(--background-100);
-  border: 1px solid var(--border-overlay); border-left: 2px solid var(--brand-default);
-  border-radius: var(--radius-md); box-shadow: var(--shadow-3);
+  padding: 12px 16px; background: var(--background-100);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
   animation: slidein var(--motion-base) var(--ease-out);
 }
-.toast[data-kind="warning"] { border-left-color: var(--warning); }
-.toast[data-kind="danger"] { border-left-color: var(--destructive); }
-.toast-title { font-size: 12.5px; font-weight: 500; color: var(--foreground-default); }
-.toast-desc { margin-top: 3px; font-size: 11.5px; color: var(--foreground-lighter); }
+/* Kumo rings the toast in its own colour rather than tabbing it on one edge. */
+.toast[data-kind="success"] { border-color: var(--success); }
+.toast[data-kind="warning"] { border-color: var(--warning); }
+.toast[data-kind="danger"] { border-color: var(--destructive); }
+.toast-title { font-size: var(--fs-body); font-weight: var(--fw-label); color: var(--foreground-default); }
+.toast-desc { margin-top: 4px; font-size: var(--fs-sm); line-height: var(--lh-body); color: var(--foreground-lighter); }
 /* The way back, in the toast that reports the thing being undone. */
 .toast-act { margin-top: 9px; }
 @keyframes slidein { from { opacity: 0; transform: translateX(14px); } }
@@ -591,10 +648,10 @@ img { max-width: 100%; }
 .tip { position: relative; }
 .tip::after {
   content: attr(data-tip); position: absolute; z-index: 70; bottom: calc(100% + 6px); left: 50%;
-  transform: translateX(-50%); padding: 4px 8px; white-space: nowrap;
-  background: var(--surface-200); border: 1px solid var(--border-overlay);
-  border-radius: var(--radius-xs); font-size: 11px; color: var(--foreground-default);
-  opacity: 0; pointer-events: none; transition: opacity var(--motion-fast) var(--ease-out); box-shadow: var(--shadow-2);
+  transform: translateX(-50%); padding: 5px 8px; white-space: nowrap;
+  background: var(--surface-100); border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm); font-size: var(--fs-xs); color: var(--foreground-default);
+  opacity: 0; pointer-events: none; transition: opacity var(--motion-fast) var(--ease-out);
 }
 .tip:hover::after, .tip:focus-visible::after { opacity: 1; transition-delay: 80ms; }
 
@@ -622,14 +679,14 @@ img { max-width: 100%; }
 .rail-tip[data-open="true"] { opacity: 1; transform: none; }
 
 /* ---------- Empty / zero state ---------- */
-.zero { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 56px var(--sp-xl); }
+.zero { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 64px 40px; gap: 24px; }
 .zero-icon {
-  display: grid; place-items: center; width: 40px; height: 40px; margin-bottom: var(--sp-md);
-  background: var(--surface-100); border: 1px solid var(--border-default); border-radius: var(--radius-full);
+  display: grid; place-items: center; width: 48px; height: 48px; margin: 0;
   color: var(--foreground-lighter);
 }
-.zero-icon svg { width: 18px; height: 18px; }
-.zero p { max-width: 440px; margin-top: 6px; font-size: 12.5px; color: var(--foreground-lighter); }
+.zero-icon svg { width: 40px; height: 40px; }
+.zero p { max-width: 460px; margin: 0; font-size: var(--fs-lg); line-height: var(--lh-body); color: var(--foreground-lighter); }
+.zero > * + * { margin-top: 0; }
 
 /* ---------- App shell ----------
    The Cloudflare-dashboard shape (docs/ui-guidelines-cloudflare-dark.md §5):
@@ -881,8 +938,8 @@ a.crumb:hover { color: var(--foreground-default); }
 .stepper { display: flex; gap: 4px; }
 .step {
   position: relative;
-  display: flex; align-items: center; gap: 9px; flex: 1 1 0; min-width: 0; padding: 7px 10px;
-  border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+  display: flex; align-items: center; gap: 10px; flex: 1 1 0; min-width: 0; padding: 10px 14px;
+  border: 1px solid var(--border-default); border-radius: var(--radius-md);
   background: var(--background-100); text-align: left;
   transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
 }
@@ -942,7 +999,7 @@ a.crumb:hover { color: var(--foreground-default); }
    stop it being current — so it never renders. See docs/motion-handover.md. */
 
 /* ---------- Rating ramp (FR-89) ---------- */
-.legend { display: inline-flex; align-items: center; gap: 10px; padding: 5px 10px; background: var(--background-100); border: 1px solid var(--border-default); border-radius: var(--radius-sm); }
+.legend { display: inline-flex; align-items: center; gap: 10px; padding: 6px 12px; background: var(--background-100); border: 1px solid var(--border-default); border-radius: var(--radius-full); }
 .legend-scale { display: flex; align-items: center; gap: 2px; }
 .legend-swatch { width: 18px; height: 8px; }
 .legend-swatch:first-child { border-radius: 2px 0 0 2px; }
@@ -951,7 +1008,7 @@ a.crumb:hover { color: var(--foreground-default); }
 
 /* ---------- Bars / charts ---------- */
 .bar-track {
-  display: block; position: relative; height: 8px; background: var(--surface-200);
+  display: block; position: relative; height: 6px; background: var(--border-strong);
   border-radius: var(--radius-full); overflow: hidden;
 }
 /* Every one of these is a fresh node on each paint, so the `width` transition
@@ -981,7 +1038,7 @@ a.crumb:hover { color: var(--foreground-default); }
 .figure-value {
   display: block; margin-top: 6px;
   font-family: var(--font-mono); font-variant-numeric: tabular-nums;
-  font-size: 26px; line-height: 1.15; letter-spacing: -0.02em; color: var(--foreground-default);
+  font-size: var(--fs-section); font-weight: var(--fw-title); line-height: 1.15; letter-spacing: -0.02em; color: var(--foreground-default);
 }
 .figure-note { display: block; margin-top: 4px; font-size: 11px; line-height: 1.45; color: var(--foreground-muted); }
 /* Legible in greyscale (FR-65): the glyph and weight mark the worst step, not hue alone. */
@@ -996,12 +1053,12 @@ a.crumb:hover { color: var(--foreground-default); }
 /* ---------- Template picker (FR-26 … FR-33) ---------- */
 .tpl-grid { display: grid; gap: var(--sp-md); grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); }
 .tpl-card {
-  position: relative; overflow: hidden; padding: 10px;
+  position: relative; overflow: hidden; padding: var(--sp-md);
   background: var(--background-100); border: 1px solid var(--border-default);
   border-radius: var(--radius-md); text-align: left; transition: border-color var(--motion-fast) var(--ease-out);
 }
-.tpl-card:hover { border-color: var(--brand-400); }
-.tpl-card.is-on { border-color: var(--brand-default); box-shadow: inset 0 0 0 1px var(--brand-400); }
+.tpl-card:hover { border-color: var(--border-strong); }
+.tpl-card.is-on { border-color: var(--link); }
 .tpl-name { display: block; margin-bottom: 8px; }
 .tpl-name b { display: block; font-size: 12px; font-weight: 500; color: var(--foreground-default); }
 .tpl-name i {
@@ -1070,24 +1127,24 @@ a.crumb:hover { color: var(--foreground-default); }
 .star-btn.is-on { color: var(--warning); }
 
 /* ---------- Misc ---------- */
-.toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--border-default); }
-.stat { padding: 10px 12px; background: var(--background-100); border: 1px solid var(--border-default); border-radius: var(--radius-md); }
-.stat-label { display: flex; align-items: center; gap: 5px; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; color: var(--foreground-muted); }
-.stat-label svg { width: 12px; height: 12px; }
-.stat-value { display: block; margin-top: 3px; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 18px; color: var(--foreground-default); }
+.toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-md); padding: 0 0 var(--sp-lg); }
+.stat { padding: var(--sp-lg); background: var(--background-100); border: 1px solid var(--border-default); border-radius: var(--radius-md); }
+.stat-label { display: flex; align-items: center; gap: 6px; font-size: var(--fs-xs); color: var(--foreground-lighter); }
+.stat-label svg { width: 14px; height: 14px; }
+.stat-value { display: block; margin-top: 8px; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--fs-section); font-weight: var(--fw-title); line-height: 1.1; color: var(--foreground-default); }
 .stat.is-key { background: var(--surface-100); border-color: var(--border-strong); }
 
 /* FR-67 — the rail stays fixed while the form scrolls beneath it. */
-.builder-head { flex: none; background: var(--background-100); border-bottom: 1px solid var(--border-default); }
+.builder-head { flex: none; background: var(--background-200); border-bottom: 1px solid var(--topbar-border); }
 .builder-foot {
   display: flex; align-items: center; justify-content: space-between; flex: none;
   /* Height is a token because the assistant launcher has to clear this bar, and
      a second hard-coded 51 over there would go stale the moment this changes. */
   min-height: var(--foot-h);
-  padding: 10px var(--sp-lg); background: var(--background-100); border-top: 1px solid var(--border-default);
+  padding: var(--sp-lg); background: var(--panel); border-top: 1px solid var(--border-default);
 }
 
-.kv { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 11.5px; color: var(--foreground-lighter); }
+.kv { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: var(--fs-sm); color: var(--foreground-lighter); }
 
 @media (max-width: 1100px) {
   .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1112,36 +1169,36 @@ a.crumb:hover { color: var(--foreground-default); }
    Title, a one-line description, and the actions that belong to the whole
    page. The description is the screen's only prose: it says what the screen
    is for, not what each control does. */
-.page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-lg); flex-wrap: wrap; }
-.page-head-title { font-size: 22px; font-weight: 500; letter-spacing: -0.3px; line-height: 1.2; }
-.page-head-desc { margin-top: 5px; font-size: 13px; line-height: 1.55; color: var(--foreground-lighter); }
-.page-head-actions { display: flex; align-items: center; gap: var(--sp-sm); flex-wrap: wrap; }
+.page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-lg); flex-wrap: wrap; margin-bottom: 40px; }
+.page-head-title { font-size: var(--fs-title); font-weight: var(--fw-title); letter-spacing: var(--tracking-title); line-height: var(--lh-title); }
+.page-head-desc { margin-top: 8px; max-width: 64ch; font-size: var(--fs-body); line-height: var(--lh-body); color: var(--foreground-lighter); }
+.page-head-actions { display: flex; align-items: center; gap: var(--sp-md); flex-wrap: wrap; }
 
 
 /* ---------- Section heading ----------
    Names the group of rows beneath it. Sized a step under the page title so a
    screen of four groups still has one obvious first line. */
-.section-head { margin: var(--sp-xxl) 0 var(--sp-md); }
+.section-head { margin: var(--sp-xxl) 0 var(--sp-lg); }
 .section-head:first-child { margin-top: 0; }
-.section-head h2 { font-size: 17px; font-weight: 500; letter-spacing: -0.2px; line-height: 1.3; }
-.section-head p { margin-top: 4px; font-size: 12.5px; color: var(--foreground-lighter); }
+.section-head h2 { font-size: var(--fs-lg); font-weight: var(--fw-title); line-height: 1.4; }
+.section-head p { margin-top: 8px; max-width: 62ch; font-size: var(--fs-body); line-height: var(--lh-body); color: var(--foreground-light); }
 
 /* ---------- Icon tile ----------
    The rounded square that fronts a callout or an in-panel notice. */
 .icon-tile {
   display: grid; place-items: center; flex: none; width: 28px; height: 28px;
-  background: var(--surface-200); border: 1px solid var(--border-default);
-  border-radius: var(--radius-md); color: var(--foreground-light);
+  background: var(--surface-100); border: 1px solid var(--border-default);
+  border-radius: var(--radius-md); color: var(--foreground-lighter);
 }
-.icon-tile svg { width: 15px; height: 15px; }
+.icon-tile svg { width: 16px; height: 16px; }
 
 /* ---------- Callout ----------
    A standing condition with the action that resolves it: icon, a titled
    explanation, and the button on the far right. Not a toast and not an
    error — it stays until the condition does. */
 .callout {
-  display: flex; align-items: flex-start; gap: var(--sp-md);
-  padding: var(--sp-md) var(--sp-lg);
+  display: flex; align-items: flex-start; gap: var(--sp-lg);
+  padding: var(--sp-lg);
   background: var(--background-100); border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
 }
@@ -1166,19 +1223,19 @@ a.crumb:hover { color: var(--foreground-default); }
    explanation on the left and its control on the right — the shape that
    makes a settings screen scannable without reading it. */
 .spanel {
-  background: var(--background-100); border: 1px solid var(--border-default);
+  background: var(--well); border: 1px solid var(--border-muted);
   border-radius: var(--radius-md); overflow: hidden;
 }
 .srow {
   display: flex; align-items: center; justify-content: space-between;
   gap: var(--sp-xl); padding: var(--sp-lg);
-  border-top: 1px solid var(--border-default);
+  border-top: 1px solid var(--border-muted);
 }
 .srow:first-child { border-top: 0; }
 .srow-top { align-items: flex-start; }
 .srow-main { flex: 1 1 auto; min-width: 0; }
-.srow-label { font-size: 13px; font-weight: 500; color: var(--foreground-default); }
-.srow-desc { margin-top: 3px; font-size: 12.5px; line-height: 1.5; color: var(--foreground-lighter); max-width: 68ch; }
+.srow-label { font-size: var(--fs-body); font-weight: var(--fw-label); color: var(--foreground-default); }
+.srow-desc { margin-top: 6px; font-size: var(--fs-body); line-height: var(--lh-body); color: var(--foreground-lighter); max-width: 64ch; }
 .srow-ctl { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; width: 300px; }
 .srow-ctl-auto { width: auto; }
 
@@ -1202,8 +1259,8 @@ a.crumb:hover { color: var(--foreground-default); }
 /* The panel's own footer: the one save for everything above it. */
 .spanel-foot {
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-md);
-  padding: 10px var(--sp-lg);
-  background: var(--background-200); border-top: 1px solid var(--border-default);
+  padding: 14px var(--sp-lg);
+  background: var(--background-200); border-top: 1px solid var(--border-muted);
 }
 
 /* ---------- Step section ----------
@@ -1217,10 +1274,10 @@ a.crumb:hover { color: var(--foreground-default); }
   display: flex; align-items: flex-start; justify-content: space-between;
   gap: var(--sp-md); flex-wrap: wrap;
 }
-.ssection-title { font-size: 15px; font-weight: 500; line-height: 1.35; color: var(--foreground-default); }
+.ssection-title { font-size: var(--fs-lg); font-weight: var(--fw-title); line-height: 1.4; color: var(--foreground-default); }
 .ssection-desc {
-  margin-top: 3px; font-size: 12.5px; line-height: 1.5;
-  color: var(--foreground-lighter); max-width: 76ch;
+  margin-top: 8px; font-size: var(--fs-body); line-height: var(--lh-body);
+  color: var(--foreground-light); max-width: 62ch;
 }
 .ssection-actions { display: flex; align-items: center; gap: var(--sp-sm); flex-wrap: wrap; }
 
@@ -1296,11 +1353,11 @@ a.crumb:hover { color: var(--foreground-default); }
 .metric-key[data-tone="warning"] { color: var(--warning); }
 .metric-key[data-tone="danger"] { color: var(--destructive); }
 .metric-figures { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-md); margin-top: 6px; }
-.metric-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 26px; line-height: 1.15; letter-spacing: -0.02em; color: var(--foreground-default); }
+.metric-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--fs-section); font-weight: var(--fw-title); line-height: 1.15; letter-spacing: -0.02em; color: var(--foreground-default); }
 .metric-sub { display: flex; gap: 14px; }
 .metric-sub b { display: block; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 15px; font-weight: 400; line-height: 1.2; text-align: right; color: var(--foreground-light); }
 .metric-plot { margin-top: auto; padding-top: var(--sp-md); }
-.metric-axis { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; font-family: var(--font-mono); font-size: 9.5px; color: var(--foreground-muted); }
+.metric-axis { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; font-family: var(--font-mono); font-size: 11px; color: var(--foreground-muted); }
 
 /* ---------- Chart ----------
    Gridlines are dashed and sit behind the marks; the axis labels hang off the
@@ -1384,8 +1441,8 @@ a.crumb:hover { color: var(--foreground-default); }
    z-index is what lets it cross out of its own card on the way. */
 .chart-tip {
   position: absolute; z-index: 40; min-width: 190px; padding: 9px 11px;
-  background: var(--background-200); border: 1px solid var(--border-overlay);
-  border-radius: var(--radius-md); box-shadow: var(--shadow-3);
+  background: var(--background-100); border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
   pointer-events: none; opacity: 0; transform: translateY(2px);
   transition: opacity var(--motion-fast) var(--ease-out),
               transform var(--motion-fast) var(--ease-out);
@@ -1569,10 +1626,9 @@ body:has(.builder-foot) .asst {
   width: 320px; height: 380px; max-height: calc(100vh - 120px);
   display: flex; flex-direction: column;
   position: relative;              /* containing block for the border beam */
-  border: 1px solid var(--ai-400);
-  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
   background: var(--background-100);
-  box-shadow: var(--shadow-3);
   overflow: hidden;
   transform-origin: bottom right;
   transition: opacity 180ms ease, transform 180ms cubic-bezier(0.23, 1, 0.32, 1),

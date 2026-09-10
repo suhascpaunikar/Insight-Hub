@@ -1396,8 +1396,9 @@ function paintInsights(host, { pending = false, entering = false } = {}) {
       <header class="row-between wrap" style="align-items:flex-start;gap:16px;
              padding-bottom:18px;border-bottom:1px solid var(--border-default)">
         <div style="min-width:0">
+          <!-- FR-86 — identity is the breadcrumb's job on a detail page (§9.2);
+               what is left here is the state the breadcrumb cannot carry. -->
           <div class="row wrap" style="gap:10px">
-            <h1 class="t-display">${c.name}</h1>
             <span class="pill" data-status="${c.status}"><span class="dot"></span>${c.status}</span>
             <!-- The kind decides the tab set, so the reader is told which screen
                  this is before the tabs surprise them. -->

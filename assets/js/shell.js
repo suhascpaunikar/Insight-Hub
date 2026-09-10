@@ -306,7 +306,10 @@ export function wireRailCollapse(root, rerender, key = 'navCollapsed') {
    ========================================================================== */
 
 const RAIL_TIP_DELAY = 1500;
-const RAIL_TIP_ITEMS = '.rail-link, .rail-collapse, .rail-search-btn, .rail-brand-btn';
+/* The logo cell is deliberately absent: it is the only item whose tooltip
+   would open over the page header rather than beside the strip, and its
+   accessible name already says what it switches. */
+const RAIL_TIP_ITEMS = '.rail-link, .rail-collapse, .rail-search-btn';
 
 let railTip = null;
 let railTipTimer = null;

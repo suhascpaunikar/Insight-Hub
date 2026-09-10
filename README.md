@@ -72,12 +72,27 @@ against rather than hiding the zoom.
 
 Tokens and primitives: `assets/css/supabase.css`.
 
-**Planned restyle:** the console is moving to the Cloudflare dashboard's dark look. The
-specification — colour, type, spacing, shell, every component, and a migration map from the
-current primitives — is [`docs/ui-guidelines-cloudflare-dark.md`](docs/ui-guidelines-cloudflare-dark.md).
-Its token remap ships as `assets/css/tokens-cloudflare.css`, a drop-in override that is not
-linked from the pages yet; load it after `supabase.css` to preview the palette on the
-current primitives.
+**The console now runs in the Cloudflare dashboard's dark design system.** The
+specification — colour, type, spacing, shell, every component, motion, and a migration map
+from the primitives it replaced — is
+[`docs/ui-guidelines-cloudflare-dark.md`](docs/ui-guidelines-cloudflare-dark.md), and its
+tokens are `assets/css/tokens-cloudflare.css`, loaded after `supabase.css` on all four pages.
+
+The values are not guesses. **[@cloudflare/kumo](https://www.npmjs.com/package/@cloudflare/kumo)**,
+Cloudflare's own component library, is a dependency, and the token file carries *its*
+shipped values, aliased to its own token names. Kumo is React and this prototype is not,
+so its components are mirrored rather than imported — §11 of the guideline is the
+component-by-component map, and the reconciliation showing which measured values Kumo
+confirmed and which it corrected.
+
+```bash
+pnpm install                       # Kumo + motion; only needed to consult them
+npx @cloudflare/kumo ls            # the 48 components
+npx @cloudflare/kumo doc Button    # one component's props, sizes and variants
+```
+
+Neither dependency is loaded by the pages: the prototype still has **no build step and no
+runtime dependencies**, and `index.html` opens on its own.
 
 ---
 
