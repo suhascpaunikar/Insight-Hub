@@ -78,7 +78,7 @@ function srowNotice(label, desc, action) {
       <span class="icon-tile" aria-hidden="true">${raw(icon('info'))}</span>
       <div class="srow-main">
         <div class="srow-label">${label}</div>
-        <p class="srow-desc">${desc}</p>
+        ${raw(desc ? `<p class="srow-desc">${esc(desc)}</p>` : '')}
       </div>
       <div class="srow-ctl srow-ctl-auto">${raw(action)}</div>
     </div>`;
@@ -147,51 +147,42 @@ function generalTab() {
   return html`
     <div class="section-head">
       <h2>Workspace</h2>
-      <p>Who this workspace is, and where its responses are stored.</p>
     </div>
 
     <section class="spanel">
-      ${raw(srow('Workspace name', 'Shown in the workspace switcher and on every export.', html`
+      ${raw(srow('Workspace name', '', html`
         <input class="input" data-field="workspaceName" value="${val('workspaceName')}"
                aria-label="Workspace name" />`))}
 
-      ${raw(srow('Data region',
-        'Where responses are written. Changing it applies to new campaigns only — collected responses stay where they were written.',
+      ${raw(srow('Data region', '',
         html`<select class="select" data-field="region" aria-label="Data region">${regionOptions}</select>`,
         { top: true }))}
 
-      ${raw(panelFoot('workspace', 'Applies to every campaign in this workspace.'))}
+      ${raw(panelFoot('workspace'))}
     </section>
 
     <div class="section-head">
       <h2>Campaign defaults</h2>
-      <p>What a new campaign starts with. Every one of these can be overridden in the builder.</p>
     </div>
 
     <section class="spanel">
-      ${raw(srow('Default rating element',
-        'The scale a Ratings template opens with. The rating ramp normalises to whichever scale a campaign ends up using, so this changes the question, never the colour.',
+      ${raw(srow('Default rating element', '',
         html`<select class="select" data-field="defaultRating" aria-label="Default rating element">${ratingOptions}</select>`,
         { top: true }))}
 
-      ${raw(srowLink('Question library',
-        'The reusable questions a new campaign can pull from.', 'stub', { key: 'Question library' }))}
+      ${raw(srowLink('Question library', '', 'stub', { key: 'Question library' }))}
 
-      ${raw(srowLink('Exclusion lists',
-        'Users held out of every campaign in this workspace, regardless of segment.', 'stub',
-        { key: 'Exclusion lists' }))}
+      ${raw(srowLink('Exclusion lists', '', 'stub', { key: 'Exclusion lists' }))}
 
-      ${raw(panelFoot('defaults', 'Existing campaigns keep the element they were built with.'))}
+      ${raw(panelFoot('defaults'))}
     </section>
 
     <div class="section-head">
       <h2>Prototype state</h2>
-      <p>This build keeps its state in the browser. Nothing here leaves the machine.</p>
     </div>
 
     <section class="spanel">
-      ${raw(srow('Reset all prototype state',
-        'Clears saved campaigns, the in-progress draft and every setting on this screen, then reloads.',
+      ${raw(srow('Reset all prototype state', '',
         '<button class="btn btn-danger btn-sm" data-act="reset">Reset state</button>',
         { auto: true }))}
     </section>`;
@@ -206,66 +197,56 @@ function deliveryTab() {
   return html`
     <div class="section-head">
       <h2>Response handling</h2>
-      <p>How long a prompt stays answerable, and how soon the same user can be asked again.</p>
     </div>
 
     <section class="spanel">
-      ${raw(srow('One response per user',
-        'When on, a user who has already answered a campaign is not shown it again, on any device.',
+      ${raw(srow('One response per user', '',
         toggle('onePerUser', 'One response per user'),
         { auto: true }))}
 
-      ${raw(srow('Response window',
-        'How long a delivered prompt stays answerable before it expires unanswered. Use 0 for never.',
+      ${raw(srow('Response window', '',
         unitInput('responseWindow', windowHours === 0 ? 'never' : 'hours',
           windowHours === 0
             ? { text: 'Prompts never expire' }
             : { text: `${(windowHours / 24).toFixed(1).replace(/\.0$/, '')} days` }),
         { top: true }))}
 
-      ${raw(srow('Re-survey cooldown',
-        'The minimum gap before a user who answered any campaign can be surveyed again. Use 0 for no cooldown.',
+      ${raw(srow('Re-survey cooldown', '',
         unitInput('cooldown', cooldownDays === 0 ? 'no cooldown' : 'days',
           cooldownDays === 0
             ? { text: 'Users can be surveyed back-to-back', warn: true }
             : { text: `Roughly ${Math.max(1, Math.round(365 / cooldownDays))} surveys per user per year` }),
         { top: true }))}
 
-      ${raw(srowNotice('Per-app response windows are on the Scale plan',
-        'Set a different window for Android, iOS and web instead of one across all three.',
+      ${raw(srowNotice('Per-app response windows are on the Scale plan', '',
         '<button class="btn btn-primary btn-sm" data-act="stub" data-key="Scale plan">Upgrade to Scale</button>'))}
 
-      ${raw(panelFoot('responses', 'Applies to prompts delivered from now on.'))}
+      ${raw(panelFoot('responses'))}
     </section>
 
     <div class="section-head">
       <h2>Send rate limits</h2>
-      <p>Ceilings on how often a user can be interrupted. They cap every campaign at once — a
-         campaign cannot raise its own.</p>
     </div>
 
     <section class="spanel">
-      ${raw(srow('In-app prompt rate',
-        'Prompts a single user can be shown inside the app per hour, across every running campaign.',
+      ${raw(srow('In-app prompt rate', '',
         unitInput('inAppRate', 'prompts/h',
           { text: `${count(Number(val('inAppRate')) * 24)} per user per day` }),
         { top: true }))}
 
-      ${raw(srow('Push prompt rate',
-        'Push notifications a single user can receive per hour. Push is the more expensive interruption, so it is normally set below the in-app rate.',
+      ${raw(srow('Push prompt rate', '',
         unitInput('pushRate', 'prompts/h',
           Number(val('pushRate')) > Number(val('inAppRate'))
             ? { text: 'Above the in-app rate — push will interrupt more often than in-app', warn: true }
             : { text: `${count(Number(val('pushRate')) * 24)} per user per day` }),
         { top: true }))}
 
-      ${raw(srow('Response submission rate',
-        'Submissions accepted from one device in a 5 minute window. Guards the collector against a client retry loop.',
+      ${raw(srow('Response submission rate', '',
         unitInput('perUserRate', 'requests/5 min',
           { text: `${count(Number(val('perUserRate')) * 12)} requests per hour` }),
         { top: true }))}
 
-      ${raw(panelFoot('limits', 'Enforced by the collector, not the client.'))}
+      ${raw(panelFoot('limits'))}
     </section>`;
 }
 
@@ -294,7 +275,7 @@ const ALERTS = [
 function alertsTab() {
   const connected = saved().channelConnected;
 
-  const alertRows = ALERTS.map((a) => srowLink(a.label, a.desc, 'alert', {
+  const alertRows = ALERTS.map((a) => srowLink(a.label, '', 'alert', {
     key: a.key,
     badge: a.badge,
     status: saved()[a.key]
@@ -309,10 +290,6 @@ function alertsTab() {
         <span class="icon-tile" aria-hidden="true">${raw(icon('mail'))}</span>
         <div class="callout-body">
           <div class="callout-title">Connect a channel to change where alerts go</div>
-          <p class="callout-desc">
-            Alerts are delivered to the workspace owner’s email using the default template.
-            Connect a channel to route them elsewhere and to edit their subject and body.
-          </p>
         </div>
         <div class="callout-actions">
           <span class="split">
@@ -331,26 +308,22 @@ function alertsTab() {
 
     <div class="section-head" ${raw(connected ? '' : 'style="margin-top:var(--sp-xl)"')}>
       <h2>Campaign alerts</h2>
-      <p>Sent as they happen. Open one to see what it watches and what it would have fired on.</p>
     </div>
 
     <section class="spanel">${raw(alertRows.join(''))}</section>
 
     <div class="section-head">
       <h2>Digests</h2>
-      <p>A scheduled summary across every campaign, whether or not anything alerted.</p>
     </div>
 
     <section class="spanel">
-      ${raw(srow('Weekly digest',
-        'Monday 09:00 in the workspace time zone: response volume, rating movement and the week’s largest drop-off.',
+      ${raw(srow('Weekly digest', '',
         toggle('digestWeekly', 'Weekly digest'), { auto: true }))}
 
-      ${raw(srow('Daily digest',
-        'Yesterday’s responses and any campaign that changed state. Noisy on a workspace with few live campaigns.',
+      ${raw(srow('Daily digest', '',
         toggle('digestDaily', 'Daily digest'), { auto: true }))}
 
-      ${raw(panelFoot('digests', 'Delivered to the workspace owner.'))}
+      ${raw(panelFoot('digests'))}
     </section>`;
 }
 
@@ -407,9 +380,6 @@ function paintSettings(host, { pending = false, entering = false } = {}) {
       <header class="page-head">
         <div>
           <h1 class="page-head-title">Settings</h1>
-          <p class="page-head-desc">
-            Workspace configuration — the values every campaign inherits unless it overrides them.
-          </p>
         </div>
         <div class="page-head-actions">
           <button class="btn btn-default btn-sm" data-act="stub" data-key="Docs">

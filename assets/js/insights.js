@@ -1203,9 +1203,6 @@ function weightHistoryCard(variants) {
         <span class="badge badge-ai">AI-assigned</span>
       </div>
       <div class="card-body">
-        <p class="t-body fg-lighter" style="margin-bottom:12px">
-          A shift in results can be read against the shift in traffic allocation that produced it.
-        </p>
         <div class="stack-sm">
           ${WEIGHT_HISTORY.map((w) => html`
             <div class="row" style="gap:10px">

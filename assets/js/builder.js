@@ -144,17 +144,12 @@ function step1(draft, issues) {
         <!-- FR-7 — this step reads as "start from"; "template" is reserved for
              the Content step. -->
         <h2 class="t-h1" id="s1">What do you want to find out?</h2>
-        <p class="t-body fg-lighter" style="margin-top:2px;max-width:70ch">
-          The goal you start from sets the defaults for every step after this. The three
-          answers under it decide which components and elements the Content step can offer you.
-        </p>
       </header>
 
       ${raw(stepPanel({
         id: 's1-goal',
         title: 'Starting point',
         required: true,
-        desc: 'Pick one. Everything it sets stays editable as you go.',
         body: goals,
         // FR-69 — only the goal blocks here; the name and app errors ride on
         // their own panels below, where the field the reader has to fix is.
@@ -166,13 +161,10 @@ function step1(draft, issues) {
         ${raw(stepPanel({
           title: 'Campaign name',
           required: true,
-          desc: 'Used as the identifier across the builder, the campaign list and the insights page.',
           rows: html`
             <div class="srow">
               <div class="srow-main">
                 <label class="srow-label" for="cname">Name</label>
-                <p class="srow-desc">Somewhere between a label and a sentence — enough for the next
-                  person to recognise it in a list.</p>
               </div>
               <div class="srow-ctl">
                 <input class="input" id="cname" data-act="name" value="${draft.name}"
@@ -187,7 +179,6 @@ function step1(draft, issues) {
         ${raw(stepPanel({
           title: 'Apps',
           required: true,
-          desc: 'At least one. App selection constrains the components available in the Content step.',
           body: html`
             <div class="grid g3">
               ${APP_OPTIONS.map((a) => html`
@@ -203,7 +194,6 @@ function step1(draft, issues) {
         ${raw(stepPanel({
           title: 'Campaign type',
           required: true,
-          desc: 'How many pieces of content this campaign runs, and who decides the split.',
           body: html`
             <div class="stack-sm">
               ${TYPE_OPTIONS.map((t) => html`
@@ -253,10 +243,6 @@ function objectiveSection(draft) {
                     placeholder="e.g. Repeat orders in Bandra dropped 8% after the March update. Find out if it is the new tracking screen or the delivery time."
                     >${value}</textarea>
           <div class="row-between" style="align-items:flex-start;gap:16px">
-            <span class="hint">
-              Plain English. This changes nothing about what gets sent — it stays with the
-              campaign so the next person knows why you built it.
-            </span>
             <span class="mono t-xs fg-muted" style="flex:none">${value.length}/${OBJECTIVE_MAX}</span>
           </div>
         </div>
@@ -304,7 +290,6 @@ function objectiveSection(draft) {
   return stepPanel({
     id: 's1-obj',
     title: 'Campaign objective',
-    desc: 'Why this campaign exists, in your own words. It configures nothing and travels with the draft.',
     actions: '<span class="badge">Optional</span>',
     body,
   });
@@ -436,15 +421,11 @@ function step2(draft, issues) {
     <section class="stack-lg" style="max-width:940px" aria-labelledby="s3">
       <header>
         <h2 class="t-h1" id="s3">Audience</h2>
-        <p class="t-body fg-lighter" style="margin-top:2px">
-          Who gets asked. Exclusions are applied after inclusion.
-        </p>
       </header>
 
       ${raw(stepPanel({
         title: 'Target audience',
         required: true,
-        desc: 'How this campaign decides who qualifies.',
         body: html`
           <div class="grid g3">
             ${AUDIENCE_MODES.map((m) => html`
@@ -459,7 +440,6 @@ function step2(draft, issues) {
       ${raw(audience.mode !== 'segmented' ? '' : stepPanel({
         title: 'Segments',
         required: true,
-        desc: 'Rule-based groups from the shared library. Each one shows the rule it selects on.',
         actions: `<button class="btn btn-outline btn-sm" data-act="new-segment">${
           icon('plus')}Create segment</button>`,
         // FR-13 — the rule is visible at the point of selection.
@@ -485,7 +465,6 @@ function step2(draft, issues) {
       ${raw(audience.mode !== 'user-data-table' ? '' : stepPanel({
         title: 'User ID list',
         required: true,
-        desc: 'Upload a CSV and this campaign targets exactly those users — no rule is evaluated.',
         body: userListBody(draft),
         note: 'IDs are matched against the user table on send. Anything in the file that does not '
           + 'resolve to a user is dropped at that point, so the estimate below is an upper bound.',
@@ -494,7 +473,6 @@ function step2(draft, issues) {
 
       ${raw(stepPanel({
         title: 'Exclude',
-        desc: 'Applied after inclusion. Select repeatedly to exclude more than one list.',
         // FR-16 — exclusion is a dropdown, multi-select via repeat selection.
         body: html`
           <div class="stack-sm">
@@ -526,7 +504,6 @@ function step2(draft, issues) {
 
       ${raw(stepPanel({
         title: 'Estimated reach',
-        desc: 'What the selections above work out to right now. Recomputed as you change them.',
         body: html`
           <div class="grid g3">
             <div class="stat"><span class="stat-label">${raw(icon('users'))}Included</span>
@@ -573,10 +550,6 @@ function step4(draft, issues) {
     <section class="stack-lg" aria-labelledby="s4">
       <header>
         <h2 class="t-h1" id="s4">Schedule &amp; publish</h2>
-        <p class="t-body fg-lighter" style="margin-top:2px">
-          When enrolment opens, whether it ever closes, and a last look at what you are
-          about to send.
-        </p>
       </header>
 
       <div class="grid" style="grid-template-columns:minmax(0,1fr) 292px;gap:24px;align-items:start">
@@ -584,7 +557,6 @@ function step4(draft, issues) {
           ${raw(stepPanel({
             title: 'Start',
             required: true,
-            desc: 'When enrolment opens. The date and time are inert under Now.',
             // FR-46 — Now or Later; the date and time inputs are disabled under Now.
             body: html`
               <div class="stack-sm">
@@ -592,7 +564,6 @@ function step4(draft, issues) {
                   <input class="radio" type="radio" name="start" data-act="start-mode" data-id="now"
                          ${raw(s.startMode === 'now' ? 'checked' : '')} />
                   <span class="t-sm" style="font-weight:500">Now</span>
-                  <span class="hint">Enrolment opens the moment you publish.</span>
                 </label>
                 <label class="row" style="cursor:pointer">
                   <input class="radio" type="radio" name="start" data-act="start-mode" data-id="later"
@@ -612,7 +583,6 @@ function step4(draft, issues) {
           ${raw(stepPanel({
             title: 'End',
             required: true,
-            desc: 'Whether enrolment ever closes on its own. An end must fall after the start.',
             // FR-47 — Never or End on; End must be after Start.
             body: html`
               <div class="stack-sm">
@@ -620,7 +590,6 @@ function step4(draft, issues) {
                   <input class="radio" type="radio" name="end" data-act="end-mode" data-id="never"
                          ${raw(s.endMode === 'never' ? 'checked' : '')} />
                   <span class="t-sm" style="font-weight:500">Never</span>
-                  <span class="hint">Runs until you stop it manually.</span>
                 </label>
                 <label class="row" style="cursor:pointer">
                   <input class="radio" type="radio" name="end" data-act="end-mode" data-id="end-on"
@@ -645,18 +614,11 @@ function step4(draft, issues) {
 
           ${raw(stepPanel({
             title: 'Re-entry',
-            desc: 'Whether a user who already responded can qualify again on a later trigger.',
             // FR-49 / OD-2 — re-entry, reconciled against the per-user lock in FR-18.
             rows: html`
               <div class="srow srow-top">
                 <div class="srow-main">
                   <div class="srow-label">Allow users to re-enter this campaign</div>
-                  <p class="srow-desc">
-                    Off by default. A user is normally enrolled once and their variant locks at capture.
-                    Turning this on lets a user who already responded qualify again on a later trigger —
-                    they keep their original variant assignment, so re-entry adds responses without
-                    re-bucketing anyone.
-                  </p>
                 </div>
                 <div class="srow-ctl srow-ctl-auto">
                   <input class="switch" type="checkbox" data-act="reentry"
@@ -671,7 +633,6 @@ function step4(draft, issues) {
           }))}
           ${raw(stepPanel({
             title: 'Ready to publish',
-            desc: 'Everything the three steps before this one resolved to.',
             actions: `<span class="badge badge-mono">${esc(draft.campaignId)}</span>`,
             body: html`
             <div class="stack-sm">
@@ -710,7 +671,6 @@ function step4(draft, issues) {
           <!-- FR-51 — a Test action beside a saved-account dropdown and a direct user ID. -->
           ${raw(stepPanel({
             title: 'Send a test',
-            desc: 'Deliver the configured content to yourself before anyone else sees it.',
             body: html`
             <div class="stack">
               <div class="grid g2">
@@ -757,10 +717,6 @@ function step4(draft, issues) {
           </div>
           <!-- FR-50 / FR-54 — the actual configured questions, tappable through the branch. -->
           ${raw(phonePreview(variant, { interactive: true, picked: ui.previewPick }))}
-          <p class="hint" style="margin-top:8px;max-width:292px">
-            Rendering ${templateOf(variant)?.name || 'no template'} on
-            ${variant.channel} with the questions configured in the Content step.
-          </p>
         </aside>
       </div>
     </section>`;
@@ -780,9 +736,6 @@ async function openSegmentCreator() {
         <div class="field">
           <label class="label" for="segname">Segment name <span class="req">*</span></label>
           <input class="input" id="segname" data-name value="${name}" placeholder="e.g. Bandra · lapsed 21d" />
-          <!-- One line, not three: the modal's own footer says what saving does, and
-               the two sentences that were here repeated it. -->
-          <span class="hint">Saved to the shared library and selectable on every later campaign.</span>
         </div>
 
         <div class="field">
@@ -817,7 +770,6 @@ async function openSegmentCreator() {
             <button class="btn btn-outline btn-sm" data-rule-add>${raw(icon('plus'))}Add condition</button>
             <button class="btn btn-outline btn-sm" data-group-add>${raw(icon('gitBranch'))}Add nested group</button>
           </div>
-          <span class="hint">The full rule builder — the same one the segment library uses.</span>
         </div>
       </div>`;
 

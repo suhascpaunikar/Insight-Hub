@@ -579,11 +579,6 @@ function paintDashboard(host, { pending = false, entering = false } = {}) {
       <header class="page-head" style="margin-bottom:24px">
         <div>
           <h1 class="page-head-title">Campaigns</h1>
-          <!-- FR-73 — what the two campaign states are actually for. -->
-          <p class="page-head-desc" style="max-width:74ch">
-            Open a live campaign to watch delivery and responses arrive, or a completed one to read
-            its insights. Drafts and scheduled campaigns reopen in the builder at the step you left.
-          </p>
         </div>
         <div class="page-head-actions">
           <!-- FR-72 — the only route into campaign creation. -->
@@ -749,8 +744,6 @@ function wire(host) {
         <div class="field">
           <label class="label" for="rename-input">Campaign name</label>
           <input class="input" id="rename-input" value="${campaign.name}" />
-          <span class="hint">The campaign ID stays <span class="mono">${campaign.campaignId}</span>.
-            Nothing else about the campaign changes.</span>
         </div>`,
       actions: [
         { label: 'Cancel', kind: 'outline', value: false },

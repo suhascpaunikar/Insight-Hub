@@ -225,20 +225,17 @@ function questionLogic(variant) {
                     aria-pressed="${variant.ratingElement === 'star'}"
                     ${raw(supports.includes('star') ? '' : 'disabled')}>${raw(icon('star'))}Star rating</button>
           </div>
-          <span class="hint">NPS is the default. Swapping to star fixes the scale at 5 points.</span>
         </div>
 
         <div class="field">
           <span class="label">Scale</span>
           ${raw(variant.ratingElement === 'star' ? html`
-            <div class="row"><span class="badge badge-mono">1–5</span>
-              <span class="hint">Star rating is always a 5-point scale.</span></div>` : html`
+            <div class="row"><span class="badge badge-mono">1–5</span></div>` : html`
             <!-- FR-39 — 1–5 or 1–10; the higher number is the more positive response. -->
             <div class="row" style="gap:6px">
               ${[5, 10].map((s) => html`
                 <button class="btn ${max === s ? 'btn-default' : 'btn-ghost'} btn-sm"
                         data-act="nps-scale" data-value="${s}" aria-pressed="${max === s}">1–${s}</button>`)}
-              <span class="hint">${max} is the most positive response.</span>
             </div>`)}
         </div>
       </div>
@@ -252,11 +249,6 @@ function questionLogic(variant) {
         <div class="row-between">
           <div>
             <span class="t-h3">Q2 · Follow-up differs by rating band</span>
-            <p class="hint" style="margin-top:2px">
-              ${raw(variant.ratingElement === 'star'
-                ? 'Star rating always branches — the three bands below are always in play.'
-                : 'Off by default. A 1–10 scale is used for more than feedback, so branching is never forced.')}
-            </p>
           </div>
           <input class="switch" type="checkbox" data-act="branching"
                  ${raw(branchingOn ? 'checked' : '')}
@@ -276,7 +268,6 @@ function questionLogic(variant) {
       <div class="field">
         <label class="label" for="open-q">Q3 · Open text — always asked</label>
         <input class="input" id="open-q" data-act="open-question" value="${variant.openTextQuestion}" />
-        <span class="hint">Shown to every respondent whichever band they land in.</span>
       </div>
     </div>`;
 }
@@ -408,9 +399,6 @@ export function renderContentStep(draft, issues) {
     <section class="stack-lg" aria-labelledby="step-4-heading">
       <header>
         <h2 class="t-h1" id="step-4-heading">Content</h2>
-        <p class="t-body fg-lighter" style="margin-top:2px">
-          Each variant carries its own content, component, questions and trigger.
-        </p>
       </header>
 
       <!-- FR-70 — variant tabs sit below the step rail and read a level down. -->
@@ -435,15 +423,11 @@ export function renderContentStep(draft, issues) {
         <div class="stack-lg">
           ${raw(stepPanel({
             title: 'Variant',
-            desc: 'What this variant is called, and how much of the audience it takes.',
             rows: html`
             <div class="srow">
               <div class="srow-main">
                 <!-- FR-22 / FR-23 — the name drives the tab label live and never versions. -->
                 <label class="srow-label" for="vname">Variant name</label>
-                <p class="srow-desc">
-                  Renaming does not create a new version, and it carries through to the insights page.
-                </p>
               </div>
               <div class="srow-ctl">
                 <input class="input" id="vname" data-act="variant-name" value="${variant.name}" />
@@ -454,7 +438,6 @@ export function renderContentStep(draft, issues) {
             <div class="srow srow-top">
               <div class="srow-main">
                 <label class="srow-label" for="weight">Weightage</label>
-                <p class="srow-desc">The share of the audience this variant is served to.</p>
               </div>
               <div class="srow-ctl srow-ctl-auto">
               ${raw(aiManaged ? html`
@@ -482,7 +465,6 @@ export function renderContentStep(draft, issues) {
           ${raw(stepPanel({
             title: 'Template & component',
             required: true,
-            desc: 'The channel this variant is delivered on, and the component that renders it.',
             actions: variant.templateId
               ? `<span class="mono t-xs fg-muted">In use: ${esc(variant.templateId)}</span>` : '',
             body: templatePicker(draft, variant),
@@ -491,16 +473,12 @@ export function renderContentStep(draft, issues) {
 
           ${raw(!template ? '' : stepPanel({
             title: 'Content elements',
-            desc: "What sits inside the template's slots. You edit values, never the layout.",
             // FR-35 — the add-content modal lists the elements this component allows.
             actions: `<button class="btn btn-outline btn-sm" data-act="add-content">${
               icon('plus')}Add content</button>`,
             body: html`
               ${raw(variant.elements.length === 0 ? html`
-                <p class="hint">
-                  The template's own slots are already populated. Add an element to place another
-                  one inside them — you edit values, never the layout.
-                </p>` : html`
+                <p class="hint">The template's own slots are already populated.</p>` : html`
                 <ul class="stack-sm">
                   ${variant.elements.map((e) => html`
                     <li class="card card-pad row-between" style="padding:10px 12px">
@@ -526,14 +504,12 @@ export function renderContentStep(draft, issues) {
           ${raw(!template ? '' : stepPanel({
             title: 'Questions',
             required: true,
-            desc: 'What the respondent is asked, and where each rating band takes them next.',
             body: questionLogic(variant),
           }))}
 
           ${raw(stepPanel({
             title: 'Trigger, event & delay',
             required: true,
-            desc: 'The event that enrols a user into this variant, and how long after it they are asked.',
             // FR-44 / FR-45 — per-variant trigger; delay is a text input, not a dropdown.
             actions: draft.variants.length > 1
               ? dropdown({ trigger: `${icon('copy')}Copy trigger from a variant`,
@@ -555,7 +531,7 @@ export function renderContentStep(draft, issues) {
                        aria-invalid="${!!issue(`delay:${variant.id}`)}" />
                 ${raw(issue(`delay:${variant.id}`)
                   ? `<span class="error" role="alert">${esc(issue(`delay:${variant.id}`).message)}</span>`
-                  : '<span class="hint">Any whole number — 35 minutes is as valid as 30.</span>')}
+                  : '')}
               </div>
               <div class="field">
                 <label class="label" for="unit">Unit</label>
