@@ -67,12 +67,17 @@ export function wireOnce(node, key, fn) {
  * both renders one key. See the three `place()` helpers in dashboard.js,
  * insights.js and settings.js.
  */
+/* The node a page paints into is not always the one that scrolls: in the
+   console shell it sits inside `.scroll`, under the tab strip and above the
+   footer. Resolve to the scrolling ancestor, or the node itself. */
+const scroller = (node) => (node ? node.closest('.scroll') || node : node);
+
 export function keepScroll(find, key, render) {
-  const before = find();
+  const before = scroller(find());
   const stamp = String(key);
   const top = before && before.dataset.scrollKey === stamp ? before.scrollTop : 0;
   render();
-  const after = find();
+  const after = scroller(find());
   if (!after) return;
   after.dataset.scrollKey = stamp;
   after.scrollTop = top;
@@ -503,6 +508,7 @@ const PATHS = {
   info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
   left: '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
   right: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  updown: '<path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/>',
   down: '<path d="m6 9 6 6 6-6"/>',
   up: '<path d="m18 15-6-6-6 6"/>',
   save: '<path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7H7v7"/><path d="M7 3v4h8"/>',

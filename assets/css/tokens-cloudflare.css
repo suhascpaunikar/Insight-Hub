@@ -149,6 +149,7 @@
   --success-knob: #55d484;
 
   /* Shell extras (§5) */
+  --logo: #3ecf8e;                             /* the IH mark only: InsightHub's emerald as a logo, never an action */
   --topbar-border: #252525;                    /* softer than the rail edge, deliberately */
   --tabgroup-bg: #0b0b0b;
   --tabgroup-border: #1c1c1c;

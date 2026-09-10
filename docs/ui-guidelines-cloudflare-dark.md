@@ -833,6 +833,12 @@ is applied. Alpha companions (`-400` / `-200`) are re-based on their new base co
 
 ### 10.2 Primitives
 
+**Applied so far:** the **Shell** group below (rail, logo-cell switcher, quick search,
+breadcrumb bar, tab strip with docking, footer, page widths) lives in `shell.js`,
+`chrome.js` and the *App shell* block of `supabase.css`, with the four pages loading
+`tokens-cloudflare.css`. Insights and Settings put their tabs in the strip; Insights
+sets the breadcrumb. Every other group is still at its current value.
+
 | Primitive | Now | Becomes | Spec |
 | --- | --- | --- | --- |
 | **Type** `.t-display` | 22px 500 | 30px 600 −0.02em | §3 page title |

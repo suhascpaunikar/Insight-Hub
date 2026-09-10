@@ -6,7 +6,7 @@
 import {
   html, raw, esc, icon, $, $$, on, count, ratingText, percent, ratingColor, ratingValue,
   ratingLegend, wireDropdowns, dialog, toast, wireOnce, AI_ACCENT, LOW_SAMPLE,
-  BANDS, BAND_LABEL, bandRange, keepScroll, lazySection, skel, wireTabPill,
+  BANDS, BAND_LABEL, bandRange, keepScroll, lazySection, skel,
   growPlots, growBars, swapOut, countUp, navigate, placeChartTip,
 } from './core.js';
 import { store } from './store.js';
@@ -20,6 +20,7 @@ import {
   CONVERSION_FUNNEL, CONVERSION, HOLDOUT, OFFER, ANNOUNCE_VARIANTS,
   ANNOUNCE_AI_SUGGESTIONS,
 } from './data.js';
+import { setTabs, setCrumbs } from './chrome.js';
 
 /**
  * FR-88 — the tab set belongs to the kind, not to the page. A feedback campaign
@@ -1358,6 +1359,8 @@ function paintInsights(host, { pending = false, entering = false } = {}) {
         <p class="t-body fg">This campaign no longer exists.</p>
         <a class="btn btn-link" href="index.html" style="margin-top:8px">Back to campaigns</a>
       </div></div></div>`;
+    setCrumbs([{ label: 'Campaigns', href: 'index.html', icon: 'megaphone' }, { label: 'Not found' }]);
+    setTabs(null);
     return;
   }
 
@@ -1389,10 +1392,6 @@ function paintInsights(host, { pending = false, entering = false } = {}) {
 
   host.innerHTML = html`
     <div class="page">
-      <a class="btn btn-ghost btn-sm" href="index.html" style="margin-bottom:12px">
-        ${raw(icon('left'))}All campaigns
-      </a>
-
       <!-- FR-86 — identity, state and the running context, with the actions. -->
       <header class="row-between wrap" style="align-items:flex-start;gap:16px;
              padding-bottom:18px;border-bottom:1px solid var(--border-default)">
@@ -1461,16 +1460,20 @@ function paintInsights(host, { pending = false, entering = false } = {}) {
             threshold to read as a rate. Percentages are withheld and raw counts shown instead.</span>
         </div>` : '')}
 
-      <!-- FR-88 — tab state lives in the URL so a view is shareable. -->
-      <div class="tabs" role="tablist" aria-label="Insights sections">
-        ${tabsFor(c).map((t) => html`
-          <button class="tab" role="tab" data-act="tab" data-tab="${t}" aria-selected="${tab === t}">
-            ${t[0].toUpperCase() + t.slice(1)}
-          </button>`)}
-      </div>
-
-      <div data-enter style="margin-top:20px">${raw(body)}</div>
+      <div data-enter style="margin-top:8px">${raw(body)}</div>
     </div>`;
+
+  // The campaign is the breadcrumb's last segment; its tabs sit in the shell's
+  // strip above the page (chrome.js), not in the panel they switch. Both are
+  // set on every paint, the skeleton's included, so the strip shows the tab
+  // that was clicked while its panel is still loading.
+  setCrumbs([{ label: 'Campaigns', href: 'index.html', icon: 'megaphone' }, { label: c.name }]);
+  setTabs({
+    label: 'Insights sections',
+    items: tabsFor(c).map((t) => ({ key: t, label: t[0].toUpperCase() + t.slice(1) })),
+    active: tab,
+    onSelect: (key) => selectTab(host, key),
+  });
 
   // Only the panel fades up. The chrome above it never left.
   if (entering) $$('[data-enter]', host).forEach((node) => node.classList.add('lazy-in'));
@@ -1487,10 +1490,6 @@ function paintInsights(host, { pending = false, entering = false } = {}) {
   }
   drawIn = false;
   figuresBefore = null;
-  // Runs on every paint, including the skeleton's: the marker should already
-  // be under the tab you clicked while its panel is still loading.
-  wireTabPill($('.tabs', host), 'insights');
-
   wireDropdowns(host);
   // Bound to the chart node itself, which this render just replaced — so it
   // is re-bound every time, unlike the delegated listeners in wire().
@@ -1498,18 +1497,19 @@ function paintInsights(host, { pending = false, entering = false } = {}) {
   wireOnce(host, 'insightsWired', wire);
 }
 
+/** FR-88 — the tab lives in the URL so a view is shareable; switching redraws the panel under the strip. */
+function selectTab(host, key) {
+  const p = params();
+  p.set('tab', key);
+  if (!p.get('id')) p.set('id', campaign().id);
+  history.replaceState(null, '', `?${p}`);
+  drawNext(host, () => renderInsights(host));
+}
+
 function wire(host) {
   const rerender = () => renderInsights(host);
   // Resolved per event, never captured — the row this page shows can change.
   const c = () => campaign();
-
-  on(host, 'click', '[data-act="tab"]', (e, el) => {
-    const p = params();
-    p.set('tab', el.dataset.tab);
-    if (!p.get('id')) p.set('id', c().id);
-    history.replaceState(null, '', `?${p}`);
-    drawNext(host, rerender);
-  });
 
   on(host, 'change', '[data-act="filter"]', (e, el) => {
     filters[el.dataset.key] = el.value;

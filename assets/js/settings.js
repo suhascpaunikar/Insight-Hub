@@ -13,9 +13,10 @@
    ========================================================================== */
 import {
   html, raw, esc, icon, $, $$, on, count, dropdown, wireDropdowns, toast, dialog, wireOnce, keepScroll,
-  lazySection, skel, wireTabPill,
+  lazySection, skel,
 } from './core.js';
 import { store } from './store.js';
+import { setTabs } from './chrome.js';
 
 const TABS = {
   general: 'General',
@@ -398,12 +399,8 @@ function paintSettings(host, { pending = false, entering = false } = {}) {
     : view.tab === 'delivery' ? deliveryTab()
     : alertsTab();
 
-  const tabs = Object.entries(TABS).map(([key, label]) => html`
-    <button class="tab" role="tab" data-act="tab" data-key="${key}"
-            aria-selected="${view.tab === key}">${label}</button>`);
-
   host.innerHTML = html`
-    <div class="page">
+    <div class="page page-settings">
       <header class="page-head">
         <div>
           <h1 class="page-head-title">Settings</h1>
@@ -418,14 +415,21 @@ function paintSettings(host, { pending = false, entering = false } = {}) {
         </div>
       </header>
 
-      <div class="tabs page-tabs" role="tablist">${tabs}</div>
-
       <div data-enter style="margin-top:var(--sp-xl)">${raw(body)}</div>
     </div>`;
 
+  // The tabs sit in the shell's strip above the page (chrome.js). Leaving a
+  // tab drops its pending edits rather than carrying them across to a Save
+  // the reader can no longer see.
+  setTabs({
+    label: 'Settings sections',
+    items: Object.entries(TABS).map(([key, label]) => ({ key, label })),
+    active: view.tab,
+    onSelect: (key) => { edits = {}; view.tab = key; renderSettings(host); },
+  });
+
   // Only the panel fades up; the header and tab strip never left.
   if (entering) $$('[data-enter]', host).forEach((node) => node.classList.add('lazy-in'));
-  wireTabPill($('.tabs', host), 'settings');
 
   wireDropdowns(host);
   wireOnce(host, 'settingsWired', wire);
@@ -434,15 +438,6 @@ function paintSettings(host, { pending = false, entering = false } = {}) {
 /* ---------- Behaviour ---------- */
 function wire(host) {
   const rerender = () => renderSettings(host);
-
-  on(host, 'click', '[data-act="tab"]', (event, btn) => {
-    if (view.tab === btn.dataset.key) return;
-    // Leaving a tab drops its pending edits rather than carrying them across
-    // to a Save the reader can no longer see.
-    edits = {};
-    view.tab = btn.dataset.key;
-    rerender();
-  });
 
   /* A control writes to `edits`; only Save crosses into the store. The
      re-render is what lights the footer and recomputes the derived notes. */

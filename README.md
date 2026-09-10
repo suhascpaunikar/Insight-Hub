@@ -91,7 +91,8 @@ assets/
     core.js            DOM helpers, icons, formatting, rating ramp, dialog/toast/dropdown
     data.js            seeded campaigns, templates, segments, insights
     store.js           draft model, variant reconciliation, step validation, persistence
-    shell.js           nav rail + context bar
+    shell.js           rail, breadcrumb bar, footer
+    chrome.js          breadcrumb + tab strip, the parts a page talks to
     dashboard.js       campaign list
     builder.js         wizard frame, steps 1·2·3·5·6
     content-step.js    step 4 — template picker, question logic, triggers
