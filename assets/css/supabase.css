@@ -742,7 +742,9 @@ img { max-width: 100%; }
   display: flex; align-items: center; gap: 8px; width: 100%; height: 36px; padding: 0 8px;
   border-radius: var(--radius-sm); font-size: var(--fs-body); color: var(--foreground-default); text-align: left;
 }
-.dd-item:hover { background: var(--surface-100); color: var(--foreground-default); }
+/* Kumo highlights a menu item with `overlay`, a full step above the `control`
+   the popup sits on. Anything closer than that is a hover you cannot see. */
+.dd-item:hover { background: var(--surface-200); color: var(--foreground-default); }
 .dd-item[aria-checked="true"] { color: var(--foreground-default); }
 .dd-item svg { width: 16px; height: 16px; flex: none; color: var(--foreground-lighter); }
 
@@ -1072,8 +1074,12 @@ img { max-width: 100%; }
   padding: 0; gap: 0; justify-content: center;
 }
 .rail-link:hover { color: var(--foreground-default); }
-/* FR-58 — the current screen is distinct through fill and weight, not colour alone. */
-.rail-link[aria-current="page"] { background: var(--surface-100); color: var(--foreground-default); }
+/* FR-58 — the current screen is distinct through fill and weight, not colour
+   alone. Kumo's Sidebar names the fill: `--sidebar-active-bg` is
+   `var(--color-kumo-tint)`, a full step above the `base` the rail sits on.
+   One step below that is a fill you have to look for. */
+.rail-link[aria-current="page"] { background: var(--surface-200); color: var(--foreground-default); }
+.rail-link:hover:not([aria-current="page"]) { background: var(--surface-100); }
 .rail-link svg { width: 16px; height: 16px; flex: none; }
 /* FR-60 — a limited-release badge as the guideline's dotted pill, in the AI accent. */
 .rail-link .badge {
@@ -1381,10 +1387,14 @@ a.crumb:hover { color: var(--foreground-default); }
 .tpl-card {
   position: relative; overflow: hidden; padding: var(--sp-md);
   background: var(--background-100); border: 1px solid var(--border-default);
-  border-radius: var(--radius-md); text-align: left; transition: border-color var(--motion-fast) var(--ease-out);
+  border-radius: var(--radius-md); text-align: left;
+  transition: border-color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out);
 }
-.tpl-card:hover { border-color: var(--border-strong); }
-.tpl-card.is-on { border-color: var(--link); }
+/* Selected the way every other card in this console is selected — Kumo's
+   Radio card fills rather than recolouring a hairline. See the note above
+   `.opt`. */
+.tpl-card:hover { background: var(--surface-200); border-color: var(--border-strong); }
+.tpl-card.is-on { background: var(--surface-200); border-color: var(--border-strong); }
 .tpl-name { display: block; margin-bottom: 8px; }
 .tpl-name b { display: block; font-size: 12px; font-weight: 500; color: var(--foreground-default); }
 .tpl-name i {
@@ -1443,7 +1453,10 @@ a.crumb:hover { color: var(--foreground-default); }
 }
 .rate-btn:hover { border-color: var(--brand-400); color: var(--foreground-default); }
 .rate-btn:active:not(:disabled), .star-btn:active:not(:disabled) { transform: scale(.9); }
-.rate-btn.is-on { color: var(--on-brand); font-weight: 600; }
+.rate-btn.is-on {
+  background: var(--brand-default); border-color: var(--brand-default);
+  color: var(--on-brand); font-weight: 600;
+}
 .rate-btn.is-on, .star-btn.is-on { animation: rate-mark var(--motion-base) var(--ease-out); }
 /* Settles onto the value rather than overshooting it — DESIGN.md's rule holds
    here too: this reports a choice, it does not celebrate one. */

@@ -313,7 +313,6 @@ export function phonePreview(variant, { interactive = false, picked = null } = {
                 aria-label="${i + 1} stars">★</button>`).join('')
     : Array.from({ length: max }, (_, i) => html`
         <button class="rate-btn ${picked === i + 1 ? 'is-on' : ''}"
-                style="${picked === i + 1 ? `background:var(--brand-default);border-color:var(--brand-default)` : ''}"
                 ${raw(interactive ? `data-act="preview-rate" data-value="${i + 1}"` : 'disabled')}>${i + 1}</button>`).join('');
 
   return html`
