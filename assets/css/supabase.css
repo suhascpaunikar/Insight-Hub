@@ -572,6 +572,57 @@ img { max-width: 100%; }
 .table tbody tr:hover .btn-default svg { transform: translateX(2px); }
 .table tbody tr:last-child td { border-bottom: 0; }
 .table .ta-r { text-align: right; }
+
+/* ---------- A row that opens something ----------
+   The pointer says the row is the target, not just the button at the end of
+   it. The button stays — it names the destination and it is what a keyboard
+   reaches — so this adds a way in rather than replacing one. */
+.table tbody tr[data-act="open-row"] { cursor: pointer; }
+.table tbody tr[data-act="open-row"] .row-name { transition: color var(--motion-fast) var(--ease-out); }
+.table tbody tr[data-act="open-row"]:hover .row-name { color: var(--foreground-strong); }
+
+/* ---------- Sortable column header ----------
+   Kumo's Table ships no sort control, so this is built on its own parts: the
+   header's `subtle` text going to `default` when it is the one in force, its
+   `tint` under the pointer, and its brand ring on focus. The arrow is always
+   in the DOM and only shown on the active column or under the pointer — a
+   header that gains a glyph on hover shifts its label by the width of the
+   glyph, and a row of headers that twitch as the pointer crosses them is
+   worse than one that says nothing. */
+.table th:has(.th-sort) { padding: 0; }
+.th-sort {
+  display: inline-flex; align-items: center; gap: 4px;
+  width: 100%; height: 36px; padding: 0 14px;
+  background: transparent; border: 0; cursor: pointer;
+  font: inherit; color: inherit; white-space: nowrap;
+  transition: background-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+}
+.table th.ta-r .th-sort { justify-content: flex-end; }
+.th-sort:hover { background: var(--surface-200); color: var(--foreground-default); }
+.th-sort:focus-visible { outline: 2px solid var(--brand-default); outline-offset: -2px; }
+.th-arrow {
+  display: inline-flex; flex: none;
+  opacity: 0; transition: opacity var(--motion-fast) var(--ease-out);
+}
+.th-arrow svg { width: 13px; height: 13px; }
+.th-sort:hover .th-arrow { opacity: .55; }
+.table th:not([aria-sort="none"]) .th-sort { color: var(--foreground-default); }
+.table th:not([aria-sort="none"]) .th-arrow { opacity: 1; }
+
+/* ---------- The status filter above a list ----------
+   Its own band under the card's top edge, so the tabs read as "which
+   campaigns" and the toolbar under them as "how to show them". */
+.list-tabs {
+  display: flex; align-items: center; padding: 12px 14px;
+  border-bottom: 1px solid var(--border-muted);
+}
+/* The count rides inside the tab rather than beside it: it is part of what the
+   tab says, and a separate badge would double the width of every tab. */
+.tabgroup-count {
+  margin-left: 6px; font-size: var(--fs-xs); font-variant-numeric: tabular-nums;
+  color: var(--foreground-muted); transition: color var(--motion-fast) var(--ease-out);
+}
+.tabgroup-tab[aria-selected="true"] .tabgroup-count { color: var(--foreground-lighter); }
 .table-scroll { overflow-x: auto; }
 
 /* ---------- Tabs ---------- */

@@ -13,12 +13,40 @@ import {
   WORKSPACE_SERIES, RANGES, isFeedback, KIND_LABEL, campaignKind,
 } from './data.js';
 
+/* The four presets the sort menu offers, each a (column, direction) pair. The
+   menu and the column headers drive the same two values, so a preset chosen
+   from the menu lights up the header it sorts by, and a header clicked in the
+   table shows in the menu as the preset it matches — or, once you flip it,
+   as the column and direction it actually is. */
 const SORTS = {
-  updated: 'Most recently updated',
-  responses: 'Most responses',
-  name: 'Name A–Z',
-  rating: 'Lowest average rating',
+  updated: { label: 'Most recently updated', key: 'updated', dir: 'desc' },
+  responses: { label: 'Most responses', key: 'responses', dir: 'desc' },
+  name: { label: 'Name A–Z', key: 'name', dir: 'asc' },
+  rating: { label: 'Lowest average rating', key: 'rating', dir: 'asc' },
 };
+
+/* Which way a column sorts when you first click its header: names read A–Z,
+   everything else opens on "most" — the answer people are looking for when
+   they sort a list of campaigns by responses or by when it last changed. */
+const SORT_FIRST_DIR = { updated: 'desc', responses: 'desc', rating: 'asc', name: 'asc' };
+
+/* The header each sort key belongs to. `name` is the campaign column; the rest
+   share their key with the optional column of the same name. */
+const SORT_COLUMN = { name: 'name', responses: 'responses', rating: 'rating', updated: 'updated' };
+
+const SORT_LABEL = { name: 'Campaign', responses: 'Responses', rating: 'Avg rating', updated: 'Updated' };
+
+/** What the sort button says: a preset by name, anything else by column. */
+function sortLabel() {
+  const preset = Object.values(SORTS)
+    .find((s) => s.key === view.sort && s.dir === view.dir);
+  if (preset) return preset.label;
+  return `${SORT_LABEL[view.sort]} ${view.dir === 'asc' ? 'ascending' : 'descending'}`;
+}
+
+/* FR-73 — the two campaign states the page description names, plus the three
+   in between. "All" first, then the order a campaign moves through. */
+const STATUS_TABS = ['All', 'Live', 'Draft', 'Scheduled', 'Paused', 'Completed'];
 
 const COLUMN_LABELS = {
   trigger: 'Trigger',
@@ -30,7 +58,9 @@ const COLUMN_LABELS = {
 const view = {
   query: '',
   field: 'name',
+  status: 'All',
   sort: 'updated',
+  dir: 'desc',
   range: '30d',
   page: 1,
   columns: { trigger: true, responses: true, rating: true, updated: true },
@@ -85,7 +115,7 @@ function campaignCell(c) {
   return html`
     <div class="col" style="gap:2px;min-height:54px">
       <span class="row" style="gap:6px">
-        <span class="t-h3 truncate">${c.name}</span>
+        <span class="t-h3 truncate row-name">${c.name}</span>
         ${raw(isFeedback(c) ? '' :
           `<span class="badge tip" data-tip="Collects no responses — opens on reach, engagement and conversion">
              ${KIND_LABEL[campaignKind(c)]}</span>`)}
@@ -167,8 +197,14 @@ function rowMenu(c) {
 function rowMarkup(c) {
   const cols = view.columns;
   const isBuilderRoute = c.status === 'Draft' || c.status === 'Scheduled';
+  /* FR-72 — the whole row opens the campaign, not just the button at the end
+     of it. Pointing at a name and clicking it is what a list of things asks
+     for; making the reader travel to a 60px button on the far right of a
+     1300px table to do the obvious thing is the part that read as broken.
+     The button stays: it names the destination ("Open" or "Resume"), and it
+     is what a keyboard reaches. */
   return html`
-    <tr data-id="${c.id}">
+    <tr data-id="${c.id}" data-act="open-row">
       <td style="min-width:240px">${raw(campaignCell(c))}</td>
       <td>${raw(statusPill(c.status))}</td>
       ${raw(cols.trigger ? html`
@@ -544,20 +580,45 @@ function listSkeleton(total) {
 }
 
 /* ---------- Filtering ---------- */
-function rows() {
+/** The search box alone, which is what the status tab counts are counted over. */
+function searched() {
   const source = store.state.emptyDashboard ? [] : store.state.campaigns;
   const q = view.query.trim().toLowerCase();
-  const filtered = source.filter((c) => {
-    if (!q) return true;
+  if (!q) return source;
+  return source.filter((c) => {
     const hay = view.field === 'name' ? c.name : view.field === 'id' ? c.campaignId : c.triggerLabel;
     return hay.toLowerCase().includes(q);
   });
-  return [...filtered].sort((a, b) => {
-    if (view.sort === 'responses') return b.responses - a.responses;
-    if (view.sort === 'name') return a.name.localeCompare(b.name);
-    if (view.sort === 'rating') return (a.avgRating || 99) - (b.avgRating || 99);
-    return new Date(b.updatedAt) - new Date(a.updatedAt);
-  });
+}
+
+/* Ascending for every column, flipped afterwards by the direction. A campaign
+   with no rating sorts last either way — `null` is "not asked yet", not zero,
+   and a draft has no business at the top of a list sorted by rating. */
+const COMPARE = {
+  name: (a, b) => a.name.localeCompare(b.name),
+  responses: (a, b) => a.responses - b.responses,
+  updated: (a, b) => new Date(a.updatedAt) - new Date(b.updatedAt),
+  rating: (a, b) => {
+    if (a.avgRating == null && b.avgRating == null) return 0;
+    if (a.avgRating == null) return 1;
+    if (b.avgRating == null) return -1;
+    return a.avgRating - b.avgRating;
+  },
+};
+
+function rows() {
+  const filtered = searched()
+    .filter((c) => view.status === 'All' || c.status === view.status);
+  const compare = COMPARE[view.sort] || COMPARE.updated;
+  const sorted = [...filtered].sort(compare);
+  /* One comparator per column, reversed rather than written twice — except
+     for the unrated, which stay at the bottom in both directions. */
+  if (view.dir === 'desc') {
+    const rated = sorted.filter((c) => view.sort !== 'rating' || c.avgRating != null);
+    const rest = sorted.filter((c) => view.sort === 'rating' && c.avgRating == null);
+    return [...rated.reverse(), ...rest];
+  }
+  return sorted;
 }
 
 /* ---------- Render ---------- */
@@ -595,11 +656,51 @@ function paintDashboard(host, { pending = false, entering = false } = {}) {
       ${label}
     </button>`).join('');
 
-  const sortItems = Object.entries(SORTS).map(([key, label]) => html`
-    <button class="dd-item" role="menuitemradio" data-act="set-sort" data-key="${key}"
-            aria-checked="${view.sort === key}">
-      ${raw(view.sort === key ? icon('check') : '<span style="width:14px"></span>')}${label}
-    </button>`).join('');
+  const sortItems = Object.values(SORTS).map((preset) => {
+    const on = view.sort === preset.key && view.dir === preset.dir;
+    return html`
+    <button class="dd-item" role="menuitemradio" data-act="set-sort"
+            data-key="${preset.key}" data-dir="${preset.dir}" aria-checked="${on}">
+      ${raw(on ? icon('check') : '<span style="width:14px"></span>')}${preset.label}
+    </button>`;
+  }).join('');
+
+  /* FR-63 — the column headers sort the list, which is the gesture anyone
+     reading a table reaches for first. The menu above keeps the four named
+     presets, because "lowest average rating" is a question and "rating,
+     ascending" is only a direction. Both write the same two values. */
+  const head = (key, label, right = false) => {
+    const on = view.sort === key;
+    const dir = on ? view.dir : SORT_FIRST_DIR[key];
+    return html`
+      <th class="${right ? 'ta-r' : ''}" aria-sort="${on ? (view.dir === 'asc' ? 'ascending' : 'descending') : 'none'}">
+        <button class="th-sort" data-act="sort-col" data-key="${key}"
+                aria-label="Sort by ${esc(label)}, ${dir === 'asc' ? 'ascending' : 'descending'}">
+          ${label}<span class="th-arrow" aria-hidden="true">${raw(icon(dir === 'asc' ? 'up' : 'down'))}</span>
+        </button>
+      </th>`;
+  };
+
+  /* The status filter, above the toolbar rather than in it: it changes which
+     campaigns the list is *about*, where everything in the toolbar changes how
+     the same set is shown. Counts come off the search results, so they say how
+     many of what you searched for are in each state. */
+  const searchedRows = searched();
+  const statusTabs = html`
+    <div class="list-tabs">
+      <div class="tabgroup" role="tablist" aria-label="Filter campaigns by status">
+        ${raw(STATUS_TABS.map((status) => {
+          const many = status === 'All'
+            ? searchedRows.length
+            : searchedRows.filter((c) => c.status === status).length;
+          return html`
+            <button class="tabgroup-tab" role="tab" data-act="set-status" data-key="${status}"
+                    aria-selected="${view.status === status}">
+              ${status}<span class="tabgroup-count">${count(many)}</span>
+            </button>`;
+        }).join(''))}
+      </div>
+    </div>`;
 
   host.innerHTML = html`
     <div class="page">
@@ -625,6 +726,7 @@ function paintDashboard(host, { pending = false, entering = false } = {}) {
 
       ${raw(source.length === 0 ? emptyState() : pending ? listSkeleton(source.length) : html`
         <section class="card" data-enter style="overflow:visible">
+          ${raw(statusTabs)}
           <!-- FR-63 / FR-84 — one toolbar pattern across every list screen. -->
           <div class="toolbar">
             <select class="select select-sm" data-act="set-field" style="width:150px" aria-label="Search field">
@@ -641,7 +743,7 @@ function paintDashboard(host, { pending = false, entering = false } = {}) {
             </label>
 
             ${raw(dropdown({ trigger: `${icon('columns')}Columns`, label: 'Visible columns', items: columnItems }))}
-            ${raw(dropdown({ trigger: `${icon('sort')}${esc(SORTS[view.sort])}`, label: 'Sort by', items: sortItems }))}
+                    ${raw(dropdown({ trigger: `${icon('sort')}${esc(sortLabel())}`, label: 'Sort by', items: sortItems }))}
             <!-- §9.1's last toolbar control, and the only one that was never
                  built. It re-fetches the list: the section is forgotten, so the
                  skeleton comes back and the content lands again after the wait
@@ -661,11 +763,11 @@ function paintDashboard(host, { pending = false, entering = false } = {}) {
               <table class="table">
                 <thead>
                   <tr>
-                    <th>Campaign</th><th>Status</th>
+                    ${raw(head('name', 'Campaign'))}<th>Status</th>
                     ${raw(cols.trigger ? '<th>Trigger</th>' : '')}
-                    ${raw(cols.responses ? '<th class="ta-r">Responses</th>' : '')}
-                    ${raw(cols.rating ? '<th class="ta-r">Avg rating</th>' : '')}
-                    ${raw(cols.updated ? '<th>Updated</th>' : '')}
+                    ${raw(cols.responses ? head('responses', 'Responses', true) : '')}
+                    ${raw(cols.rating ? head('rating', 'Avg rating', true) : '')}
+                    ${raw(cols.updated ? head('updated', 'Updated') : '')}
                     <th class="ta-r">Open</th>
                     <th class="ta-r"><span class="sr-only">Actions</span></th>
                   </tr>
@@ -787,6 +889,32 @@ function wire(host) {
   on(host, 'click', '[data-act="new"]', () => {
     store.startNew(null);
     navigate('builder.html');
+  });
+
+  /** FR-82 — Draft and Scheduled reopen the builder; everything else opens insights. */
+  const openCampaign = (id) => {
+    const campaign = store.state.campaigns.find((c) => c.id === id);
+    if (!campaign) return;
+    if (campaign.status === 'Draft' || campaign.status === 'Scheduled') {
+      store.resumeCampaign(campaign.id);
+      navigate('builder.html');
+    } else {
+      navigate(`insights.html?id=${encodeURIComponent(campaign.id)}`);
+    }
+  };
+
+  /* Anything in a row that already does something of its own keeps its click:
+     the Open button, the actions menu, and the campaign ID, which is
+     `user-select: all` so support can copy it. The row takes what is left —
+     the name, the status, the trigger, and the whitespace between them.
+
+     A drag is a selection, not a click. Navigating away the moment someone
+     finishes selecting a campaign ID would make the ID uncopyable, so the row
+     only opens when the selection it ended on is empty. */
+  on(host, 'click', '[data-act="open-row"]', (event, row) => {
+    if (event.target.closest('button, a, input, select, textarea, label, .dd-menu, [style*="user-select"]')) return;
+    if (!window.getSelection?.().isCollapsed) return;
+    openCampaign(row.dataset.id);
   });
 
   on(host, 'click', '[data-act="open"]', (event, btn) => {
@@ -995,7 +1123,31 @@ function wire(host) {
 
   on(host, 'change', '[data-act="set-field"]', (event) => { view.field = event.target.value; view.page = 1; rerender(); });
   on(host, 'click', '[data-act="clear"]', () => { view.query = ''; view.page = 1; rerender(); });
-  on(host, 'click', '[data-act="set-sort"]', (event, btn) => { view.sort = btn.dataset.key; view.page = 1; rerender(); });
+  on(host, 'click', '[data-act="set-sort"]', (event, btn) => {
+    view.sort = btn.dataset.key;
+    view.dir = btn.dataset.dir;
+    view.page = 1;
+    rerender();
+  });
+  /* A header you are already sorted by flips; any other header takes its own
+     first direction. Either way the reader goes back to page one — the row
+     they were looking at is somewhere else now, and holding the page number
+     would land them in the middle of a list they have not seen the top of. */
+  on(host, 'click', '[data-act="sort-col"]', (event, btn) => {
+    const key = btn.dataset.key;
+    view.dir = view.sort === key
+      ? (view.dir === 'asc' ? 'desc' : 'asc')
+      : SORT_FIRST_DIR[key];
+    view.sort = key;
+    view.page = 1;
+    rerender();
+  });
+  on(host, 'click', '[data-act="set-status"]', (event, btn) => {
+    if (view.status === btn.dataset.key) return;
+    view.status = btn.dataset.key;
+    view.page = 1;
+    rerender();
+  });
   /* Re-slices the figures and the sparklines together — they read the same
      rows, so a number and the shape behind it change meaning at the same
      moment. Without the swap the four cards hard-cut and the reader cannot
