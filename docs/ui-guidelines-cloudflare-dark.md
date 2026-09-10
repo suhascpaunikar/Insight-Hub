@@ -756,16 +756,35 @@ largest-drop-off callout is a message panel with the warning icon.
 
 ### 9.3 Builder (`builder.html`)
 
-Form pattern (08.19.31) with the wizard kept: breadcrumb `Campaigns › New campaign`
-(name once typed), right cluster shows `● Unsaved changes` as a status pill. The stepper
-is the tab strip's group: four tabs, reached ones enabled, the current one active, later
-ones disabled (`#595959`), each carrying its number. Body: 800px column, 40px top;
-step title 20px 600 + intro 16px `#d9d9d9`; groups separated by 1px `#333333` dividers
-with 24px above and below; template picker = radio cards (§6.4) two-up; fields per §6.2
-with 12px labels; the objective textarea per §6.2; examples as pill buttons. Footer bar:
-fixed at the bottom of the content column, 72px, `#0a0a0a`, 1px `#303030` rule, "Step 1
-of 4" 13px `#a1a1a1` left, `Save draft` (neutral filled) + `Next` (primary sm) right.
-The phone preview in the Content step keeps its device frame on `#0f0f0f`.
+The wizard is the one screen with two chromes, both wired, switched from
+**Settings → Prototype state → Builder chrome** and remembered in `store.state.builderChrome`.
+`strip` is the default; `stepper` is the original. They share one step model
+(`stepModel()` in `builder.js`), so reachability, completion and the mark each step
+carries are decided once and cannot drift apart.
+
+**Step strip (default).** The console's chrome, worn by the wizard. A breadcrumb
+`Campaigns › <name>` in the bar, the campaign id as a mono badge and the draft indicator
+as a neutral pill in the right cluster, a Close button, and the four steps riding in the
+shell's tab strip — same group, same docking on scroll, same disabled state for a step
+not yet reachable. Each tab carries its number in an 18px round glyph, which becomes a
+check when the step is complete, a lock when it is out of reach and an alert when a step
+the reader has left needs something. The argument for it: a reader who has just come from
+Campaigns meets the same furniture in the same places, and the wizard stops being the one
+screen that invents its own header.
+
+**Boxed stepper.** The wizard's own band: an exit control and the draft state on one row,
+four bordered steps beneath, each with its number, label and a state word — *complete*,
+*current*, *ready*, *locked*, *needs attention*. The argument for it: it says more per
+step than a tab can, and a wizard is a focus surface rather than a screen of the console,
+so borrowing the console's chrome slightly undersells that this one is modal. It costs a
+band of its own height.
+
+Everything below the chrome is shared: an 800px column at 40px top; step title 20px with
+a 16px intro; groups separated by 1px `#333333` dividers 24px apart; the template picker
+as radio cards two-up; fields per §6.2; the objective textarea; examples as pill buttons.
+The footer bar is pinned at 72px on `--panel` with a 1px rule, "Step 1 of 4" at 13px on
+the left and `Save draft` (neutral filled) + `Next` (primary) on the right. The phone
+preview in the Content step keeps its device frame on `#0f0f0f`.
 
 ### 9.4 Settings (`settings.html`)
 
@@ -845,11 +864,10 @@ is applied. Alpha companions (`-400` / `-200`) are re-based on their new base co
 
 ### 10.2 Primitives
 
-**Applied so far:** the **Shell** group below (rail, logo-cell switcher, quick search,
-breadcrumb bar, tab strip with docking, footer, page widths) lives in `shell.js`,
-`chrome.js` and the *App shell* block of `supabase.css`, with the four pages loading
-`tokens-cloudflare.css`. Insights and Settings put their tabs in the strip; Insights
-sets the breadcrumb. Every other group is still at its current value.
+**Applied.** Every group below is in the code. The shell lives in `shell.js`, `chrome.js`
+and the *App shell* block of `supabase.css`; the rest is the body of that stylesheet.
+Insights, Settings and the wizard put their tabs in the strip and set their own
+breadcrumbs. Values come from Kumo — see §11 for what that corrected.
 
 | Primitive | Now | Becomes | Spec |
 | --- | --- | --- | --- |

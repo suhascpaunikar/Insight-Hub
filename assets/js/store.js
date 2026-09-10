@@ -305,6 +305,12 @@ const DEFAULT_STATE = {
   // so the Content step keeps its width, and remembers its own answer rather
   // than collapsing the console the user left expanded.
   builderNavCollapsed: true,
+  /* Which chrome the wizard wears. 'strip' puts the four steps in the shell's
+     tab strip, the way every other screen carries its tabs; 'stepper' keeps
+     the boxed stepper the wizard was built with, which says more per step —
+     a state word under each label — at the cost of a band of its own. Both
+     are wired; Settings → Prototype state switches them. */
+  builderChrome: 'strip',
   emptyDashboard: false,
   settings: { ...DEFAULT_SETTINGS },
 };

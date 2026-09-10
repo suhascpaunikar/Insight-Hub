@@ -21,6 +21,7 @@ import {
 } from './data.js';
 import { renderContentStep, wireContentStep, phonePreview } from './content-step.js';
 import { navRail, wireRailCollapse } from './shell.js';
+import { crumbsMarkup, setTabs, wireDock } from './chrome.js';
 import { mountAssistant, openAssistant } from './assistant.js';
 
 /**
@@ -56,19 +57,61 @@ const ui = { showIssues: false, attention: new Set(), previewPick: null, shake: 
 /* ==========================================================================
    Stepper (FR-64 … FR-69)
    ========================================================================== */
-function stepper(draft) {
+/**
+ * Which chrome the wizard wears — see DEFAULT_STATE in store.js, and
+ * Settings → Prototype state, which switches it. Anything unrecognised falls
+ * back to the strip, so a stale saved value cannot leave the wizard headless.
+ */
+export const chromeMode = () => (store.state.builderChrome === 'stepper' ? 'stepper' : 'strip');
+
+/**
+ * One step model, two presentations. Both chromes read this, so a step's
+ * reachability, its completion and the mark it carries are decided once and
+ * cannot drift between them.
+ */
+function stepModel(draft) {
   const reachable = furthestReachableStep(draft);
+  return STEPS.map((s) => {
+    const isCurrent = s.n === draft.currentStep;
+    const isComplete = draft.completedSteps.includes(s.n) && !isCurrent;
+    const isLocked = s.n > reachable && !isComplete && !isCurrent;
+    const needsAttention = ui.attention.has(s.n) && !isCurrent;
+    const state = needsAttention ? 'attention'
+      : isCurrent ? 'current' : isComplete ? 'complete' : isLocked ? 'locked' : 'ready';
+    const glyph = needsAttention ? icon('alert')
+      : isComplete ? icon('check') : isLocked ? icon('lock') : String(s.n);
+    return { ...s, state, glyph, isCurrent, isLocked };
+  });
+}
+
+/**
+ * The strip's own click path. `advance()` is scoped to wireCommon(), and the
+ * tab strip is rendered by chrome.js rather than by a delegated handler on
+ * the wizard's root, so the two are joined here rather than through the DOM.
+ */
+let gotoStep = null;
+
+/** Puts the four steps in the shell's tab strip (§9.3). */
+function applyStepTabs(draft) {
+  setTabs({
+    label: 'Campaign creation steps',
+    items: stepModel(draft).map((s) => ({
+      key: String(s.n),
+      label: s.label,
+      glyph: s.glyph,
+      disabled: s.isLocked,
+    })),
+    active: String(draft.currentStep),
+    onSelect: (key) => { if (gotoStep) gotoStep(Number(key)); },
+  });
+}
+
+/** The boxed stepper the wizard was built with, kept as the alternative. */
+function stepper(draft) {
   return html`
     <ol class="stepper" aria-label="Campaign creation steps">
-      ${STEPS.map((s) => {
-        const isCurrent = s.n === draft.currentStep;
-        const isComplete = draft.completedSteps.includes(s.n) && !isCurrent;
-        const isLocked = s.n > reachable && !isComplete && !isCurrent;
-        const needsAttention = ui.attention.has(s.n) && !isCurrent;
-        const state = needsAttention ? 'attention'
-          : isCurrent ? 'current' : isComplete ? 'complete' : isLocked ? 'locked' : 'ready';
-        const glyph = needsAttention ? icon('alert')
-          : isComplete ? icon('check') : isLocked ? icon('lock') : String(s.n);
+      ${stepModel(draft).map((s) => {
+        const { state, glyph, isCurrent, isLocked } = s;
         return html`
           <li style="flex:1;min-width:0">
             <button class="step" style="width:100%" data-state="${state}" data-act="goto" data-step="${s.n}"
@@ -961,6 +1004,69 @@ function exitStep(direction) {
   setTimeout(drop, 400);
 }
 
+/**
+ * The wizard's own chrome: a bar of its own with the exit control, the draft
+ * indicator and the boxed stepper beneath. Kept because it says more per step
+ * than a tab can — every step carries a state word — and because a wizard is
+ * a focus surface, not a screen of the console.
+ */
+function stepperHead(draft) {
+  return html`
+    <header class="builder-head">
+      <div class="row" style="height:var(--bar-h);padding:0 12px;gap:12px">
+        <button class="btn btn-ghost btn-icon btn-sm" data-act="exit" aria-label="Exit builder">
+          ${raw(icon('x'))}
+        </button>
+        <div style="min-width:0">
+          <h1 class="t-h2 truncate">${draft.name || 'New campaign'}</h1>
+          <span class="mono t-xs fg-muted">${draft.campaignId}${raw(
+            draft.status === 'Live' ? ` · live · v${draft.version}` : ` · ${esc(draft.status)}`)}</span>
+        </div>
+        <!-- FR-68 has two halves and both still hold. The draft indicator stays
+             here by the stepper; saving moves to the footer, beside the control
+             that leaves the step. Save-and-exit is now the exit control's primary
+             action, so it is still reachable from every step — as one route out
+             rather than two buttons that both save. -->
+        <div class="push row t-xs fg-lighter" style="gap:6px">
+          <span style="width:7px;height:7px;border-radius:50%;background:${raw(
+            draft.dirty ? 'var(--warning)' : 'var(--brand-default)')}"></span>
+          ${draft.dirty ? 'Unsaved changes'
+            : draft.lastSavedAt ? `Saved ${relativeTime(draft.lastSavedAt)}` : 'Nothing to save yet'}
+        </div>
+      </div>
+      <!-- FR-64 / FR-67 — all four visible at once, and the rail persists on scroll. -->
+      <div style="padding:0 12px 12px">${raw(stepper(draft))}</div>
+    </header>`;
+}
+
+/**
+ * The console's chrome, worn by the wizard: the breadcrumb says where this
+ * campaign sits, the steps ride in the shell's tab strip like every other
+ * screen's tabs, and the strip docks into the bar on scroll. The draft
+ * indicator moves to the bar's right cluster as a neutral pill.
+ */
+function stripHead(draft) {
+  const saved = draft.dirty ? 'Unsaved changes'
+    : draft.lastSavedAt ? `Saved ${relativeTime(draft.lastSavedAt)}` : 'Nothing to save yet';
+  return html`
+    <header class="topbar">
+      <nav class="crumbs" aria-label="Breadcrumb">${raw(crumbsMarkup([
+        { label: 'Campaigns', href: 'index.html', icon: 'megaphone' },
+        { label: draft.name || 'New campaign' },
+      ]))}</nav>
+      <div class="topbar-dock"></div>
+      <div class="topbar-right" style="gap:16px">
+        <span class="badge badge-mono">${draft.campaignId}</span>
+        <!-- FR-68 — the draft indicator, in the shape every other state in the
+             product takes: a neutral pill whose dot carries the colour. -->
+        <span class="pill" style="--dot:${raw(draft.dirty ? 'var(--warning-fg)' : 'var(--success)')}">
+          <span class="dot"></span>${saved}
+        </span>
+        <button class="topbar-btn" data-act="exit">${raw(icon('x'))}Close</button>
+      </div>
+    </header>`;
+}
+
 export function renderBuilder() {
   // A repaint replaces #app wholesale, and the scroller's offset goes with it.
   // The step is the key: staying on one step holds your place, moving to the
@@ -1001,33 +1107,11 @@ function paintBuilder() {
          that answer separately from the console's (FR-61). -->
     ${raw(navRail('campaigns', store.state.builderNavCollapsed))}
     <div class="main">
-    <header class="builder-head">
-      <div class="row" style="height:var(--bar-h);padding:0 12px;gap:12px">
-        <button class="btn btn-ghost btn-icon btn-sm" data-act="exit" aria-label="Exit builder">
-          ${raw(icon('x'))}
-        </button>
-        <div style="min-width:0">
-          <h1 class="t-h2 truncate">${draft.name || 'New campaign'}</h1>
-          <span class="mono t-xs fg-muted">${draft.campaignId}${raw(
-            draft.status === 'Live' ? ` · live · v${draft.version}` : ` · ${esc(draft.status)}`)}</span>
-        </div>
-        <!-- FR-68 has two halves and both still hold. The draft indicator stays
-             here by the stepper; saving moves to the footer, beside the control
-             that leaves the step. Save-and-exit is now the exit control's primary
-             action, so it is still reachable from every step — as one route out
-             rather than two buttons that both save. -->
-        <div class="push row t-xs fg-lighter" style="gap:6px">
-          <span style="width:7px;height:7px;border-radius:50%;background:${raw(
-            draft.dirty ? 'var(--warning)' : 'var(--brand-default)')}"></span>
-          ${draft.dirty ? 'Unsaved changes'
-            : draft.lastSavedAt ? `Saved ${relativeTime(draft.lastSavedAt)}` : 'Nothing to save yet'}
-        </div>
-      </div>
-      <!-- FR-64 / FR-67 — all four visible at once, and the rail persists on scroll. -->
-      <div style="padding:0 12px 12px">${raw(stepper(draft))}</div>
-    </header>
+    ${raw(chromeMode() === 'strip' ? stripHead(draft) : stepperHead(draft))}
 
     <div class="scroll">
+      ${raw(chromeMode() === 'strip'
+        ? '<div class="tabstrip"><div class="tabgroup" role="tablist"></div></div>' : '')}
       <div class="page" data-step-page>
         <!-- FR-69 — blocking fields are surfaced inline on a failed advance. -->
         ${raw(ui.showIssues && issues.length ? html`
@@ -1066,7 +1150,15 @@ function paintBuilder() {
   // Entering the wizard reads as a forward step; after that only advance()
   // travels, so saves and field edits repaint without moving.
   if (!mounted) { mounted = true; slideStep('fwd'); }
-  markChangedSteps(root);
+  if (chromeMode() === 'strip') {
+    // The wizard repaints #app wholesale, so the strip is a new node every
+    // time and has to be filled and re-bound on each paint.
+    wireDock(root);
+    applyStepTabs(draft);
+  } else {
+    // Only the boxed stepper has per-step marks to animate.
+    markChangedSteps(root);
+  }
 
   /* The blocked advance, announced. Scrolling the notice into view was the
      whole of the previous feedback, which did nothing at all when the notice
@@ -1146,6 +1238,10 @@ function wireCommon(root) {
   on(root, 'click', '[data-act="next"]', () => advance(draft().currentStep + 1));
   // FR-66 — a completed step navigates; a locked one surfaces the blocking field.
   on(root, 'click', '[data-act="goto"]', (e, el) => advance(Number(el.dataset.step)));
+
+  // The tab strip is rendered by chrome.js rather than by a delegated handler
+  // on this root, so it reaches the wizard through here.
+  gotoStep = advance;
 
   function advance(target) {
     const d = draft();

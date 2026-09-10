@@ -191,6 +191,16 @@ function generalTab() {
     </div>
 
     <section class="spanel">
+      ${raw(srow('Builder chrome',
+        'Which chrome the campaign wizard wears. The step strip puts its four steps in the tab strip '
+        + 'every other screen uses; the boxed stepper is the wizard\'s own band, which says a state '
+        + 'word under each step at the cost of the height it takes.',
+        html`<select class="select" data-act="set-builder-chrome" aria-label="Builder chrome">
+          <option value="strip" ${raw(store.state.builderChrome !== 'stepper' ? 'selected' : '')}>Step strip</option>
+          <option value="stepper" ${raw(store.state.builderChrome === 'stepper' ? 'selected' : '')}>Boxed stepper</option>
+        </select>`,
+        { top: true }))}
+
       ${raw(srow('Reset all prototype state',
         'Clears saved campaigns, the in-progress draft and every setting on this screen, then reloads.',
         '<button class="btn btn-danger btn-sm" data-act="reset">Reset state</button>',
@@ -543,6 +553,15 @@ function wire(host) {
   on(host, 'click', '[data-act="stub"]', (event, btn) => {
     toast(`${btn.dataset.key || 'That screen'} is not part of this prototype`,
       'The three built screens are Campaigns, the builder and Insights.', 'warning');
+  });
+
+  // Applied on the spot rather than through a panel Save: it is a preference
+  // for the prototype, not a value a campaign inherits.
+  on(host, 'change', '[data-act="set-builder-chrome"]', (event, el) => {
+    store.set({ builderChrome: el.value });
+    toast('Builder chrome switched',
+      el.value === 'stepper' ? 'The wizard opens with its boxed stepper.'
+        : 'The wizard opens with its steps in the tab strip.');
   });
 
   on(host, 'click', '[data-act="reset"]', async () => {

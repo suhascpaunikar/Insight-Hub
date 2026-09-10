@@ -33,7 +33,11 @@ export function setCrumbs(list) {
 let tabSpec = null;
 let dock = null;
 
-/** { items: [{ key, label, badge? }], active, onSelect(key), label? } — or null to remove the strip. */
+/**
+ * { items: [{ key, label, badge?, glyph?, disabled? }], active, onSelect(key), label? }
+ * — or null to remove the strip. `glyph` is trusted markup (an icon() call or a
+ * step number) rendered before the label; `disabled` is a step not yet reachable.
+ */
 export function setTabs(spec) {
   tabSpec = spec && spec.items && spec.items.length ? spec : null;
   applyTabs();
@@ -57,8 +61,8 @@ export function applyTabs() {
   group.setAttribute('aria-label', tabSpec.label || 'Page sections');
   group.innerHTML = tabSpec.items.map((tab) => `
     <button class="tabgroup-tab" role="tab" data-key="${esc(tab.key)}"
-            aria-selected="${tab.key === tabSpec.active}">
-      ${esc(tab.label)}${tab.badge ? `<span class="badge">${esc(tab.badge)}</span>` : ''}
+            aria-selected="${tab.key === tabSpec.active}" ${tab.disabled ? 'disabled' : ''}>
+      ${tab.glyph ? `<span class="tabgroup-glyph">${tab.glyph}</span>` : ''}${esc(tab.label)}${tab.badge ? `<span class="badge">${esc(tab.badge)}</span>` : ''}
     </button>`).join('');
   // Assigned rather than added: the group survives page repaints, and a
   // listener per paint would fire the selection N times.
@@ -77,19 +81,27 @@ export function applyTabs() {
  */
 export function wireDock(root) {
   const scroll = $('.scroll', root);
-  const strip = $('.tabstrip', root);
-  const bar = $('.topbar', root);
-  const slot = $('.topbar-dock', root);
-  if (!scroll || !strip || !bar || !slot) return;
+  if (!scroll) return;
 
+  // Everything is re-resolved on each call rather than captured here. Both the
+  // console and the wizard repaint by replacing the subtree under #app, so a
+  // node held in this closure is detached by the next paint — and a detached
+  // strip measures 0 high, which reads as "scrolled past" and would move the
+  // live tab group into a slot that is no longer on the page.
   const update = () => {
+    const strip = $('.tabstrip', root);
+    const bar = $('.topbar', root);
+    const slot = $('.topbar-dock', root);
     const group = $('.tabgroup', root);
-    if (!group) return;
-    const docked = !strip.hidden && scroll.scrollTop >= strip.offsetHeight;
+    const scroller = $('.scroll', root);
+    if (!strip || !bar || !slot || !group || !scroller) return;
+    const docked = !strip.hidden && strip.offsetHeight > 0
+      && scroller.scrollTop >= strip.offsetHeight;
     if ((bar.dataset.docked === 'true') === docked) return;
     bar.dataset.docked = String(docked);
     (docked ? slot : strip).appendChild(group);
   };
+
   scroll.addEventListener('scroll', update, { passive: true });
   dock = { update };
   update();

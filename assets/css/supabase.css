@@ -916,6 +916,20 @@ a.crumb:hover { color: var(--foreground-default); }
 }
 .tabgroup-tab:hover { color: var(--foreground-default); }
 .tabgroup-tab[aria-selected="true"] { background: var(--background-100); border-color: var(--border-default); color: var(--foreground-default); }
+/* The wizard's steps carry their number, or the mark their state has earned:
+   a check when complete, a lock when out of reach, an alert when a step the
+   reader has left needs something. */
+.tabgroup-glyph {
+  display: grid; place-items: center; flex: none; width: 18px; height: 18px;
+  border-radius: var(--radius-full);
+  background: var(--surface-200); color: var(--foreground-lighter);
+  font-family: var(--font-mono); font-size: 10.5px; line-height: 1;
+}
+.tabgroup-glyph svg { width: 11px; height: 11px; }
+.tabgroup-tab[aria-selected="true"] .tabgroup-glyph { background: var(--brand-default); color: var(--on-brand); }
+.tabgroup-tab:disabled { color: var(--foreground-disabled); cursor: not-allowed; }
+.tabgroup-tab:disabled .tabgroup-glyph { background: transparent; color: var(--foreground-disabled); }
+.tabgroup-tab:disabled:hover { color: var(--foreground-disabled); }
 .tabgroup-tab .badge {
   height: 20px; padding: 0 8px; border: 1px dotted var(--brand-default); border-radius: var(--radius-full);
   background: transparent; color: var(--link-soft, #4693ff); font-size: 11px; letter-spacing: 0;
