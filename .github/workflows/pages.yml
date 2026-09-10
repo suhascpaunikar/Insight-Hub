@@ -1,5 +1,9 @@
-# Publishes the prototype to GitHub Pages. There is nothing to compile — the
-# site is plain HTML, CSS and ES modules — so the job just uploads the repo.
+# Publishes the prototype to GitHub Pages.
+#
+# The homepage is now a Vite build (React + Cloudflare Kumo), so this compiles
+# before uploading rather than pushing the repo up as-is. `vite build` also
+# copies the three screens that are still plain HTML and ES modules into
+# `dist/` untouched, so one artifact carries the whole site.
 name: Deploy to GitHub Pages
 
 on:
@@ -26,6 +30,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm build
+
       # Pages must already be enabled with source "GitHub Actions": the
       # workflow's GITHUB_TOKEN cannot create the Pages site itself, so
       # configure-pages only reads the existing configuration here.
@@ -33,7 +48,7 @@ jobs:
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: dist
 
       - id: deployment
         uses: actions/deploy-pages@v4

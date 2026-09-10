@@ -1,6 +1,13 @@
-# Static prototype — no build step. Netlify publishes the repo root as-is.
+# The homepage is a Vite build (React + Cloudflare Kumo); the other three
+# screens are still the no-build prototype and are copied into `dist/` verbatim
+# by the plugin in vite.config.ts. So the site has a build step now, but only
+# one page goes through the bundler.
 [build]
-  publish = "."
+  command = "pnpm build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
 
 [[headers]]
   for = "/*"
@@ -8,8 +15,16 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
 
-# The pages load ES modules; a wrong Content-Type makes the browser refuse them.
+# The prototype pages load ES modules straight from source; a wrong
+# Content-Type makes the browser refuse them. The bundled homepage's own
+# chunks live under /static/ and are served with the right type already.
 [[headers]]
   for = "/assets/js/*.js"
   [headers.values]
     Content-Type = "text/javascript; charset=utf-8"
+
+# Hashed build output never changes under its own name.
+[[headers]]
+  for = "/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

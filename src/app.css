@@ -1,0 +1,189 @@
+/* ==========================================================================
+   app.css — Kumo's tokens, plus the homepage's own motion ported onto them.
+
+   Kumo is imported before Tailwind so its `@theme` tokens are registered
+   first (see the package README), and `@source` is what lets Tailwind find
+   the utility classes Kumo's compiled components reference from node_modules.
+   ========================================================================== */
+@source "../node_modules/@cloudflare/kumo/dist/**/*.{js,jsx,ts,tsx}";
+@import "@cloudflare/kumo/styles/tailwind";
+@import "tailwindcss";
+
+/* ==========================================================================
+   Motion tokens
+
+   Carried over unchanged from the prototype's own scale: anything that only
+   changes colour is --motion-fast; anything that moves or resizes a box is
+   --motion-base; only a chart redrawing its whole series earns --motion-slow.
+
+   The two sidebar values are Kumo's, not ours — they are the constants the
+   library itself ships (SIDEBAR_ANIMATION_DURATION_MS and SIDEBAR_EASING),
+   restated here so the chrome that has to travel *with* the sidebar can use
+   the same numbers instead of guessing at them.
+   ========================================================================== */
+:root {
+  --motion-fast: 120ms;
+  --motion-base: 180ms;
+  --motion-slow: 320ms;
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  --ih-sidebar-duration: 250ms;
+  --ih-sidebar-ease: cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+html, body, #root { height: 100%; }
+body { margin: 0; }
+
+/* ==========================================================================
+   Skeletons
+
+   What a section shows while its data is on the way. Every block is sized to
+   the real element it stands in for, so content lands into space already
+   reserved and nothing below it jumps. The sweep is the only thing moving,
+   and it is a transform, so a table of twenty of these stays on the
+   compositor — and they mount together, so they travel together: one pass
+   across the section rather than twenty out of step.
+   ========================================================================== */
+.ih-skel {
+  position: relative;
+  overflow: hidden;
+  display: block;
+  border-radius: 4px;
+  background: var(--color-kumo-tint);
+}
+.ih-skel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.045), transparent);
+  animation: ih-skel-sweep 1.4s ease-in-out infinite;
+}
+@keyframes ih-skel-sweep { to { transform: translateX(100%); } }
+
+/* What replaced a skeleton fades up. Never the page header, which was on
+   screen throughout the wait and would only flicker. */
+.ih-lazy-in { animation: ih-lazy-in var(--motion-base) var(--ease-out) backwards; }
+@keyframes ih-lazy-in { from { opacity: 0; transform: translateY(4px); } }
+
+/* ==========================================================================
+   Sparkline columns
+
+   A change of window replaces the columns rather than resizing them: 7 days
+   and 30 days are not the same number of bars, so there is no height to morph
+   between. The old plot leaves, and the new series grows back from its own
+   baseline, one column just behind the last.
+   ========================================================================== */
+.ih-plot { position: relative; display: flex; align-items: flex-end; gap: 3px; height: 100%; }
+
+/* The column is the hover target and spans the full plot height, so the
+   readout opens anywhere over the column rather than only over the ink. */
+.ih-col {
+  position: relative; flex: 1; min-width: 0;
+  display: flex; flex-direction: column; justify-content: flex-end; gap: 2px;
+  cursor: default;
+}
+.ih-col::before { content: ""; position: absolute; inset: 0; }
+.ih-col:hover::before {
+  background: var(--color-kumo-tint);
+  opacity: .5; border-radius: 2px;
+}
+.ih-seg { position: relative; border-radius: 2px 2px 0 0; transition: height var(--motion-slow) var(--ease-out); }
+
+.ih-plot[data-swap="out"] { opacity: 0; transition: opacity var(--motion-fast) var(--ease-out); }
+.ih-plot[data-swap="in"] .ih-col {
+  transform-origin: bottom;
+  animation: ih-col-grow var(--motion-slow) var(--ease-out) both;
+  /* The wipe crosses the whole series in --motion-base whatever the series is
+     made of: `--i / --n` is the column's position as a fraction of the way
+     across, so the last column always starts one --motion-base after the
+     first. A flat per-column gap cannot do this — it makes the gesture as long
+     as the data is, so 24 columns read as a left-to-right wipe and 7 columns,
+     spanning 48ms, read as one simultaneous pop. */
+  animation-delay: calc(var(--i, 0) / var(--n, 1) * var(--motion-base));
+}
+@keyframes ih-col-grow { from { opacity: 0; transform: scaleY(.35); } }
+
+/* Everything but the column under the cursor steps back, so the one being
+   read is the one in focus. On the plot rather than each column: a :hover
+   rule on the siblings would fire on the gaps between them too. */
+.ih-plot[data-reading] .ih-col { transition: opacity var(--motion-fast) var(--ease-out); }
+.ih-plot[data-reading] .ih-col:not([data-on]) { opacity: .38; }
+/* The read column keeps a hairline under it, so the axis below the plot can
+   be traced back to the bar without counting across. */
+.ih-col[data-on]::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -3px; height: 1px;
+  background: var(--text-color-kumo-subtle);
+}
+
+/* Floating readout. Positioned in JS against the hovered column — never the
+   pointer — and opened on whichever side of the plot leaves that column
+   visible. */
+.ih-tip {
+  position: absolute; z-index: 40; min-width: 176px; padding: 9px 11px;
+  background: var(--color-kumo-elevated);
+  border: 1px solid var(--color-kumo-line);
+  border-radius: 8px;
+  box-shadow: 0 12px 28px -8px rgb(0 0 0 / .55), 0 2px 6px rgb(0 0 0 / .35);
+  pointer-events: none; opacity: 0; transform: translateY(2px);
+  transition: opacity var(--motion-fast) var(--ease-out),
+              transform var(--motion-fast) var(--ease-out);
+}
+.ih-tip[data-open="true"] { opacity: 1; transform: none; }
+
+/* ==========================================================================
+   Live status pulse
+
+   Live is the one status still happening, so it is the one that moves. The
+   ring is a pseudo-element animating transform and opacity rather than the
+   dot's own box-shadow: a shadow animation repaints every frame, this one
+   composites, and it runs for as long as the tab is open.
+   ========================================================================== */
+.ih-live-dot { position: relative; }
+.ih-live-dot::after {
+  content: ""; position: absolute; inset: 0; border-radius: 9999px;
+  box-shadow: 0 0 0 3px currentColor;
+  animation: ih-pill-pulse 2.4s var(--ease-out) infinite;
+}
+@keyframes ih-pill-pulse {
+  0%       { transform: scale(.7); opacity: .8; }
+  70%,100% { transform: scale(2.1); opacity: 0; }
+}
+
+/* A row that was just cloned, renamed, or restored from an undo says so
+   once and then stops. */
+.ih-row-flash { animation: ih-row-flash var(--motion-slow) var(--ease-out); }
+@keyframes ih-row-flash { from { background: color-mix(in oklab, var(--color-kumo-brand) 26%, transparent); } }
+
+/* The chevron leans toward its destination on hover — the same two pixels the
+   prototype uses everywhere else, so the gesture means one thing throughout. */
+.ih-row .ih-lean { transition: transform var(--motion-fast) var(--ease-out); }
+.ih-row:hover .ih-lean { transform: translateX(2px); }
+
+/* ==========================================================================
+   The chrome that travels with the sidebar
+
+   The sidebar animates its own width on Kumo's curve. Anything laid out
+   beside it that is *not* inside it — a sticky topbar reading the collapsed
+   state, say — has to close over the same duration on the same curve, or the
+   two halves of one gesture arrive at different times.
+   ========================================================================== */
+.ih-with-sidebar {
+  transition: padding var(--ih-sidebar-duration) var(--ih-sidebar-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ih-skel::after,
+  .ih-plot[data-swap="in"] .ih-col,
+  .ih-live-dot::after,
+  .ih-row-flash,
+  .ih-lazy-in { animation: none; }
+  .ih-seg,
+  .ih-tip,
+  .ih-with-sidebar,
+  .ih-row .ih-lean { transition: none; }
+  .ih-tip[data-open="true"] { transform: none; }
+  /* The readout still opens and the neighbours still step back — those are
+     state, not motion — but neither fades into it. */
+  .ih-plot[data-reading] .ih-col { transition: none; }
+}

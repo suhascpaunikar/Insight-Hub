@@ -1,18 +1,26 @@
 # InsightHub — Feedback Campaign Builder
 
-An HTML prototype of the campaign creation flow described in
-[`docs/prd-v5.md`](docs/prd-v5.md), built in the **Supabase design system, dark**.
+A prototype of the campaign creation flow described in
+[`docs/prd-v5.md`](docs/prd-v5.md), in two design systems at once:
 
-No build step, no dependencies. Open `index.html` in a browser.
+- **The homepage** (`index.html`) is built in **[Cloudflare Kumo](https://github.com/cloudflare/kumo), dark**
+  — React, real Kumo components, Kumo's own tokens and motion.
+- **The other three screens** are the original **Supabase-dark** prototype: plain
+  HTML and ES modules, no framework, unchanged.
 
 ```
 git clone … && cd Insight-Hub
-python3 -m http.server 8000     # or any static server
-open http://localhost:8000
+pnpm install
+pnpm dev            # homepage on Vite, other screens served from the same root
 ```
 
-> A static server is recommended over `file://`: the pages are ES modules, which
-> browsers block on the `file:` scheme.
+```
+pnpm build          # → dist/  (bundles the homepage, copies the rest verbatim)
+pnpm preview
+```
+
+> The three prototype pages are ES modules, which browsers block on the `file:`
+> scheme — serve them rather than opening the files.
 
 ---
 
@@ -20,7 +28,7 @@ open http://localhost:8000
 
 | File | Screen | Requirements |
 |---|---|---|
-| `index.html` | Campaign dashboard — activity strip + campaign list | FR-71 – FR-85 |
+| `index.html` | Campaign dashboard — activity strip + campaign list · **Cloudflare Kumo** | FR-71 – FR-85 |
 | `builder.html` | Six-step creation wizard | FR-1 – FR-57 |
 | `insights.html` | The campaign data screen — Delivery / Responses / Impact for a feedback campaign, Delivery / Engagement / Impact for an announcement | FR-86 – FR-110 |
 | `settings.html` | Workspace settings — General / Delivery / Alerts | FR-63 |
@@ -46,6 +54,36 @@ the resulting row.
 ---
 
 ## Design system
+
+### The homepage — Cloudflare Kumo
+
+`pnpm add @cloudflare/kumo`. The dashboard is composed from Kumo's own components —
+`Sidebar`, `Table`, `LayerCard`, `Surface`, `DropdownMenu`, `Select`, `InputGroup`,
+`Badge`, `Tooltip`, `Toasty`, `CommandPalette`, `Empty` — with Kumo's default dark
+theme untouched: the neutral scale, the `#f6821f` brand accent for the wordmark, the
+blue primary action, `ChartPalette` for every data series, and Phosphor icons. The only
+colour that is not Kumo's is the **rating ramp**, because that ramp is product
+semantics: 6.8 has to mean the same thing on this screen as it does on Insights.
+
+Nothing about the sidebar is reimplemented. Its collapse is Kumo's `Sidebar` as it
+ships — **260px ↔ 57px over 250ms on `cubic-bezier(0.77, 0, 0.175, 1)`**
+(`SIDEBAR_WIDTH`, `SIDEBAR_WIDTH_ICON`, `SIDEBAR_ANIMATION_DURATION_MS`,
+`SIDEBAR_EASING`) — including the labels truncating as the width closes, the group
+labels cross-fading into separator hairlines, the open sub-tree folding away, the
+badges leaving before the labels, and the panel icon flipping on the same curve.
+
+The page's own micro-animations are ported rather than replaced, because Kumo has no
+equivalent of them: the skeleton sweep, the fade-up of what replaced it, the sparkline
+growing one column behind the last, the whole-series swap on a range change, the
+figures counting to the new window, the hover readout with its neighbours at .38, the
+Live pill's pulse, the chevron's two-pixel lean, and the flash on a cloned, renamed or
+restored row. They live in `src/app.css` and `src/motion.ts`.
+
+The homepage reads and writes the same `assets/js/store.js` the other screens do, so a
+campaign published from the builder lands on this list and a rename made here reads
+through everywhere.
+
+### The other three screens — Supabase, dark
 
 `DESIGN.md` is the output of `npx getdesign@latest add supabase`, plus a **Dark product
 surface** section appended for this repository. The generated document describes
@@ -77,7 +115,24 @@ Tokens and primitives: `assets/css/supabase.css`.
 ## Layout
 
 ```
-index.html · builder.html · insights.html
+index.html             the Kumo homepage (Vite entry)
+src/                   the Kumo homepage's source
+  main.tsx             mounts <Home> inside Kumo's toast provider
+  Home.tsx             the campaign dashboard — layout, lazy load, ⌘K palette
+  app.css              Kumo's tokens + this page's own ported motion
+  motion.ts            countUp, growPlots, swapOut, placeChartTip, lazyLoad
+  legacy.ts            typed bridge to store.js / data.js / core.js
+  shell/
+    AppSidebar.tsx     Kumo's Sidebar, composed with InsightHub's destinations
+    TopBar.tsx         screen name, app switcher, environment (FR-62)
+  components/
+    ActivityStrip.tsx  the four cards + the range swap choreography
+    MetricCard.tsx     one figure, its sparkline, and the hover readout
+    CampaignTable.tsx  the list, the row menu, rename, delete → undo
+    StatusPill.tsx     status dot; Live is the one that pulses
+    Skeletons.tsx      what the screen shows while the list is on the way
+
+builder.html · insights.html · settings.html    (the original prototype)
 assets/
   css/supabase.css     tokens + component primitives
   js/
@@ -85,7 +140,7 @@ assets/
     data.js            seeded campaigns, templates, segments, insights
     store.js           draft model, variant reconciliation, step validation, persistence
     shell.js           nav rail + context bar
-    dashboard.js       campaign list
+    dashboard.js       campaign list — the pre-Kumo homepage, kept as the reference
     builder.js         wizard frame, steps 1·2·3·5·6
     content-step.js    step 4 — template picker, question logic, triggers
     insights.js        the campaign data screen — tabs branch on campaign kind
@@ -102,6 +157,7 @@ docs/
   insights-data-plan.md  every data point the campaign data screen can carry, by kind
   assistant.md         the companion card — what it is, and what it isn't
 DESIGN.md              Supabase design reference + dark product adaptation
+vite.config.ts         builds index.html, copies the prototype pages verbatim
 ```
 
 ---
