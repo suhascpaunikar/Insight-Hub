@@ -223,6 +223,13 @@ components:
     padding: 64px 24px
 ---
 
+> **Console restyle (Sep 2026):** the InsightHub console is being restyled to the
+> Cloudflare dashboard's dark mode. That specification, with measured values and a
+> migration map from the primitives in `assets/css/supabase.css`, is
+> [`docs/ui-guidelines-cloudflare-dark.md`](docs/ui-guidelines-cloudflare-dark.md).
+> Where it and this document disagree, it wins for the console; this document remains
+> the record of the Supabase-derived system it replaces.
+
 ## Overview
 
 Supabaze's design language is engineered for clarity above all else. The marketing surfaces sit on `{colors.canvas}` (pure white), with text rendered in `{colors.ink}` (`#171717` — near-black, never pure black). Across the entire system the only consistent chromatic event is the **emerald green primary** (`{colors.primary}` — `#3ecf8e`) — used as the filled CTA, occasional accent dot, and the signature highlight color in the wordmark. Everything else is a calibrated grey ladder from `#ededed` hairline-cool to `#171717` ink, with thin black-on-white typography doing most of the visual work.

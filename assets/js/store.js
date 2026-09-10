@@ -305,6 +305,18 @@ const DEFAULT_STATE = {
   // so the Content step keeps its width, and remembers its own answer rather
   // than collapsing the console the user left expanded.
   builderNavCollapsed: true,
+  /* Which chrome the wizard wears. 'strip' puts the four steps in the shell's
+     tab strip, the way every other screen carries its tabs; 'stepper' keeps
+     the boxed stepper the wizard was built with, which says more per step —
+     a state word under each label — at the cost of a band of its own. Both
+     are wired; Settings → Prototype state switches them. */
+  builderChrome: 'strip',
+  /* Dark or light. Dark is the default and the theme the console was designed
+     on; light is the alternate, from Appendix B of the guideline. Switched
+     from Settings → General → Appearance. Read at boot by the inline script
+     in each document's <head>, which is what keeps a light-mode reader from
+     seeing a dark flash before the modules run. */
+  theme: 'dark',
   emptyDashboard: false,
   settings: { ...DEFAULT_SETTINGS },
 };

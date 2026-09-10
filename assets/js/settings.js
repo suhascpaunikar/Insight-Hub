@@ -13,9 +13,21 @@
    ========================================================================== */
 import {
   html, raw, esc, icon, $, $$, on, count, dropdown, wireDropdowns, toast, dialog, wireOnce, keepScroll,
-  lazySection, skel, wireTabPill,
+  applyTheme,
+  lazySection, skel,
 } from './core.js';
 import { store } from './store.js';
+import { setTabs } from './chrome.js';
+
+/* §6.7 — the violet pill beside a section title, linking to that section's
+   documentation. There is no docs site behind the prototype, so it carries the
+   `foot-stub` action every other unbuilt destination here uses: it says plainly
+   that the control is there for the shape of the page rather than dead-ending
+   on a 404. */
+const docsChip = (slug, section) =>
+  `<a class="docs-chip" href="#docs-${esc(slug)}" data-act="foot-stub"
+      aria-label="${esc(section)} documentation"
+      title="${esc(section)} documentation">${icon('book')}</a>`;
 
 const TABS = {
   general: 'General',
@@ -108,7 +120,7 @@ function unitInput(field, unit, note) {
 function panelFoot(panel, hint) {
   const isDirty = dirty(panel);
   return html`
-    <div class="spanel-foot">
+    <div class="spanel-foot" data-foot="${panel}" data-dirty="${raw(String(isDirty))}">
       <span class="t-xs fg-muted">${raw(isDirty ? 'Unsaved changes' : esc(hint || ''))}</span>
       <span class="row" style="gap:8px">
         ${raw(isDirty
@@ -146,7 +158,7 @@ function generalTab() {
 
   return html`
     <div class="section-head">
-      <h2>Workspace</h2>
+      <h2>Workspace${raw(docsChip('workspace', 'Workspace'))}</h2>
       <p>Who this workspace is, and where its responses are stored.</p>
     </div>
 
@@ -164,7 +176,7 @@ function generalTab() {
     </section>
 
     <div class="section-head">
-      <h2>Campaign defaults</h2>
+      <h2>Campaign defaults${raw(docsChip('campaign-defaults', 'Campaign defaults'))}</h2>
       <p>What a new campaign starts with. Every one of these can be overridden in the builder.</p>
     </div>
 
@@ -185,11 +197,39 @@ function generalTab() {
     </section>
 
     <div class="section-head">
+      <h2>Appearance${raw(docsChip('appearance', 'Appearance'))}</h2>
+      <p>How the console is painted. The choice is this browser's, not the workspace's —
+        it is stored beside the rest of the prototype state and applies the moment it changes.</p>
+    </div>
+
+    <section class="spanel">
+      ${raw(srow('Theme',
+        'Dark is the console\u2019s own scale and the default. Light is the dashboard\u2019s light '
+        + 'theme: the same tokens read from the other end, with the rating ramp and the chart series '
+        + 're-weighted so a colour keeps its meaning against a white card.',
+        html`<select class="select" data-act="set-theme" aria-label="Theme">
+          <option value="dark" ${raw(store.state.theme !== 'light' ? 'selected' : '')}>Dark</option>
+          <option value="light" ${raw(store.state.theme === 'light' ? 'selected' : '')}>Light</option>
+        </select>`,
+        { top: true }))}
+    </section>
+
+    <div class="section-head">
       <h2>Prototype state</h2>
       <p>This build keeps its state in the browser. Nothing here leaves the machine.</p>
     </div>
 
     <section class="spanel">
+      ${raw(srow('Builder chrome',
+        'Which chrome the campaign wizard wears. The step strip puts its four steps in the tab strip '
+        + 'every other screen uses; the boxed stepper is the wizard\'s own band, which says a state '
+        + 'word under each step at the cost of the height it takes.',
+        html`<select class="select" data-act="set-builder-chrome" aria-label="Builder chrome">
+          <option value="strip" ${raw(store.state.builderChrome !== 'stepper' ? 'selected' : '')}>Step strip</option>
+          <option value="stepper" ${raw(store.state.builderChrome === 'stepper' ? 'selected' : '')}>Boxed stepper</option>
+        </select>`,
+        { top: true }))}
+
       ${raw(srow('Reset all prototype state',
         'Clears saved campaigns, the in-progress draft and every setting on this screen, then reloads.',
         '<button class="btn btn-danger btn-sm" data-act="reset">Reset state</button>',
@@ -205,7 +245,7 @@ function deliveryTab() {
 
   return html`
     <div class="section-head">
-      <h2>Response handling</h2>
+      <h2>Response handling${raw(docsChip('response-handling', 'Response handling'))}</h2>
       <p>How long a prompt stays answerable, and how soon the same user can be asked again.</p>
     </div>
 
@@ -239,7 +279,7 @@ function deliveryTab() {
     </section>
 
     <div class="section-head">
-      <h2>Send rate limits</h2>
+      <h2>Send rate limits${raw(docsChip('rate-limits', 'Send rate limits'))}</h2>
       <p>Ceilings on how often a user can be interrupted. They cap every campaign at once — a
          campaign cannot raise its own.</p>
     </div>
@@ -330,14 +370,14 @@ function alertsTab() {
       </div>`)}
 
     <div class="section-head" ${raw(connected ? '' : 'style="margin-top:var(--sp-xl)"')}>
-      <h2>Campaign alerts</h2>
+      <h2>Campaign alerts${raw(docsChip('alerts', 'Campaign alerts'))}</h2>
       <p>Sent as they happen. Open one to see what it watches and what it would have fired on.</p>
     </div>
 
     <section class="spanel">${raw(alertRows.join(''))}</section>
 
     <div class="section-head">
-      <h2>Digests</h2>
+      <h2>Digests${raw(docsChip('digests', 'Digests'))}</h2>
       <p>A scheduled summary across every campaign, whether or not anything alerted.</p>
     </div>
 
@@ -353,6 +393,43 @@ function alertsTab() {
       ${raw(panelFoot('digests', 'Delivered to the workspace owner.'))}
     </section>`;
 }
+
+/* ---------- The save footer's own change ----------
+   A panel going dirty is a state change the reader caused, and it was the one
+   place in the product where one arrived with no acknowledgement at all: Cancel
+   pops into existence and Save flips from neutral to primary, both on a frame.
+
+   It cannot be a `transition`, for the same reason the stepper's marks could
+   not be — this screen repaints by replacing its markup on every keystroke, so
+   the footer is a fresh node each time and a fresh node has no previous value
+   to move from. So the previous dirty state is remembered per panel here, and
+   only the footer that actually changed is marked. Without that, every
+   character typed into a field would re-fire the animation.
+
+   Same shape as `markChangedSteps()` in builder.js; the comment there explains
+   the pattern in full. */
+let footStates = new Map();
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)');
+
+function markChangedFeet(root) {
+  const next = new Map();
+  $$('.spanel-foot[data-foot]', root).forEach((foot) => {
+    const { foot: panel, dirty: state } = foot.dataset;
+    next.set(panel, state);
+    // A first paint has no previous state: the footer arrives with the tab
+    // rather than changing, and marking all five at once would be a light show.
+    const before = footStates.get(panel);
+    if (!REDUCED.matches && before !== undefined && before !== state) {
+      foot.dataset.changed = state === 'true' ? 'dirty' : 'clean';
+    }
+  });
+  footStates = next;
+}
+
+/* Leaving a tab drops its edits, so the footers on the tab being entered are
+   arrivals rather than changes. Without this, switching away from a dirty panel
+   and back would animate it clean on the first paint of the new tab. */
+function forgetFeet() { footStates = new Map(); }
 
 /* ---------- Render ---------- */
 export function renderSettings(host) {
@@ -398,12 +475,8 @@ function paintSettings(host, { pending = false, entering = false } = {}) {
     : view.tab === 'delivery' ? deliveryTab()
     : alertsTab();
 
-  const tabs = Object.entries(TABS).map(([key, label]) => html`
-    <button class="tab" role="tab" data-act="tab" data-key="${key}"
-            aria-selected="${view.tab === key}">${label}</button>`);
-
   host.innerHTML = html`
-    <div class="page">
+    <div class="page page-settings">
       <header class="page-head">
         <div>
           <h1 class="page-head-title">Settings</h1>
@@ -412,21 +485,29 @@ function paintSettings(host, { pending = false, entering = false } = {}) {
           </p>
         </div>
         <div class="page-head-actions">
-          <button class="btn btn-default btn-sm" data-act="stub" data-key="Docs">
+          <button class="btn btn-default btn-lg" data-act="stub" data-key="Docs">
             ${raw(icon('book'))}Docs
           </button>
         </div>
       </header>
 
-      <div class="tabs page-tabs" role="tablist">${tabs}</div>
-
       <div data-enter style="margin-top:var(--sp-xl)">${raw(body)}</div>
     </div>`;
 
+  // The tabs sit in the shell's strip above the page (chrome.js). Leaving a
+  // tab drops its pending edits rather than carrying them across to a Save
+  // the reader can no longer see.
+  setTabs({
+    label: 'Settings sections',
+    items: Object.entries(TABS).map(([key, label]) => ({ key, label })),
+    active: view.tab,
+    onSelect: (key) => { edits = {}; forgetFeet(); view.tab = key; renderSettings(host); },
+  });
+
   // Only the panel fades up; the header and tab strip never left.
   if (entering) $$('[data-enter]', host).forEach((node) => node.classList.add('lazy-in'));
-  wireTabPill($('.tabs', host), 'settings');
 
+  markChangedFeet(host);
   wireDropdowns(host);
   wireOnce(host, 'settingsWired', wire);
 }
@@ -434,15 +515,6 @@ function paintSettings(host, { pending = false, entering = false } = {}) {
 /* ---------- Behaviour ---------- */
 function wire(host) {
   const rerender = () => renderSettings(host);
-
-  on(host, 'click', '[data-act="tab"]', (event, btn) => {
-    if (view.tab === btn.dataset.key) return;
-    // Leaving a tab drops its pending edits rather than carrying them across
-    // to a Save the reader can no longer see.
-    edits = {};
-    view.tab = btn.dataset.key;
-    rerender();
-  });
 
   /* A control writes to `edits`; only Save crosses into the store. The
      re-render is what lights the footer and recomputes the derived notes. */
@@ -548,6 +620,30 @@ function wire(host) {
   on(host, 'click', '[data-act="stub"]', (event, btn) => {
     toast(`${btn.dataset.key || 'That screen'} is not part of this prototype`,
       'The three built screens are Campaigns, the builder and Insights.', 'warning');
+  });
+
+  // Applied on the spot rather than through a panel Save: it is a preference
+  // for the prototype, not a value a campaign inherits.
+  on(host, 'change', '[data-act="set-theme"]', (event, el) => {
+    const theme = applyTheme(el.value);
+    store.set({ theme });
+    toast(theme === 'light' ? 'Light theme on' : 'Dark theme on',
+      theme === 'light'
+        ? 'The dashboard\u2019s light scale. Every page in this browser takes it.'
+        : 'Back to the console\u2019s own scale.');
+    // The ramp and the AI accent are baked into markup as literal colours when
+    // a screen renders, so a theme change is only half-applied until the page
+    // that is on screen paints again. `applyTheme` re-read them; this is what
+    // puts the new values into the DOM.
+    rerender();
+    document.dispatchEvent(new CustomEvent('shell:rerender'));
+  });
+
+  on(host, 'change', '[data-act="set-builder-chrome"]', (event, el) => {
+    store.set({ builderChrome: el.value });
+    toast('Builder chrome switched',
+      el.value === 'stepper' ? 'The wizard opens with its boxed stepper.'
+        : 'The wizard opens with its steps in the tab strip.');
   });
 
   on(host, 'click', '[data-act="reset"]', async () => {

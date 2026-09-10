@@ -1,0 +1,395 @@
+/* ==========================================================================
+   InsightHub — Kumo's motion
+
+   Load LAST, after supabase.css and tokens-cloudflare.css:
+
+     <link rel="stylesheet" href="assets/css/supabase.css" />
+     <link rel="stylesheet" href="assets/css/tokens-cloudflare.css" />
+     <link rel="stylesheet" href="assets/css/motion-kumo.css" />
+
+   The durations and curves are tokens and live in tokens-cloudflare.css with
+   the rest of them. This file is the part that is not a value: the keyframes
+   Kumo ships, and the decision about which of this product's moments earn the
+   two overshoot curves.
+
+   **This supersedes the "nothing overshoots" rule.** The console inherited a
+   scale from the Supabase build whose first rule was that a spring on a status
+   pill reads as a bug. Kumo disagrees — it ships `--ease-bounce`
+   (`cubic-bezier(0.2, 0, 0, 1.5)`), a back-out curve on both of its toast
+   bumps, and a `bounce-in` that scales to 1.2 — and §4 of the guideline says
+   Kumo wins on values. So the rule is narrowed rather than dropped: overshoot
+   marks a *completion*, and nothing else. See §12 of
+   docs/ui-guidelines-cloudflare-dark.md for where the line now sits.
+
+   Everything the old rule set said that was not about overshoot still holds:
+   anything that animates in animates out, a close is not an open played
+   backwards, delay is an intent gate, and motion is never the only carrier of
+   a state change — which is what keeps the reduced-motion block at the foot of
+   this file honest.
+
+   Keyframes are Kumo's own, transcribed from
+   node_modules/@cloudflare/kumo/dist/styles/kumo-binding.css (2.13.2).
+   ========================================================================== */
+
+/* ---------- Kumo's keyframes, verbatim ---------- */
+@keyframes bounce-in {
+  0%   { opacity: 0; transform: scale(0.6); }
+  50%  { opacity: 1; transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+@keyframes toast-bump {
+  0%   { transform: scale(1); }
+  20%  { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+@keyframes clipboard-toast-bump {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+@keyframes refresh {
+  to { transform: rotate(360deg) scale(0.9); }
+}
+
+/* ---------- Kumo's utility classes, under Kumo's names ----------
+   Nothing in this repo needs them to be called this. They carry Kumo's names
+   so a component lifted from Kumo's docs animates correctly when it is pasted
+   in, and so the eventual move onto Kumo's own components is a deletion here
+   rather than a translation. */
+.animate-bounce-in { animation: bounce-in var(--motion-bounce) var(--ease-out); }
+.animate-toast-bump { animation: toast-bump var(--motion-bounce) var(--ease-back); transform-origin: center; }
+.animate-clipboard-toast-bump { animation: clipboard-toast-bump 350ms var(--ease-back); transform-origin: center; }
+.animate-refresh { animation: var(--animate-refresh); }
+
+/* ==========================================================================
+   Where this product overshoots
+
+   Three moments, and they have one thing in common: something the user was
+   waiting on has just finished. A hover has not finished anything, a menu
+   opening has not finished anything, and neither of them moves here.
+   ========================================================================== */
+
+/* 1. A wizard step completes. The badge trades its number for a check, which
+      is the single clearest "that is done" in the product, and it is the one
+      Kumo's own `bounce-in` was written for — a badge arriving at a count.
+      The check inside it pops on the same curve a beat later, so the two read
+      as one event rather than as a scale and then a fade. */
+.step[data-changed="complete"] .step-num {
+  animation: bounce-in var(--motion-bounce) var(--ease-out);
+}
+.step[data-changed="complete"] .step-num svg {
+  animation: bounce-in var(--motion-bounce) var(--ease-out) both;
+}
+
+/* 2. A toast arrives. Kumo bumps its toasts on the back-out curve rather than
+      easing them; the travel stays the existing 14px slide, because a toast
+      that scaled up from nothing would fight the stack it lands in. The curve
+      is the whole change. */
+.toast {
+  animation: slidein var(--motion-base) var(--ease-back);
+}
+/* A toast that fires again while one is already up bumps in place instead of
+   re-entering — Kumo's `.animate-toast-bump`, which is what it is for. JS sets
+   the attribute; the animation clears it. */
+.toast[data-bump="true"] {
+  animation: toast-bump var(--motion-bounce) var(--ease-back);
+  transform-origin: center;
+}
+
+/* 3. A rating is picked in the preview. A selection landing is a completion,
+      and this is the only mark in the product that answers a tap directly. */
+.rate-btn.is-on,
+.star-btn.is-on {
+  animation: rate-mark var(--motion-bounce) var(--ease-bounce);
+}
+
+/* ==========================================================================
+   State changes that had no acknowledgement
+
+   None of these overshoot: nothing here has *finished*, something has
+   *changed*. They are in this file rather than supabase.css because they were
+   added with Kumo's scale and belong beside the reduced-motion block that
+   stills them.
+   ========================================================================== */
+
+/* A settings panel goes dirty. Cancel does not exist until an edit exists, so
+   it arrives — on `dd-in`'s shape, which is the console's vocabulary for a
+   control appearing, rather than on a bounce. Save changes from neutral to
+   primary under the `.btn` colour transition it already had.
+
+   `settings.js` marks only the footer whose dirty state actually changed; see
+   `markChangedFeet()` there for why a transition cannot do this job. */
+.spanel-foot[data-changed="dirty"] [data-act="cancel"] {
+  animation: dd-in var(--motion-base) var(--ease-out);
+}
+.spanel-foot[data-changed] .t-xs {
+  animation: fade var(--motion-base) var(--ease-out);
+}
+
+/* A row is deleted. The undo flashes the row on its way back, so the row on
+   its way out had the asymmetry backwards: a reversal read as a second,
+   unrelated arrival. It now leaves before the list closes over it — the cells
+   give up their padding and their rules at the same time as the row fades, so
+   the gap closes rather than the row blinking out of a hole.
+
+   `dashboard.js` waits for this before repainting; the row is removed by that
+   repaint, not by the animation. */
+.table tbody tr[data-leaving="true"] {
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: opacity var(--motion-fast) var(--ease-out),
+              transform var(--motion-fast) var(--ease-out);
+}
+.table tbody tr[data-leaving="true"] td {
+  padding-block: 0;
+  border-bottom-color: transparent;
+  transition: padding-block var(--motion-base) var(--ease-out),
+              border-bottom-color var(--motion-fast) var(--ease-out);
+}
+
+/* A page of the table is turned. The rows enter from the side the reader
+   travelled, which is the same thing the wizard's step body does and for the
+   same reason: the direction is what says which way you moved. Fast, and on
+   the body only — the header, the toolbar and the pager did not move. */
+.table tbody[data-page-dir] tr {
+  animation: page-rows var(--motion-base) var(--ease-out) both;
+}
+.table tbody[data-page-dir="prev"] tr { animation-name: page-rows-back; }
+@keyframes page-rows      { from { opacity: 0; transform: translateX(10px); } }
+@keyframes page-rows-back { from { opacity: 0; transform: translateX(-10px); } }
+
+/* The stat strip arrives with the campaign it describes. It is chrome, so it
+   is on screen before the panel below it and cannot use the panel's `lazy-in`;
+   this is that gesture at the strip's own scale. Marked by `chrome.js` on the
+   first paint of a given campaign only — a tab change inside one campaign does
+   not re-arrive it. */
+.statstrip[data-enter="true"] {
+  animation: lazy-in var(--motion-base) var(--ease-out);
+}
+
+/* Kumo's anchored "Copied" toast (`.animate-clipboard-toast-bump`), which was
+   carried unused until there was a copy to report. Smaller and quieter than a
+   stack toast, and it bumps rather than slides: it has not travelled from
+   anywhere, it has appeared where the reader is already looking. */
+.copied-chip {
+  position: fixed; z-index: 210;
+  padding: 5px 10px;
+  background: var(--surface-100); border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-xs); color: var(--foreground-default);
+  animation: clipboard-toast-bump 350ms var(--ease-back);
+  transform-origin: center;
+}
+
+/* The refresh control, while the list it re-reads is loading. This is Kumo's
+   `--animate-refresh` verbatim — rotate with a slight scale down, half a
+   second, looping — and it loops legitimately: it runs only while a section is
+   genuinely pending, and stops because the button is replaced by the live one
+   when the content lands. */
+[data-act="refresh"][data-spinning="true"] svg {
+  animation: var(--animate-refresh);
+}
+
+/* ==========================================================================
+   Kumo's loading motion
+
+   Both of these loop, which the rules allow only while something is genuinely
+   pending — and a skeleton is the definition of pending.
+   ========================================================================== */
+
+/* Kumo runs the skeleton sweep at 1.5s and paints it at .05 white on dark;
+   the inherited sweep was 1.4s at .045. Close enough that nothing looks
+   different, and now it is one number with a source. */
+.skel::after {
+  animation: shimmer var(--shimmer-duration) ease-in-out infinite;
+  background: linear-gradient(90deg, transparent 0%, var(--skel-sweep) 50%, transparent 100%);
+}
+
+/* A chart's skeleton is slower than a row's, because the shape behind it is
+   static and a fast wave over a still plot reads as the plot flickering. */
+.chart .skel::after,
+.metric-plot .skel::after {
+  animation-duration: var(--shimmer-duration-chart);
+}
+
+/* ==========================================================================
+   Reopened: motion that decorates
+
+   `docs/motion-handover.md` rejected this set on the grounds that it animates
+   things which do not change meaning. That call has been reversed
+   deliberately; the rejected section in that file records the reversal rather
+   than being left to argue with this code.
+
+   One technical constraint shapes the lift. See the note on `.lazy-in` in
+   supabase.css: a transform makes a stacking context, and a stat card would be
+   exactly the element a chart readout has to escape — so lifting a card could
+   in principle seal its own readout inside it. `position: relative; z-index` is
+   carried against that.
+
+   It is insurance and not a fix, because the readout does not escape its card:
+   `fec44d2` opens it beside its column and clamps it inside the card at every
+   column of every card, which was measured rather than assumed. What the
+   z-index buys today is only that the lifted card's own edge stays crisp over
+   its neighbour's. If the readout is ever allowed out of the card again, this
+   is what stops the lift trapping it.
+   ========================================================================== */
+
+/* A card the reader is scanning. One pixel and a brighter edge: enough to say
+   which card the pointer is on, not enough to look like it can be pressed. */
+.metric,
+.opt {
+  transition: border-color var(--motion-fast) var(--ease-out),
+              background-color var(--motion-fast) var(--ease-out),
+              transform var(--motion-fast) var(--ease-out);
+}
+.metric:hover,
+.opt:hover {
+  transform: translateY(-1px);
+  border-color: var(--border-strong);
+  /* Insurance against the stacking context the transform makes, and it keeps
+     the lifted edge over its neighbour's — see the header. */
+  position: relative;
+  z-index: 2;
+}
+/* A radio card that is already chosen does not lift: it is not an offer any
+   more, and a selected control that moves under the pointer reads as though
+   the selection is still in question. */
+.opt[aria-checked="true"]:hover,
+.opt:has(input:checked):hover { transform: none; }
+
+/* The row under the pointer. The background was already there; this is the
+   hairline coming with it, so the row reads as one band rather than as a fill
+   that stops at the cell edges. */
+.table tbody tr { transition: box-shadow var(--motion-fast) var(--ease-out); }
+.table tbody tr:hover { box-shadow: inset 2px 0 0 var(--border-strong); }
+
+/* Cards arriving together arrive in order. The stagger is a fraction of one
+   duration rather than a flat per-card gap — guideline §12.2 rule 7 — so four
+   cards and eight cards both cross in `--motion-base` and the gesture does not
+   get longer as the data does.
+
+   `backwards`, never `forwards`, for the reason `.lazy-in` is: a fill that
+   holds the last keyframe leaves an identity transform on the card forever,
+   and an identity transform is still a stacking context. */
+.metric-grid[data-stagger] > * {
+  animation: lazy-in var(--motion-base) var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) / var(--n, 1) * var(--motion-base));
+}
+
+/* An empty state is the answer to the question the screen was asked, so it
+   arrives like any other content rather than being there all along. */
+.zero[data-enter-zero] {
+  animation: lazy-in var(--motion-base) var(--ease-out) backwards;
+}
+
+/* ==========================================================================
+   Scroll fade (Kumo's `[data-overflowing]`)
+
+   The campaign table is wider than its scroller below about 1250px — measured
+   at 1119px of content in 790px at a 1100px viewport — and until now said so
+   only with a scrollbar. Kumo's answer is a mask on the scroller that fades
+   whichever edge still has content beyond it, so the cut-off column reads as
+   *more*, not as a column that ends oddly.
+
+   This is a scroll-driven animation, not a time-driven one: the timeline is
+   the scroller's own x position, so the fade tracks the thumb rather than
+   playing on a duration. It is the newest CSS in this codebase, which is why
+   the whole thing sits behind `@supports` — a browser without
+   `animation-timeline` keeps its scrollbar and loses nothing but the fade.
+
+   `data-overflowing` is set by a ResizeObserver in core.js, per the note in
+   Kumo's own source; CSS cannot ask whether a box overflows.
+   ========================================================================== */
+
+/* Registered so they can be interpolated. A plain custom property is a string
+   to the animation engine and would jump from 0 to 1 rather than sweep. */
+@property --fade-left-n  { syntax: "<number>"; inherits: false; initial-value: 0; }
+@property --fade-right-n { syntax: "<number>"; inherits: false; initial-value: 0; }
+
+@keyframes scroll-fade-x-left  { from { --fade-left-n: 0; }  to { --fade-left-n: 1; } }
+@keyframes scroll-fade-x-right { from { --fade-right-n: 1; } to { --fade-right-n: 0; } }
+
+[data-overflowing] {
+  @supports (animation-timeline: scroll()) {
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      white calc(var(--fade-left-n) * var(--scroll-fade-width, 3rem)),
+      white calc(100% - var(--fade-right-n) * var(--scroll-fade-width, 3rem)),
+      transparent
+    );
+
+    animation-name: scroll-fade-x-left, scroll-fade-x-right;
+    animation-timing-function: linear, linear;
+    animation-timeline: scroll(self x);
+    animation-range:
+      0 var(--scroll-fade-range, 3rem),
+      calc(100% - var(--scroll-fade-range, 3rem)) 100%;
+    animation-fill-mode: both;
+  }
+}
+
+/* Where the fade runs it *is* the affordance, so the scrollbar it replaces
+   goes; where it does not, the scrollbar stays and is the only thing saying
+   there is more. Kumo does exactly this on its own tab list. */
+@supports (animation-timeline: scroll()) {
+  .table-scroll[data-overflowing] { scrollbar-width: none; -ms-overflow-style: none; }
+  .table-scroll[data-overflowing]::-webkit-scrollbar { display: none; }
+}
+
+/* ==========================================================================
+   Reduced motion
+
+   This file loads after supabase.css, so its own reduced-motion block cannot
+   reach these rules — they have to be stilled again here. Every one of them
+   decorates a change that is already legible without it: the step badge still
+   becomes a check, the toast still appears, the skeleton still holds the
+   layout. Nothing is lost but the movement.
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .animate-bounce-in,
+  .animate-toast-bump,
+  .animate-clipboard-toast-bump,
+  .animate-refresh,
+  .step[data-changed="complete"] .step-num,
+  .step[data-changed="complete"] .step-num svg,
+  .toast,
+  .toast[data-bump="true"],
+  .rate-btn.is-on,
+  .star-btn.is-on,
+  .copied-chip,
+  [data-act="refresh"][data-spinning="true"] svg,
+  .spanel-foot[data-changed="dirty"] [data-act="cancel"],
+  .spanel-foot[data-changed] .t-xs,
+  .table tbody[data-page-dir] tr,
+  .statstrip[data-enter="true"],
+  /* Same keyframe as `.lazy-in`, which supabase.css already stills — but
+     reached through a different selector, so that rule does not cover it. */
+  .metric-grid[data-stagger] > *,
+  .zero[data-enter-zero],
+  .skel::after {
+    animation: none;
+  }
+  /* A hover that moves the box is travel, and travel is what this block is
+     for. The border and background still change, so the card under the
+     pointer is still the card under the pointer. */
+  .metric, .opt { transition: border-color var(--motion-fast) var(--ease-out),
+                              background-color var(--motion-fast) var(--ease-out); }
+  .metric:hover, .opt:hover { transform: none; }
+  .table tbody tr { transition: none; }
+  /* The row's exit is a transition, not an animation. `leaveRow()` in
+     dashboard.js skips the wait under reduced motion, so the row is simply
+     gone on the next paint — but the rule is stilled here too, in case some
+     other caller sets the attribute. */
+  .table tbody tr[data-leaving="true"],
+  .table tbody tr[data-leaving="true"] td { transition: none; }
+  /* The scroll fade is scroll-driven rather than time-driven, so it is not
+     motion in the sense this block is about: nothing moves on its own, the
+     mask tracks a scroll the reader is performing. It stays. */
+  /* `both` on the check's fill-mode left it at the keyframe's opacity 0. */
+  .step[data-changed="complete"] .step-num svg { opacity: 1; transform: none; }
+}

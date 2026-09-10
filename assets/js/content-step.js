@@ -6,6 +6,7 @@
 import {
   html, raw, esc, icon, $, $$, on, uid, dropdown,
   confirmDestructive, dialog, toast, stepPanel, BANDS, BAND_LABEL, bandRange, clamp,
+  copiedChip,
 } from './core.js';
 import { store, createVariant, evenSplit, variantScaleMax, templateOf } from './store.js';
 import { TEMPLATES, TEMPLATE_CATEGORIES, CHANNELS, ELEMENTS, TRIGGER_EVENTS } from './data.js';
@@ -823,8 +824,16 @@ export function wireContentStep(host, rerender) {
   on(host, 'click', '[data-act="copy-trigger"]', (e, el) => {
     const source = draft().variants.find((v) => v.id === el.dataset.id);
     if (!source) return;
+    // The chip is read off the trigger before the patch, because the repaint
+    // that follows replaces the button this menu hangs off.
+    const anchor = el.closest('.dd')?.querySelector('[data-dd-trigger]');
+    const box = anchor && anchor.getBoundingClientRect();
     patch({ trigger: { ...source.trigger } });
-    toast('Trigger copied', `Now running ${source.trigger.event} + ${source.trigger.delayValue} ${source.trigger.delayUnit}.`);
+    // Anchored rather than a corner toast: the fields that changed are two
+    // inches away, and a toast in the far corner makes the reader look away
+    // from the thing they just changed to be told they changed it.
+    copiedChip(box && { getBoundingClientRect: () => box },
+      `Copied · ${source.trigger.event} + ${source.trigger.delayValue} ${source.trigger.delayUnit}`);
   });
 
   function branchPatch(band, p) {

@@ -37,6 +37,12 @@ no animation library removes the need for it.
 
 ## What is live
 
+> **Rebased on Kumo.** The scale below is no longer the one this file was written against:
+> `--motion-fast` is 100ms, `--motion-base` 200ms, `--motion-slow` 300ms, and `--ease-out` is
+> Kumo's `cubic-bezier(0, 0, .2, 1)`. Two overshoot curves exist now — see the guideline §12,
+> which supersedes the rules at the foot of this file wherever the two disagree. New motion lives
+> in `assets/css/motion-kumo.css`, which loads third and carries its own reduced-motion block.
+
 32 keyframes and 57 transition declarations, carrying 100 references to the three motion tokens.
 Every duration outside the assistant is a token; the two that are not are the 8ms stagger the
 distribution bars count on, and the 1.5s the collapsed rail's tooltip waits, both of which are
@@ -73,7 +79,13 @@ could not be positioned.
 | Headline figures | range switch only | `countUp()` — never on a keystroke |
 | Card readout | hover on a metric plot | the column holds its ink, its neighbours drop to .38, and a `.chart-tip` opens against the cursor; `wireMetricCharts()` |
 | Row menu | the ⋯ on any row | `dd-in` / `dd-out`, flipped above the trigger where the row is near the fold |
-| Delete → undo | the row menu | row leaves, toast carries the way back for 8s, restored row takes `row-flash` |
+| Delete → undo | the row menu | `leaveRow()` fades and collapses the row *before* the repaint, toast carries the way back for 8s, restored row takes `row-flash` |
+| Page turn | the pager | `page-rows` / `page-rows-back` — the rows enter from the side the reader travelled; `pageDir` is set by the press and consumed by the paint |
+| Refresh | the toolbar's refresh button | `forgetSection('campaigns')`, then Kumo's `refresh` spins on the button — which stays real while the rest of the toolbar goes to skeleton |
+| Card entrance stagger | content arriving | `staggerCards()` sets `--i`/`--n`; the four cards cross one `--motion-base` |
+| Card hover lift | hover on a stat card | 1px `translateY` + brighter edge, with a `z-index` against the stacking context a transform makes |
+| Empty state | the first paint that has one | `lazy-in`, gated on the previous paint not having had one |
+| Table edge fade | the table overflowing its scroller | Kumo's `[data-overflowing]` mask on a `scroll(self x)` timeline — see the guideline §12.3a |
 | Live status pulse | always, `Live` only | `pill-pulse`, a pseudo-element ring on transform/opacity |
 | Row hover | hover | background + 2px chevron lean |
 | Clone | confirm | `row-flash` on the source row |
@@ -140,6 +152,8 @@ hidden mid-advance, which never gets the event.
 ### Settings
 
 Skeleton on all three tabs; sliding tab marker; toasts on save and on every alert toggle.
+| Save footer | a panel going dirty or clean | `markChangedFeet()` marks only the footer that changed; Cancel arrives on `dd-in` |
+| Theme switch | Settings → Appearance | `applyTheme()` re-reads the palette, then the screen repaints — the ramp is baked into markup as literal colours |
 
 ### Assistant
 
@@ -224,31 +238,62 @@ Four of the five items that were here are built. What they were, and what closin
 
 ### Worth doing next — ranked
 
-Ranked by how much each one tells the reader something they could not otherwise see. The first
-three are the ones worth doing; below the line is where the returns stop.
+**All four of the items that were here are built** (Sep 2026), and the fifth was already
+done before this list was last read. What they were, and what closing them taught:
 
-1. **Settings save footer** (`settings.js:111`). Above, and still the strongest. A control
-   appearing is a state change the user caused, and this is the one place in the product where one
-   arrives with no acknowledgement at all. `dd-in`'s shape is the right shape.
-2. **The row menu's own destructive confirm.** Delete now flashes the restored row on undo, but the
-   *departing* row just vanishes on the repaint. A row leaving under a collapse — the toast's own
-   `margin-bottom` trick, applied to a `<tr>` — would make the undo legible as a reversal rather
-   than as a second, unrelated arrival. Cheap, and it does not need keyed reconciliation because
-   there is exactly one row and it is known by id.
-3. **Insights chart column → readout parity.** The campaign list's cards now dim their neighbours
-   while one column is read; the Insights delivery chart, which has the more detailed readout,
-   still does not. Same gesture, two behaviours — the same inconsistency that put the figure
-   count-up on this list. One rule and one attribute in `wireChart()`.
-4. **Filter chips on Insights.** Five `<select>`s that mostly change nothing visible. Now that
-   `range` genuinely re-slices, the others are conspicuous by not doing so. This is a data problem
-   before it is a motion one, and the honest fix is fewer controls, not more animation.
-5. **The `metric-axis` under a swapped plot.** The columns crossfade and regrow; the two date
-   labels under them hard-cut. Nobody has noticed, which is roughly the point — listed so the next
-   person does not "fix" it and add motion to something that reads fine still.
+1. ~~**Settings save footer**~~ — done, and it needed the stepper's trick rather than a
+   transition. The screen repaints on every keystroke, so the footer is a fresh node each
+   time and a fresh node has nothing to transition *from*. `markChangedFeet()` in
+   `settings.js` remembers each panel's dirty state and marks only the footer that
+   actually changed; without that, every character typed re-fired the animation. Cancel
+   arrives on `dd-in`'s shape — a control appearing, not a completion, so no bounce.
+2. ~~**The row menu's own destructive confirm**~~ — done. `leaveRow()` in `dashboard.js`
+   holds the repaint until the row has faded and its cells have given up their padding,
+   so the gap closes rather than the row blinking out of a hole. It resolves immediately
+   under reduced motion and for a row that is not on screen, because a promise that never
+   settles would strand the delete.
+3. ~~**Insights chart column → readout parity**~~ — **was already done** when this list
+   was written, by `fec44d2`. `wireChart()` in `insights.js` has set `data-reading` and
+   `data-on` since then and picks up the shared rules. The entry survived because nobody
+   re-checked it. *Check the code before ranking the item.*
+4. ~~**Filter chips on Insights**~~ — still open, still a data problem before a motion
+   one, and still not on this list for that reason. Five `<select>`s of which only `range`
+   changes anything visible. The honest fix is fewer controls.
+5. **The `metric-axis` under a swapped plot.** The columns crossfade and regrow; the two
+   date labels under them hard-cut. Nobody has noticed, which is roughly the point —
+   listed so the next person does not "fix" it and add motion to something that reads
+   fine still.
 
-**Deliberately not on this list:** anything that decorates. The rejected set below still stands, and
-the card readout was only worth building because it shows numbers the reader could not otherwise
-get at — not because a hover ought to do something.
+### New since that pass
+
+1. **The stat strip wraps to two rows at 1440px with the sidebar expanded.** Recorded in
+   the guideline at §6.8. A spec question, not a motion one.
+
+### Retracted: the "chart readout z-order bug"
+
+A previous revision of this file listed a z-order bug in the chart readout as the best
+remaining item in the app. **There is no such bug**, and the entry was wrong.
+
+It came from `document.elementFromPoint()` at the readout's own centre returning
+`.metric-head` rather than the readout. That was read as "the readout is painted over".
+It is not: `.chart-tip` carries `pointer-events: none` — deliberately, so the pointer can
+keep tracking the columns underneath it — and hit-testing therefore skips it and returns
+whatever is beneath. **`elementFromPoint` measures hit-testing, not paint order, and the
+two differ by design on every element with `pointer-events: none`.**
+
+What the pixels show, and what was checked before retracting this:
+
+- The readout paints above its own card's head and figures. Screenshotted and read.
+- It never escapes its card horizontally: hovering the first and last column of all four
+  metric cards, it stays inside every time, and overlaps no neighbouring card. That is
+  `fec44d2` doing its job — it opens the readout beside its column rather than on top.
+- It never escapes vertically on Insights either, and runs into none of the cards that
+  follow it.
+
+The historical version of this concern was real — the note on `.lazy-in` in `supabase.css`
+records the readout being painted over by the next section down, which is why that rule
+must not use a `forwards` fill. That was fixed, and then fixed again from a different
+angle by `fec44d2`. Neither regressed.
 
 ### Blocked on the render path
 
@@ -260,10 +305,34 @@ get at — not because a hover ought to do something.
 
 ### Considered and rejected
 
-Card entrance staggers, avatar hover, empty-state entrances, device tilt. These animate things
-that do not change meaning. `DESIGN.md` says nothing overshoots and nothing loops unless something
-is genuinely happening — decorating rather than marking state is how a console starts feeling like
-a toy.
+**This list has been reversed** (Sep 2026). It said: *card entrance staggers, avatar hover,
+empty-state entrances, device tilt — these animate things that do not change meaning, and
+decorating rather than marking state is how a console starts feeling like a toy.* The reasoning was
+sound and the call went the other way anyway; it was a product decision, not a technical one.
+
+Built: **card entrance staggers** (`staggerCards()` in `core.js`, spread across one duration rather
+than a flat per-card gap), **hover lift** on stat and radio cards and a hairline on table rows, and
+**empty-state entrances**. Not built: avatar hover and device tilt, which still have no host worth
+the name, and Kumo's own `float` and marquee keyframes, which loop with nothing happening.
+
+The rule that replaced the ban is an ordering rather than a prohibition, and it is in the guideline
+at §12.2 rule 7: motion that reveals something the reader could not otherwise see comes first,
+motion that marks a change they caused second, motion that only makes the surface feel alive last —
+and the last kind never justifies a technical compromise. That is why the lift is one pixel, why a
+radio card that is already chosen does not lift, and why every one of these is stilled under
+reduced motion.
+
+**Three traps this set walked into, worth knowing before adding more:**
+
+- **A transform makes a stacking context.** The hover lift needed a `z-index` for the same reason
+  `.lazy-in` cannot use a `forwards` fill — see the comment on it in `supabase.css`.
+- **A stagger reusing a keyframe is not covered by that keyframe's reduced-motion entry.** The card
+  stagger uses `lazy-in` but reaches it through `.metric-grid[data-stagger] > *`, and was not
+  stilled until that selector was named. Verified in the browser, not by reading the block.
+- **An entrance cannot always ride on `entering`.** A workspace with no campaigns has nothing to
+  fetch, so `lazySection` skips the wait and paints with `entering` false — the empty state had to
+  detect that the *previous* paint had no empty state, the same change-detection the save footer
+  needs.
 
 **Page-to-page transitions were on this list and have been taken off it.** The argument for
 rejecting them was that a navigation does not change meaning. The argument against was stronger
@@ -313,6 +382,12 @@ time:**
 3. **Scroll the target into view before hovering.** The insights chart sits at y≈779, below a
    720px viewport, so a synthetic mouse never reaches it and the component looks broken. If
    `document.elementFromPoint()` returns `none`, that is the tell.
+4. **Do not use `elementFromPoint` to ask what is on top.** It answers what a *click* would
+   hit, and it skips every element with `pointer-events: none` — which the chart readout and
+   every tooltip in this product have, deliberately, so the pointer keeps tracking what is
+   underneath. Asking it whether the readout was painted over produced a confident false
+   positive that reached two documents and a CSS comment. **Paint order is a question for
+   pixels**: screenshot the overlap with a `clip` box and look at it.
 
 To measure a skeleton against real content, capture `getBoundingClientRect().height` for both
 states and diff them — that is how the current blocks were tuned to ~1px.

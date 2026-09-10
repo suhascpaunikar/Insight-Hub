@@ -6,6 +6,7 @@ import {
   html, raw, esc, icon, $, $$, on, count, percent, relativeTime, absoluteTime,
   ratingValue, ratingColor, dropdown, wireDropdowns, toast, dialog, wireOnce, keepScroll,
   lazySection, skel, countUp, growPlots, swapCharts, navigate, placeChartTip,
+  pageSlice, pager, observeOverflow, forgetSection, staggerCards,
 } from './core.js';
 import { store } from './store.js';
 import {
@@ -31,8 +32,21 @@ const view = {
   field: 'name',
   sort: 'updated',
   range: '30d',
+  page: 1,
   columns: { trigger: true, responses: true, rating: true, updated: true },
 };
+
+/* §6.12 — a page holds five rows.
+   
+   It was ten, which rendered the control in the one-page state the spec's own
+   example shows ("Showing 1–9 of 9", both arrows disabled) and was defensible
+   on those grounds. It stopped being defensible once the page turn had motion
+   attached: seven seeded campaigns against a page size of ten meant the second
+   page did not exist, so the animation was for a state that never rendered.
+   That is the trap docs/motion-handover.md records at the top of its list —
+   *before animating a change, check the change actually happens*. Five gives
+   the seeded list two pages, so both the control and its motion are real. */
+const PAGE_SIZE = 5;
 
 const FIELD_LABEL = { name: 'campaign name', id: 'campaign ID', trigger: 'trigger' };
 
@@ -318,7 +332,7 @@ function activityStrip(campaigns) {
           rows,
           axis,
           series: [
-            { label: 'Delivered', of: (r) => r.sent - r.failed, fill: 'var(--brand-default)', opacity: '.32' },
+            { label: 'Delivered', of: (r) => r.sent - r.failed, fill: 'var(--chart-1)', opacity: '.32' },
             { label: 'Failed', of: (r) => r.failed, fill: 'var(--destructive)' },
           ],
         }))}
@@ -331,7 +345,7 @@ function activityStrip(campaigns) {
           rows,
           axis,
           series: [
-            { label: 'Completed', of: (r) => r.completed, fill: 'var(--brand-default)' },
+            { label: 'Completed', of: (r) => r.completed, fill: 'var(--chart-1)' },
             { label: 'Abandoned', of: (r) => r.abandoned, fill: 'var(--warning)' },
           ],
         }))}
@@ -345,7 +359,7 @@ function activityStrip(campaigns) {
           axis: bandAxis(rows.map(dayRate), (v) => percent(v, 0)),
           series: [{
             label: 'Completion', of: dayRate, read: (r) => percent(dayRate(r), 0),
-            fill: 'var(--brand-default)', opacity: '.75',
+            fill: 'var(--chart-1)', opacity: '.75',
           }],
         }))}
 
@@ -498,6 +512,14 @@ function listSkeleton(total) {
       <div class="toolbar">
         ${raw(skel('150px', 28))}${raw(skel('100%', 28, 'flex:1;min-width:220px'))}
         ${raw(skel('96px', 26))}${raw(skel('168px', 26))}
+        <!-- The one control in this toolbar that stays real while the section
+             loads. A refresh that replaced itself with a placeholder would take
+             away the only thing on screen saying the press landed — and it is
+             the button that caused the wait, so it is the button that should
+             report it. Kumo's refresh spins for exactly as long as the wait. -->
+        <button class="btn btn-default btn-sm btn-icon" data-act="refresh"
+                data-spinning="true" aria-label="Refreshing the list" disabled
+                >${raw(icon('refresh'))}</button>
       </div>
       <div class="table-scroll">
         <table class="table">
@@ -558,7 +580,12 @@ export function renderDashboard(host) {
 
 function paintDashboard(host, { pending = false, entering = false } = {}) {
   const source = store.state.emptyDashboard ? [] : store.state.campaigns;
-  const list = rows();
+  const matched = rows();
+  // Clamped inside pageSlice: a search that shortens the list must not strand
+  // the reader on a page that no longer exists.
+  const slice = pageSlice(matched, view.page, PAGE_SIZE);
+  view.page = slice.page;
+  const list = slice.rows;
   const cols = view.columns;
 
   const columnItems = Object.entries(COLUMN_LABELS).map(([key, label]) => html`
@@ -586,8 +613,11 @@ function paintDashboard(host, { pending = false, entering = false } = {}) {
           </p>
         </div>
         <div class="page-head-actions">
+          <button class="btn btn-default btn-lg" data-act="stub" data-key="Documentation">
+            ${raw(icon('book'))}Documentation
+          </button>
           <!-- FR-72 — the only route into campaign creation. -->
-          <button class="btn btn-primary" data-act="new">${raw(icon('plus'))}New Campaign</button>
+          <button class="btn btn-primary btn-lg" data-act="new">${raw(icon('plus'))}New Campaign</button>
         </div>
       </header>
 
@@ -612,9 +642,17 @@ function paintDashboard(host, { pending = false, entering = false } = {}) {
 
             ${raw(dropdown({ trigger: `${icon('columns')}Columns`, label: 'Visible columns', items: columnItems }))}
             ${raw(dropdown({ trigger: `${icon('sort')}${esc(SORTS[view.sort])}`, label: 'Sort by', items: sortItems }))}
+            <!-- §9.1's last toolbar control, and the only one that was never
+                 built. It re-fetches the list: the section is forgotten, so the
+                 skeleton comes back and the content lands again after the wait
+                 the prototype already simulates. The icon spins for exactly as
+                 long as that takes, on Kumo's own refresh keyframe. -->
+            <button class="btn btn-default btn-sm btn-icon tip" data-act="refresh"
+                    data-tip="Refresh the list" aria-label="Refresh the list"
+                    >${raw(icon('refresh'))}</button>
           </div>
 
-          ${raw(list.length === 0 ? html`
+          ${raw(matched.length === 0 ? html`
             <div class="zero">
               <p class="t-body fg">No campaigns match “${view.query}”.</p>
               <button class="btn btn-link" style="margin-top:8px" data-act="clear">Clear search</button>
@@ -632,18 +670,21 @@ function paintDashboard(host, { pending = false, entering = false } = {}) {
                     <th class="ta-r"><span class="sr-only">Actions</span></th>
                   </tr>
                 </thead>
-                <tbody>${list.map(rowMarkup)}</tbody>
+                <tbody ${raw(pageDir ? `data-page-dir="${pageDir}"` : '')}>${list.map(rowMarkup)}</tbody>
               </table>
             </div>`)}
 
-          <!-- FR-63 — the footer count reflects filter and search state. -->
+          <!-- FR-63 — the sort note stays in the card; the count it used to sit
+               beside is now the pager's, below the table (§6.12 / §9.1). -->
           <div class="card-foot row-between">
-            <span class="mono t-xs fg-muted">
-              ${count(list.length)} of ${count(source.length)} campaigns${raw(view.query ? ' · filtered' : '')}
+            <span class="t-xs fg-muted">
+              ${raw(view.query
+                ? `Filtered by ${esc(FIELD_LABEL[view.field])} · ${count(matched.length)} of ${count(source.length)} campaigns`
+                : 'Default sort: most recently updated')}
             </span>
-            <span class="t-xs fg-muted">Default sort: most recently updated</span>
           </div>
-        </section>`)}
+        </section>
+        ${raw(matched.length === 0 ? '' : pager(slice, 'campaigns'))}`)}
 
       <p class="t-xs fg-muted" style="margin-top:16px">
         Prototype data. <button class="btn btn-link t-xs" data-act="toggle-empty">
@@ -659,7 +700,28 @@ function paintDashboard(host, { pending = false, entering = false } = {}) {
     // The sparklines draw themselves in as the strip arrives, so the figures
     // and their shapes land as one event rather than two.
     growPlots(host);
+    // The four cards arrive in order across one duration. Asked for here, on
+    // the paint that followed a wait — never on the repaint a keystroke causes.
+    staggerCards(host);
   }
+
+  // An empty state is the answer to the question the screen was asked, so it
+  // arrives rather than having been there all along. It cannot ride on
+  // `entering`: a workspace with no campaigns has nothing to fetch, so
+  // `lazySection` skips the wait entirely and paints with `entering` false.
+  // What makes it an arrival is that the *previous* paint had no empty state —
+  // the same change-detection the save footer needs, for the same reason.
+  const zero = $('.zero', host);
+  if (zero && !hadZero && !REDUCED.matches) zero.dataset.enterZero = 'true';
+  hadZero = !!zero;
+
+  // Consumed by the paint it caused. A page turn animates its rows once; the
+  // keystroke, filter or delete that repaints next must not inherit it.
+  pageDir = null;
+
+  // The fade on a horizontally overflowing table (motion-kumo.css) needs to
+  // be re-pointed at the scrollers this paint just created.
+  observeOverflow(host);
 
   wireDropdowns(host);
   // Bound to the plots this paint just created, so it re-binds every time —
@@ -688,6 +750,37 @@ function emptyState() {
 }
 
 /* ---------- Behaviour ---------- */
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)');
+
+/* Whether the last paint showed an empty state. An empty state that was
+   already there is not arriving. */
+let hadZero = false;
+
+/* ---------- A row on its way out ----------
+   Resolves once the row has left, or immediately if there is nothing to wait
+   for: reduced motion, or a row that is not on the page the reader is looking
+   at (a delete from the row menu can only reach a visible row today, but a
+   filter or a page turn between the dialog opening and closing would make that
+   false, and a promise that never settles would strand the delete). */
+function leaveRow(host, id) {
+  const row = $(`tr[data-id="${id}"]`, host);
+  if (!row || REDUCED.matches) return Promise.resolve();
+  return new Promise((resolve) => {
+    row.dataset.leaving = 'true';
+    let settled = false;
+    const done = () => { if (!settled) { settled = true; resolve(); } };
+    // `transitionend` fires once per property per cell; the first is enough,
+    // and the timeout covers the case where none fires at all.
+    row.addEventListener('transitionend', done, { once: true });
+    setTimeout(done, 260);
+  });
+}
+
+/* Which way the last page turn went. Set by the pager, consumed by the paint
+   it causes, so a repaint from anything else — a keystroke, a filter — does not
+   inherit it and re-animate the rows. */
+let pageDir = null;
+
 function wire(host) {
   const rerender = () => renderDashboard(host);
 
@@ -851,6 +944,10 @@ function wire(host) {
       ],
     });
     if (!ok) return;
+    // Out before the list closes over it. The repaint is what removes the row;
+    // this only holds it long enough to be seen leaving, which is what makes
+    // the undo below read as a reversal rather than as a second arrival.
+    await leaveRow(host, campaign.id);
     const record = store.deleteCampaign(campaign.id);
     rerender();
     toast('Campaign deleted', `“${campaign.name}” was removed.`, 'danger', {
@@ -867,8 +964,28 @@ function wire(host) {
     });
   });
 
+  // FR-63 — the list is re-read from its source. The spin is not decoration:
+  // it is the only thing on screen saying the press landed, because the
+  // skeleton that follows looks the same as the one on a cold load.
+  on(host, 'click', '[data-act="refresh"]', () => {
+    forgetSection('campaigns');
+    rerender();
+  });
+
+  on(host, 'click', '.pager-cell[data-page]', (event, btn) => {
+    const next = Number(btn.dataset.page);
+    // Which way the reader moved, so the rows can enter from that side. Set
+    // before the repaint and consumed by it, the same way `ui.shake` is.
+    pageDir = next > view.page ? 'next' : 'prev';
+    view.page = next;
+    rerender();
+  });
+
   on(host, 'input', '[data-act="search"]', (event) => {
     view.query = event.target.value;
+    // A narrower list is a different list: stay on page four of it and the
+    // reader is looking at nothing.
+    view.page = 1;
     const caret = event.target.selectionStart;
     rerender();
     const next = $('[data-act="search"]', host);
@@ -876,9 +993,9 @@ function wire(host) {
     next?.setSelectionRange(caret, caret);
   });
 
-  on(host, 'change', '[data-act="set-field"]', (event) => { view.field = event.target.value; rerender(); });
-  on(host, 'click', '[data-act="clear"]', () => { view.query = ''; rerender(); });
-  on(host, 'click', '[data-act="set-sort"]', (event, btn) => { view.sort = btn.dataset.key; rerender(); });
+  on(host, 'change', '[data-act="set-field"]', (event) => { view.field = event.target.value; view.page = 1; rerender(); });
+  on(host, 'click', '[data-act="clear"]', () => { view.query = ''; view.page = 1; rerender(); });
+  on(host, 'click', '[data-act="set-sort"]', (event, btn) => { view.sort = btn.dataset.key; view.page = 1; rerender(); });
   /* Re-slices the figures and the sparklines together — they read the same
      rows, so a number and the shape behind it change meaning at the same
      moment. Without the swap the four cards hard-cut and the reader cannot
