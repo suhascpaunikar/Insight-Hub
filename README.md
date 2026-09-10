@@ -72,6 +72,10 @@ against rather than hiding the zoom.
 
 Tokens and primitives: `assets/css/supabase.css`.
 
+**Planned restyle:** the console is moving to the Cloudflare dashboard's dark look. The
+specification — colour, type, spacing, shell, every component, and a migration map from the
+current primitives — is [`docs/ui-guidelines-cloudflare-dark.md`](docs/ui-guidelines-cloudflare-dark.md).
+
 ---
 
 ## Layout
