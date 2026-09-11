@@ -152,10 +152,10 @@ function step1(draft, issues) {
   const goals = html`
       <div class="grid g4">
         ${GOALS.map((goal) => html`
-          <button class="opt col" style="align-items:stretch;padding:14px"
+          <button class="opt col ${draft.goal === goal.id ? 'is-on' : ''}"
+                  style="align-items:stretch;padding:14px"
                   data-act="pick-goal" data-id="${goal.id}"
-                  aria-pressed="${draft.goal === goal.id}"
-                  ${raw(draft.goal === goal.id ? 'data-on="1"' : '')}>
+                  aria-pressed="${draft.goal === goal.id}">
             <span class="row-between">
               <span class="opt-icon">${raw(icon(goal.icon))}</span>
               ${raw(draft.goal === goal.id
