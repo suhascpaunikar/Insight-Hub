@@ -301,3 +301,211 @@ body {
   position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
   pointer-events: none;
 }
+
+/* ==========================================================================
+   The campaign list (§9.1).
+
+   Kumo's Table draws the rows, Pagination the pager, Badge the status pill,
+   LayerCard the card. What is left here is the list's own behaviour: the row
+   that opens a campaign, the sortable header Kumo's Table has no notion of,
+   the status filter, and the two-line campaign cell.
+   ========================================================================== */
+
+.ih-page-list { max-width: var(--content-max); }
+
+.ih-toolbar {
+  display: flex; align-items: center; gap: var(--sp-sm); flex-wrap: wrap;
+  margin-bottom: var(--sp-md);
+}
+.ih-toolbar-search { flex: 1 1 auto; min-width: 220px; }
+
+.ih-list-card { overflow: visible; padding: 0; }
+.ih-table-scroll { overflow-x: auto; }
+
+/* The status filter. A pill track like the shell's tab group, but it filters
+   rather than navigates, so it is not a Tabs: pressing one does not change
+   what the page *is*, only which of its rows are drawn. */
+.ih-list-tabs {
+  display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
+  padding: 10px var(--sp-md); border-bottom: 1px solid var(--border-muted);
+}
+.ih-list-tab {
+  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px;
+  border: 1px solid transparent; border-radius: var(--radius-sm); background: none;
+  font-size: var(--fs-sm); font-weight: var(--fw-label); color: var(--foreground-lighter);
+  cursor: pointer;
+  transition: color var(--motion-fast) var(--ease-out),
+              background-color var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out);
+}
+.ih-list-tab:hover { color: var(--foreground-default); }
+.ih-list-tab[aria-selected="true"] {
+  background: var(--surface-100); border-color: var(--border-default); color: var(--foreground-default);
+}
+.ih-list-tab-count {
+  font-family: var(--font-mono); font-size: 11px; color: var(--foreground-muted);
+}
+
+/* FR-63 — sortable column headers. Kumo's Table ships selection, sticky
+   columns and a resize handle, but no sorting, so the button and its arrow
+   are the product's. */
+.ih-th-sort {
+  display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0;
+  background: none; color: inherit; font: inherit; cursor: pointer;
+}
+.ih-th-arrow { display: inline-flex; opacity: 0; transition: opacity var(--motion-fast) var(--ease-out); }
+.ih-th-sort:hover .ih-th-arrow { opacity: .55; }
+.ih-th-sort[data-on] .ih-th-arrow { opacity: 1; }
+
+/* FR-72 — the whole row opens the campaign. */
+.ih-row-open { cursor: pointer; }
+.ih-row-chev {
+  display: inline-flex; color: var(--foreground-muted);
+  transition: color var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out);
+}
+.ih-row-open:hover .ih-row-chev { color: var(--foreground-default); transform: translateX(2px); }
+
+.ih-cell-campaign { min-width: 240px; }
+.ih-cell-tight { width: 1%; }
+.ih-campaign-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ih-campaign-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.ih-row-name {
+  padding: 0; border: 0; background: none; color: var(--foreground-default);
+  font-size: var(--fs-lg); font-weight: var(--fw-title); text-align: left; cursor: pointer;
+}
+.ih-row-name:hover { color: var(--link); }
+/* FR-75 — the ID is selectable for support and debugging. */
+.ih-campaign-id {
+  font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--foreground-muted);
+  user-select: all;
+}
+.ih-num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--fs-sm); }
+.ih-rating-val {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: var(--fs-sm); font-weight: var(--fw-label);
+}
+.ih-ta-r { text-align: right; }
+.ih-ml-6 { margin-left: 6px; }
+.ih-dot {
+  width: 5px; height: 5px; border-radius: var(--radius-full);
+  background: currentColor; margin-right: 5px;
+}
+
+.ih-card-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-md);
+  padding: 10px var(--sp-lg); border-top: 1px solid var(--border-muted);
+}
+.ih-pager { margin-top: var(--sp-md); }
+.ih-proto-note { display: flex; align-items: center; gap: 2px; margin-top: var(--sp-lg); }
+
+.ih-sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ==========================================================================
+   The activity strip's metric cards (§6.9, FR-71).
+
+   One of §11.4's "(none)" entries: Kumo defers charts to ECharts and ships no
+   sparkline, and a 40px band of bars inside a figure is not a `Chart`.
+   ========================================================================== */
+
+.ih-activity { margin-bottom: 20px; }
+.ih-activity-head { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+.ih-metric-grid { display: grid; gap: var(--sp-md); grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .ih-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .ih-metric-grid { grid-template-columns: minmax(0, 1fr); } }
+
+.ih-metric { display: flex; flex-direction: column; padding: var(--sp-md) var(--sp-lg) 10px; }
+.ih-metric-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-sm); }
+.ih-metric-name {
+  font-size: 10px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--foreground-lighter);
+}
+.ih-metric-legend { display: flex; align-items: center; gap: 10px; }
+.ih-metric-key {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 9.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--foreground-muted);
+}
+.ih-metric-key i { width: 5px; height: 5px; border-radius: var(--radius-full); background: currentColor; }
+.ih-metric-key[data-tone="warning"] { color: var(--warning); }
+.ih-metric-key[data-tone="danger"] { color: var(--destructive); }
+.ih-metric-figures {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-md); margin-top: 6px;
+}
+.ih-metric-value {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: var(--fs-section); font-weight: var(--fw-title); line-height: 1.15;
+  letter-spacing: -0.02em; color: var(--foreground-default);
+}
+.ih-metric-sub { display: flex; gap: 14px; }
+.ih-metric-sub b {
+  display: block; font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: 15px; font-weight: 400; line-height: 1.2; text-align: right; color: var(--foreground-light);
+}
+.ih-metric-plot { position: relative; margin-top: auto; padding-top: var(--sp-md); }
+.ih-metric-axis {
+  display: flex; align-items: center; justify-content: space-between; margin-top: 8px;
+  font-family: var(--font-mono); font-size: 11px; color: var(--foreground-muted);
+}
+
+.ih-chart-plot { position: relative; display: flex; align-items: flex-end; gap: 3px; height: 40px; }
+/* The bar column is the hover target, and it spans the full plot height so
+   the readout opens anywhere over the column rather than only over the ink. */
+.ih-chart-col {
+  position: relative; flex: 1; display: flex; flex-direction: column; justify-content: flex-end;
+  gap: 2px; min-width: 0; cursor: default;
+}
+.ih-chart-col::before { content: ""; position: absolute; inset: 0; }
+.ih-chart-col:hover::before { background: var(--surface-100); opacity: .5; border-radius: 2px; }
+.ih-chart-seg { position: relative; border-radius: 2px 2px 0 0; }
+/* Everything but the column under the cursor steps back, so the one being
+   read is the one in focus. On the plot rather than each column: a :hover
+   rule on the siblings would fire on the gaps between them too. */
+.ih-chart-plot[data-reading] .ih-chart-col { transition: opacity var(--motion-fast) var(--ease-out); }
+.ih-chart-plot[data-reading] .ih-chart-col:not([data-on]) { opacity: .38; }
+
+/* The readout. Lifted out of the plot: a 40px band cannot hold it, and a card
+   that overlaps its neighbour for the moment it is being read costs less than
+   one that hides the column being asked about. */
+.ih-chart-tip {
+  position: absolute; bottom: 46px; transform: translateX(-50%); z-index: 20;
+  min-width: 168px; padding: 8px 10px;
+  background: var(--frame); border: 1px solid var(--border-overlay); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-3); pointer-events: none;
+}
+.ih-chart-tip-row {
+  display: flex; align-items: center; gap: 7px; font-size: var(--fs-xs); white-space: nowrap;
+}
+.ih-chart-tip-row i { width: 7px; height: 7px; flex: none; border-radius: 2px; }
+.ih-chart-tip-row b {
+  margin-left: auto; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 500;
+}
+.ih-chart-tip-foot {
+  margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--border-muted);
+  font-family: var(--font-mono); font-size: 10px; color: var(--foreground-muted);
+}
+
+/* Flat table rows (§11.4a, decided).
+
+   Kumo's Table.Row stripes even rows: `even:bg-kumo-elevated`, hard-coded in
+   the variant's class string. §11.4a said to "pass it the unstriped variant
+   rather than overriding the stripe in CSS" — but there is no such variant.
+   Table.Row's `variant` is `default` (which *is* the striped one) or
+   `selected`, so an override is the only way to hold the decision.
+
+   And the decision stands. This product's tables already encode meaning with
+   row background — hover fills a row, and the campaign list colours its
+   rating cells on the ramp. A stripe is a background that means *nothing*,
+   and putting one behind marks that do mean something makes the meaningful
+   ones harder to see. The two-line rows and the hairline between them already
+   do the work a stripe would.
+
+   `--kumo-table-row-bg` is set alongside, because Kumo's sticky-column cells
+   paint themselves from it: leaving it on `elevated` would make a pinned cell
+   a different colour from the row it belongs to. */
+.ih-table-scroll tbody tr:nth-child(even) {
+  background: var(--color-kumo-base);
+  --kumo-table-row-bg: var(--color-kumo-base);
+}
+.ih-table-scroll tbody tr:hover { background: var(--surface-100); }
