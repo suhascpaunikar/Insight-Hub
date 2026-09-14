@@ -17,7 +17,7 @@ import {
   audienceReach, templateOf, suggestGoalFromObjective, suggestNameFromObjective, STEP_COUNT,
 } from './store.js';
 import {
-  GOALS, EXCLUSION_LISTS, RULE_FIELDS, RULE_OPERATORS, TEST_ACCOUNTS, OBJECTIVE_STARTERS,
+  GOALS, EXCLUSION_LISTS, RULE_FIELDS, RULE_OPERATORS, TEST_ACCOUNTS,
 } from './data.js';
 import { renderContentStep, wireContentStep, phonePreview } from './content-step.js';
 import { navRail, wireRailCollapse } from './shell.js';
@@ -190,12 +190,11 @@ function step1(draft, issues) {
       </div>`;
 
   return html`
-    <section class="stack-lg" aria-labelledby="s1">
-      <header>
+    <section class="ssections" aria-labelledby="s1">
+      <header class="sstep-head">
         <h2 class="t-h1" id="s1">Campaign details</h2>
         <p class="t-sm fg-lighter" style="margin-top:4px;max-width:70ch">
-          What this campaign is for, and where it runs. Your template sets the defaults
-          for every step after this.
+          What this campaign is for, and where it runs.
         </p>
       </header>
 
@@ -204,18 +203,18 @@ function step1(draft, issues) {
         title: 'Select a template',
         insightKey: tip('pick-template'),
         required: true,
-        desc: 'Everything it sets stays editable as you go.',
+        desc: 'Sets the defaults for the rest of the campaign. You can change them later.',
         body: goals,
         // FR-69 — only the goal blocks here; the name and app errors ride on
         // their own panels below, where the field the reader has to fix is.
         error: ui.showIssues && issue('goal') ? 'Choose what you want to start from to continue.' : '',
       }))}
 
-      <div class="stack-lg" style="max-width:820px">
-        ${raw(stepPanel({
+      ${raw(stepPanel({
           title: 'Campaign name',
           required: true,
-          desc: 'How this campaign is identified in the list and on its insights page.',
+          narrow: true,
+          desc: 'Shown in your campaign list and on its insights page.',
           // The field is the point of this section, so it gets the width and sits
           // directly under the heading. Behind a label in a right-hand column it
           // read as a footnote to its own section.
@@ -243,13 +242,14 @@ function step1(draft, issues) {
                     : 'Write the campaign objective below to generate one from it.'}</span>`)}
             </div>`,
         }))}
-        ${raw(objectiveSection(draft))}
+      ${raw(objectiveSection(draft))}
 
-        ${raw(stepPanel({
+      ${raw(stepPanel({
           title: 'Apps',
           insightKey: tip('pick-apps'),
           required: true,
-          desc: 'At least one. This limits the components the Content step can offer.',
+          narrow: true,
+          desc: 'Pick at least one. This limits which components you can use later.',
           body: html`
             <div class="grid g3">
               ${APP_OPTIONS.map((a) => html`
@@ -262,11 +262,12 @@ function step1(draft, issues) {
           error: ui.showIssues && issue('apps') ? issue('apps').message : '',
         }))}
 
-        ${raw(stepPanel({
+      ${raw(stepPanel({
           title: 'Campaign type',
           insightKey: tip('pick-type'),
           required: true,
-          desc: 'How many pieces of content this campaign runs, and who decides the split.',
+          narrow: true,
+          desc: 'How many versions of your content to run, and who decides the split.',
           body: html`
             <div class="stack-sm">
               ${TYPE_OPTIONS.map((t) => html`
@@ -281,10 +282,8 @@ function step1(draft, issues) {
                 </label>`)}
             </div>`,
           // FR-11 — channel is deliberately not here.
-          note: 'Channel is chosen in the Content step, not here — so the builder can hide components '
-            + 'that cannot render your questions at the moment you pick one.',
+          note: 'You\u2019ll choose the channel in the Content step.',
         }))}
-      </div>
     </section>`;
 }
 
@@ -306,7 +305,6 @@ const OBJECTIVE_MAX = 400;
 
 function objectiveSection(draft) {
   const value = draft.objective || '';
-  const starters = OBJECTIVE_STARTERS[draft.goal] || OBJECTIVE_STARTERS.default;
   const current = GOALS.find((g) => g.id === draft.goal) || null;
   const read = suggestGoalFromObjective(value);
   const suggested = read && read !== draft.goal ? GOALS.find((g) => g.id === read) : null;
@@ -314,16 +312,12 @@ function objectiveSection(draft) {
   const body = html`
       <div class="stack">
         <div class="field">
-          <label class="label" for="objective">Why are you running this campaign?</label>
           <textarea class="textarea" id="objective" data-act="objective" rows="4"
                     maxlength="${OBJECTIVE_MAX}" style="min-height:104px"
                     placeholder="e.g. Repeat orders in Bandra dropped 8% after the March update. Find out if it is the new tracking screen or the delivery time."
                     >${value}</textarea>
           <div class="row-between" style="align-items:flex-start;gap:16px">
-            <span class="hint">
-              Plain English. This changes nothing about what gets sent — it stays with the
-              campaign so the next person knows why you built it.
-            </span>
+            <span class="hint">Plain English — this doesn\u2019t change what gets sent.</span>
             <span class="mono t-xs fg-muted" style="flex:none">${value.length}/${OBJECTIVE_MAX}</span>
           </div>
         </div>
@@ -341,15 +335,6 @@ function objectiveSection(draft) {
             <span class="t-xs fg-muted">Fills the campaign name above from what you wrote.</span>
           </div>` : '')}
 
-        <div class="row wrap" style="gap:6px">
-          <span class="t-xs fg-lighter">Examples:</span>
-          ${starters.map((starter) => html`
-            <button class="btn btn-outline btn-sm" data-act="objective-starter" data-text="${starter.text}">
-              ${starter.label}
-            </button>`)}
-          ${raw(value
-            ? '<button class="btn btn-ghost btn-sm" data-act="objective-clear">Clear</button>' : '')}
-        </div>
 
         <!-- A keyword read of what was typed, offered and never applied. It is a
              claim about the text, so FR-91 puts it in the AI accent; it names the
@@ -365,17 +350,6 @@ function objectiveSection(draft) {
             </span>
           </div>` : '')}
 
-        ${raw(value.trim() ? html`
-          <div class="notice notice-ai">
-            ${raw(icon('bot'))}
-            <span>Ask the assistant <strong>“what is this campaign for”</strong> from any screen,
-              and it answers in your words.</span>
-          </div>` : html`
-          <div class="notice">
-            ${raw(icon('info'))}
-            <span>Left empty, the assistant can only tell you how this campaign is
-              <em>set up</em> — not why you built it. Nothing else in the draft records that.</span>
-          </div>`)}
       </div>`;
 
   // The column this sits in is the step's, not this panel's: the goal grid
@@ -384,7 +358,8 @@ function objectiveSection(draft) {
   return stepPanel({
     id: 's1-obj',
     title: 'Campaign objective',
-    desc: 'Why this campaign exists, in your own words. Gives the assistant the context it needs.',
+    narrow: true,
+    desc: 'Gives the AI assistant context, so it can suggest what to pick as you build.',
     actions: '<span class="badge">Optional</span>',
     body,
   });
@@ -513,10 +488,10 @@ function step2(draft, issues) {
   const availableExclusions = EXCLUSION_LISTS.filter((e) => !audience.exclusions.includes(e.id));
 
   return html`
-    <section class="stack-lg" style="max-width:940px" aria-labelledby="s3">
-      <header>
+    <section class="ssections" style="max-width:940px" aria-labelledby="s3">
+      <header class="sstep-head">
         <h2 class="t-h1" id="s3">Audience</h2>
-        <p class="t-body fg-lighter" style="margin-top:2px">
+        <p class="t-sm fg-lighter" style="margin-top:4px">
           Who gets asked. Exclusions are applied after inclusion.
         </p>
       </header>
@@ -650,12 +625,11 @@ function step4(draft, issues) {
   const reach = audienceReach(draft);
   const issue = (f) => issues.find((i) => i.field === f);
   return html`
-    <section class="stack-lg" aria-labelledby="s4">
-      <header>
+    <section class="ssections" aria-labelledby="s4">
+      <header class="sstep-head">
         <h2 class="t-h1" id="s4">Schedule &amp; publish</h2>
-        <p class="t-body fg-lighter" style="margin-top:2px">
-          When enrolment opens, whether it ever closes, and a last look at what you are
-          about to send.
+        <p class="t-sm fg-lighter" style="margin-top:4px">
+          When enrolment opens, whether it closes, and a last look before you send.
         </p>
       </header>
 
@@ -1406,15 +1380,6 @@ function wireCommon(root) {
   on(root, 'input', '[data-act="objective"]',
     typeInto('[data-act="objective"]', (value) => store.updateDraft({ objective: value })));
 
-  on(root, 'click', '[data-act="objective-starter"]', (e, el) => {
-    set({ objective: el.dataset.text });
-    // A starter is a first draft, not an answer: land the caret at the end of it.
-    const field = $('[data-act="objective"]', $('#app'));
-    field?.focus();
-    field?.setSelectionRange(field.value.length, field.value.length);
-  });
-
-  on(root, 'click', '[data-act="objective-clear"]', () => set({ objective: '' }));
 
   /* Reads the objective into a name. The button is disabled without one, so
      this only runs when there is something to read. */

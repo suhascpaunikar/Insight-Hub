@@ -405,10 +405,10 @@ export function renderContentStep(draft, issues) {
     new Set(draft.variants.map((v) => `${v.trigger.event}|${v.trigger.delayValue}|${v.trigger.delayUnit}`)).size > 1;
 
   return html`
-    <section class="stack-lg" aria-labelledby="step-4-heading">
-      <header>
+    <section class="ssections" aria-labelledby="step-4-heading">
+      <header class="sstep-head">
         <h2 class="t-h1" id="step-4-heading">Content</h2>
-        <p class="t-body fg-lighter" style="margin-top:2px">
+        <p class="t-sm fg-lighter" style="margin-top:4px">
           Each variant carries its own content, component, questions and trigger.
         </p>
       </header>
