@@ -1675,15 +1675,43 @@ a.crumb:hover { color: var(--foreground-default); }
    bounded regions with a name each, rather than one undifferentiated column
    of controls the reader has to parse in order to find the boundaries. */
 .ssection { display: flex; flex-direction: column; gap: 10px; }
+/* Prose and short fields are held to a column; a gallery of cards is not. The
+   cap goes on the content rather than the section, so the separator above a
+   narrow section still spans the step — a rule that changes width between one
+   section and the next reads as a mistake rather than as a boundary. */
+.ssection-narrow > .ssection-head,
+.ssection-narrow > .sbody { max-width: 820px; }
 .ssection-head {
   display: flex; align-items: flex-start; justify-content: space-between;
   gap: var(--sp-md); flex-wrap: wrap;
 }
 .ssection-title { font-size: var(--fs-lg); font-weight: var(--fw-title); line-height: 1.4; color: var(--foreground-default); }
 .ssection-desc {
-  margin-top: 8px; font-size: var(--fs-body); line-height: var(--lh-body);
+  margin-top: 6px; font-size: var(--fs-body); line-height: var(--lh-body);
   color: var(--foreground-light); max-width: 62ch;
 }
+
+/* ---------- Step body ----------
+   A step is a stack of sections with a rule between them. The rule is the point:
+   with the panel box gone, nothing said where one decision ended and the next
+   began, and five identically-typeset regions in one column read as one. The
+   ratio does the work — 24px and a hairline between sections against 10px from a
+   heading to the controls it governs — so a heading reads as a new region rather
+   than as another line of the same one. A box around each section would say the
+   same thing, but every section here holds option cards that carry their own
+   border and their own selected state, and a container around those puts the
+   chosen card behind two edges instead of one. */
+.ssections { display: flex; flex-direction: column; gap: var(--sp-xl); }
+/* Descendant, not child: steps 3 and 4 stack their sections inside a column of
+   a two-column layout, and a boundary between two sections means the same thing
+   there as it does at the top level. The gap above comes from the step's own
+   flex gap or from the column's .stack-lg, and the padding here doubles it, so
+   the rule sits midway between the two sections it divides. */
+.ssections .ssection + .ssection {
+  padding-top: var(--sp-xl);
+  border-top: 1px solid var(--border-muted);
+}
+.sstep-head { padding-bottom: var(--sp-xs); }
 .ssection-actions { display: flex; align-items: center; gap: var(--sp-sm); flex-wrap: wrap; }
 
 /* The panel's plain content region, for a group of choices rather than
