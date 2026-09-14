@@ -7,13 +7,27 @@ the thing the prototype used to be best at: clone it, open `index.html`, done.
 The build before that is not lost and not in a branch that might get tidied away. It
 has its own tag.
 
-| Ref | What it is |
-|---|---|
-| **`html-prototype-v1`** | An annotated tag on `b28bd21`, the last commit before the port. This is the durable one — it survives branch deletion, and its message says what the build was. |
-| **`html-prototype`** | A branch at the same commit, for browsing on GitHub or checking out to run. |
+| Ref | What it is | On the remote? |
+|---|---|---|
+| **`html-prototype`** | A branch on `b28bd21`, the last commit before the port. | **Yes** — this is the one to rely on. |
+| **`html-prototype-v1`** | An annotated tag on the same commit, whose message says what the build was and why it is kept. | **No.** See below. |
 
 Both point at the same tree: four static HTML documents, vanilla ES modules, the
 design system mirrored by hand in `assets/css/`. No bundler, no runtime dependencies.
+
+> **The tag is local-only.** The session that made it could push branches but not
+> tags — `refs/tags/*` came back `403` for annotated, lightweight and explicit-refspec
+> pushes alike. The branch carries the same commit and is pushed, so nothing is at
+> risk; the tag is just nicer to have, because a branch can be deleted by anyone
+> tidying up and a tag reads as "kept on purpose".
+>
+> If you want it on the remote, you have the permissions this session did not:
+>
+> ```bash
+> git fetch origin html-prototype
+> git tag -a html-prototype-v1 origin/html-prototype -m "The last no-build-step HTML prototype, before the Kumo port"
+> git push origin html-prototype-v1
+> ```
 
 ---
 
@@ -22,8 +36,8 @@ design system mirrored by hand in `assets/css/`. No bundler, no runtime dependen
 Nothing is installed and nothing in your current checkout changes:
 
 ```bash
-git fetch --tags origin
-git switch html-prototype        # or: git checkout html-prototype-v1
+git fetch origin html-prototype
+git switch html-prototype
 python3 -m http.server 8000      # then open http://localhost:8000
 ```
 
@@ -41,8 +55,10 @@ scripts/revert-to-html.sh --check    # what would change, and nothing else
 scripts/revert-to-html.sh            # do it (asks first)
 ```
 
-The script restores the working tree from the tag and stages it, then stops. The
-commit is yours to make:
+The script finds the build for itself, trying `html-prototype-v1`, then
+`origin/html-prototype`, then a local `html-prototype` branch — so it works whether or
+not the tag ever reaches the remote. `--ref=<anything>` overrides that. It restores the
+working tree, stages it, and stops. The commit is yours to make:
 
 ```bash
 git commit -m "Revert to the no-build-step HTML prototype"
@@ -52,8 +68,8 @@ Changed your mind before committing — `git reset --hard HEAD`.
 
 ### What it does, and why that way
 
-It runs `git read-tree -u --reset html-prototype-v1`, which makes the index and the
-working tree match that commit **and deletes what the commit does not have**. The
+It runs `git read-tree -u --reset <ref>`, which makes the index and the working tree
+match that commit **and deletes what the commit does not have**. The
 obvious alternative, `git checkout html-prototype-v1 -- .`, restores `assets/` and
 leaves `src/` sitting beside it — a half-reverted tree that runs neither build, with
 two `index.html` entry points disagreeing about which one is real.
@@ -101,14 +117,21 @@ install, no Node, and no network to run.
 
 ---
 
-## If the tag is missing
+## If the refs are missing
 
-Shallow clones do not fetch tags, and neither does a plain `git clone --depth 1`:
+The script tries three and tells you which it used. To get them back:
 
 ```bash
-git fetch --tags origin
+git fetch origin html-prototype:html-prototype   # the branch — the reliable one
+git fetch --tags origin                          # the tag, if the remote has it
 ```
 
-If it is still missing, the branch is the fallback (`origin/html-prototype`), and
-failing both, `b28bd21` is the commit — it is the parent of the first port commit,
-`6eef25a`.
+Shallow clones fetch neither by default, which is the usual cause.
+
+If every ref is gone, the commit is **`b28bd21`** — the parent of the first port
+commit, `6eef25a`. It is reachable from this branch's history for as long as that
+history exists, and the script will take it directly:
+
+```bash
+scripts/revert-to-html.sh --ref=b28bd21
+```

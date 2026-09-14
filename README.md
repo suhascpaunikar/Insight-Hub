@@ -19,9 +19,9 @@ pnpm dev                        # or `pnpm build && pnpm preview`
 > [§11.5 of the guideline](docs/ui-guidelines-cloudflare-dark.md) for what that
 > changed and why the mirror could not stay.
 >
-> **That build is still here.** `html-prototype-v1` tags the last commit before the
-> port, and `scripts/revert-to-html.sh` restores it —
-> [`docs/revert-to-html.md`](docs/revert-to-html.md) covers both, including what
+> **That build is still here**, on the `html-prototype` branch — the last commit
+> before the port. `scripts/revert-to-html.sh` restores it;
+> [`docs/revert-to-html.md`](docs/revert-to-html.md) covers both routes and what
 > reverting costs.
 
 ```bash

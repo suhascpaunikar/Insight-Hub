@@ -9,6 +9,7 @@
 #
 #   scripts/revert-to-html.sh --check     what would change, and nothing else
 #   scripts/revert-to-html.sh             restore it (asks first)
+#   scripts/revert-to-html.sh --ref X     restore from some other ref entirely
 #   scripts/revert-to-html.sh --yes       restore it without asking
 #
 # This stays on your current branch and leaves the commit to you, so the revert
@@ -17,7 +18,14 @@
 # are, and `git checkout -` on a clean tree brings the Kumo build straight back.
 set -euo pipefail
 
-REF="html-prototype-v1"
+# Resolved at run time from whichever of these exists, in this order. The tag
+# is the one worth having — it is immutable and carries the explanation — but
+# it may be absent: tags are not fetched by a shallow clone, and some CI
+# credentials can push refs/heads but not refs/tags. The branch is the fallback
+# that is always there, and both name the same commit.
+REF_CANDIDATES="html-prototype-v1 origin/html-prototype html-prototype"
+REF=""
+REF_OVERRIDE=""
 YES=0
 CHECK=0
 
@@ -25,6 +33,7 @@ for arg in "$@"; do
   case "$arg" in
     --check|-n) CHECK=1 ;;
     --yes|-y)   YES=1 ;;
+    --ref=*)    REF_OVERRIDE="${arg#--ref=}" ;;
     --help|-h)  sed -n '3,17p' "$0" | sed 's|^# \?||'; exit 0 ;;
     *) echo "revert-to-html: unknown option '$arg' (try --help)" >&2; exit 2 ;;
   esac
@@ -32,16 +41,30 @@ done
 
 cd "$(git rev-parse --show-toplevel)"
 
-# The tag is the whole mechanism, so say so plainly rather than failing on a
-# git error three lines later. A shallow or partial clone is the usual cause.
-if ! git rev-parse --verify --quiet "$REF^{commit}" >/dev/null; then
+[ -n "$REF_OVERRIDE" ] && REF_CANDIDATES="$REF_OVERRIDE"
+
+for candidate in $REF_CANDIDATES; do
+  if git rev-parse --verify --quiet "$candidate^{commit}" >/dev/null; then
+    REF="$candidate"
+    break
+  fi
+done
+
+# Losing every ref is the one failure that makes this script useless, so it
+# says what to do about it rather than failing on a git error three lines later.
+if [ -z "$REF" ]; then
   cat >&2 <<EOF
-revert-to-html: no such ref '$REF'.
+revert-to-html: none of these refs exist here —
+    $REF_CANDIDATES
 
-It is a tag, and tags are not fetched by a shallow clone. Try:
+Fetch them:
 
-    git fetch --tags origin
+    git fetch origin html-prototype:html-prototype
+    git fetch --tags origin            # the tag, if the remote has it
 
+The commit itself is b28bd21 — the parent of the first port commit, 6eef25a —
+so \`scripts/revert-to-html.sh\` can be pointed at that directly if the refs are
+gone for good. See docs/revert-to-html.md.
 EOF
   exit 1
 fi
