@@ -65,7 +65,7 @@ function deliveryFunnel(kind) {
         `${count(last.value)} taps from ${count(first.value)} sends — ${share(last.value, first.value)} end to end, ` +
         `${share(last.value, shown)} of the impressions that actually surfaced. ` +
         `The largest fall is ${worst.from.label} → ${worst.to.label}, but that is where every notification loses most of ` +
-        `its audience: it is the shape of the channel, not a fault in this send. ` +
+        `its audience — the shape of the channel, not a fault in this send. ` +
         `The losses worth acting on sit above it — ${count(first.value - shown)} never surfaced at all, ` +
         `${share(first.value - shown, first.value)} of the send.`,
       followUps: ['delivery', 'variants'],
@@ -371,8 +371,8 @@ function timeToTap() {
     text:
       `${share(fast, total)} of taps landed within ten minutes, and the single biggest bucket is ` +
       `“${modal.bucket}” at ${count(modal.count)}. Only ${share(slow, total)} arrived after six hours. ` +
-      `A distribution this front-loaded means the notification is being acted on when it arrives, not found later — ` +
-      `so the send window is the lever, and moving the trigger delay would move the result.`,
+      `A distribution this front-loaded means the notification is being acted on when it arrives, ` +
+      `not found later — so the trigger delay is the lever worth moving.`,
     followUps: ['delivery', 'campaign'],
   };
 }
@@ -387,7 +387,7 @@ function tapDestinations() {
       `${ranked[0].label} takes ${share(ranked[0].count, total)} of taps — ${count(ranked[0].count)}. ` +
       (body
         ? `${count(body.count)} tapped the body rather than any button, ${share(body.count, total)}: ` +
-          'users who wanted the offer without being told where to press. That share is the part of the ' +
+          'people who wanted the offer without being told where to press. That share is the part of the ' +
           'result the CTA copy cannot claim credit for.'
         : ''),
     followUps: ['variants', 'delivery'],
