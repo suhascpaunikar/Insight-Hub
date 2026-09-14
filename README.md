@@ -1,32 +1,36 @@
 # InsightHub — Feedback Campaign Builder
 
-An HTML prototype of the campaign creation flow described in
-[`docs/prd-v5.md`](docs/prd-v5.md), built in the **Cloudflare dashboard's design system**.
+A prototype of the campaign creation flow described in
+[`docs/prd-v5.md`](docs/prd-v5.md), built on
+**[@cloudflare/kumo](https://www.npmjs.com/package/@cloudflare/kumo)** — the
+Cloudflare dashboard's own component library.
 
 **Live:** <https://suhascpaunikar.github.io/Insight-Hub/> — GitHub Pages, published
 from `main` by [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
 
-No build step, no dependencies. Open `index.html` in a browser.
-
 ```
 git clone … && cd Insight-Hub
-python3 -m http.server 8000     # or any static server
-open http://localhost:8000
+pnpm install
+pnpm dev                        # or `pnpm build && pnpm preview`
 ```
 
-> A static server is recommended over `file://`: the pages are ES modules, which
-> browsers block on the `file:` scheme.
+> This used to be four static HTML documents with no build step, mirroring Kumo by
+> hand. It now uses the real components, which are React — so there is a build. See
+> [§11.5 of the guideline](docs/ui-guidelines-cloudflare-dark.md) for what that
+> changed and why the mirror could not stay.
 
 ---
 
 ## Screens
 
-| File | Screen | Requirements |
+| URL | Screen | Requirements |
 |---|---|---|
 | `index.html` | Campaign dashboard — activity strip + campaign list | FR-71 – FR-85 |
-| `builder.html` | Six-step creation wizard | FR-1 – FR-57 |
+| `builder.html` | Four-step creation wizard | FR-1 – FR-57 |
 | `insights.html` | The campaign data screen — Delivery / Responses / Impact for a feedback campaign, Delivery / Engagement / Impact for an announcement | FR-86 – FR-110 |
 | `settings.html` | Workspace settings — General / Delivery / Alerts | FR-63 |
+
+Each is a separate Vite entry, so the URLs are real page loads rather than routes.
 
 The prototype is **clickable, with real state**. Validation actually gates the wizard,
 the branching toggle populates the three bands, switching template warns before
@@ -79,13 +83,11 @@ against rather than hiding the zoom.
 
 ### What it is
 
-**The console now runs in the Cloudflare dashboard's design system, in two themes.** The
-specification — colour, type, spacing, shell, every component, motion, and a migration map
-from the primitives it replaced — is
-[`docs/ui-guidelines-cloudflare-dark.md`](docs/ui-guidelines-cloudflare-dark.md). Three
-stylesheets load in order on all four pages: `supabase.css` for the primitives,
-`tokens-cloudflare.css` for the tokens and the light theme, `motion-kumo.css` for the
-motion.
+**The console runs on Kumo itself, in two themes.** The specification — colour, type,
+spacing, shell, every component, motion, and a map from the primitives it replaced — is
+[`docs/ui-guidelines-cloudflare-dark.md`](docs/ui-guidelines-cloudflare-dark.md).
+One stylesheet entry, `src/styles/app.css`, pulls in Kumo's styles, Tailwind, the token
+bridge and what little CSS the product still owns.
 
 **Dark is the default.** Light is the dashboard's own light scale, from Appendix B of the
 guideline, switched from **Settings → General → Appearance** and remembered per browser.
@@ -93,21 +95,19 @@ The surfaces are measured; the three palettes that carry meaning — the semanti
 the rating ramp and the chart series — are re-derived, because a palette tuned to sit on
 `#030303` falls under 3:1 against `#fbfbfb`.
 
-The values are not guesses. **[@cloudflare/kumo](https://www.npmjs.com/package/@cloudflare/kumo)**,
-Cloudflare's own component library, is a dependency, and the token file carries *its*
-shipped values, aliased to its own token names. Kumo is React and this prototype is not,
-so its components are mirrored rather than imported — §11 of the guideline is the
-component-by-component map, and the reconciliation showing which measured values Kumo
-confirmed and which it corrected.
+The values are not guesses and they are no longer copied: the components *are* Kumo's,
+and the tokens resolve live out of the package's own `@theme`. §11 of the guideline is
+the component-by-component map, the reconciliation showing which measured values Kumo
+confirmed and which it corrected, and — in §11.4b — the three places a Kumo component
+is the right answer and still needs composing rather than dropping in.
 
 ```bash
-pnpm install                       # Kumo + motion; only needed to consult them
-npx @cloudflare/kumo ls            # the 48 components
+npx @cloudflare/kumo ls            # the catalogued components
 npx @cloudflare/kumo doc Button    # one component's props, sizes and variants
 ```
 
-Neither dependency is loaded by the pages: the prototype still has **no build step and no
-runtime dependencies**, and `index.html` opens on its own.
+Note that `ls` reads a registry that is smaller than what the package exports; §11.3
+lists the eleven components missing from it.
 
 Work in progress on the restyle is handed over in [`docs/revamp.md`](docs/revamp.md) —
 where it stands, how to verify it, what is left, and which decisions are already settled.
@@ -117,28 +117,36 @@ where it stands, how to verify it, what is left, and which decisions are already
 ## Layout
 
 ```
-index.html · builder.html · insights.html
-assets/
-  css/supabase.css          component primitives
-  css/tokens-cloudflare.css Cloudflare/Kumo tokens, and the light theme
-  css/motion-kumo.css       Kumo's keyframes, and where this product overshoots
-  js/
-    core.js            DOM helpers, icons, formatting, rating ramp, dialog/toast/dropdown
-    data.js            seeded campaigns, templates, segments, insights
-    store.js           draft model, variant reconciliation, step validation, persistence
-    shell.js           rail, breadcrumb bar, footer
-    chrome.js          breadcrumb, tab strip and stat strip — the parts a page talks to
-    dashboard.js       campaign list
-    builder.js         wizard frame, steps 1·2·3·5·6
-    content-step.js    step 4 — template picker, question logic, triggers
-    insights.js        the campaign data screen — tabs branch on campaign kind
-    settings.js        workspace settings — the console settings patterns
-    assistant.js       companion card — 320×240, streaming answers
+index.html · builder.html · insights.html · settings.html   Vite entries
+src/
+  entries/           one per screen: mounts its page into #app
+  styles/
+    app.css          the entry: @source, Kumo, Tailwind, then the two below
+    tokens.css       InsightHub's token names onto Kumo's, resolved live
+    product.css      only what Kumo does not ship — §11.4's "(none)" list
+  app/
+    Shell.jsx        Kumo Sidebar + bar + tab strip + stat strip + footer
+    WizardShell.jsx  the builder's own chrome, keeping the rail beside it
+    ShellContext.jsx what a page tells the shell about its own chrome
+    NavRail · TopBar · TabStrip · StatStrip · SiteFooter · QuickSearch
+    dialogs · RenameDialog · settings-kit · wizard-kit
+    MetricCard · InsightChart · PhonePreview · DateField · Orb · Assistant
+  pages/
+    Campaigns.jsx    campaign list
+    Builder.jsx      wizard frame + builder/Step1 · Step2 · ContentStep · Step4
+    Insights.jsx     tabs branch on kind + insights/Delivery · Responses · Engagement · Impact
+    Settings.jsx     workspace settings
+  lib/
+    data.js          seeded campaigns, templates, segments, insights
+    store.js         draft model, variant reconciliation, step validation, persistence
+    useStore.js      the store, as React sees it
+    format · palette · persist · csv · insights-lib · icons · toast
     assistant-context.js  what the assistant can see
     assistant-answers.js  intent registry + answer composers
     assistant-insights.js what each panel's data says
     assistant-pointer.js  the cursor companion and its dwell
     assistant-orb.js      the Siri-style orb — idle and thinking
+scripts/verify.mjs   loads every built screen in Chromium and fails on any error
 docs/
   prd-v5.md            the source PRD
   prd-coverage.md      FR-by-FR map, the 21 open decisions, what changed vs Magic Patterns

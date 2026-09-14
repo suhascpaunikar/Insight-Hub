@@ -1,3 +1,15 @@
+# Handover — the Kumo port
+
+> **This document described the restyle that mirrored Kumo by hand. That work is
+> superseded: the console now runs on the real `@cloudflare/kumo` components.**
+> What the port changed, and what it cost, is §11.5 of
+> [`ui-guidelines-cloudflare-dark.md`](ui-guidelines-cloudflare-dark.md); the
+> component-by-component map is §11.4 and §11.4b. The rest of this file is kept
+> as the record of the mirror it replaced — every value it settled still holds,
+> because the mirror was built to Kumo's own numbers.
+
+---
+
 # Revamp — handover
 
 The console is being restyled from the Supabase-derived dark theme to the **Cloudflare

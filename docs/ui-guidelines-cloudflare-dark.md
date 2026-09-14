@@ -1104,9 +1104,14 @@ were **exact** matches, to the byte:
 
 The type scale matched exactly as well. Kumo declares four steps — `--text-xs: 12px`,
 `--text-sm: 13px`, `--text-base: 14px`, `--text-lg: 16px` — which is the 12 / 13 / 14 /
-16 ladder §3 arrived at by measuring cap heights. Its `Text` component supplies the
-display sizes: `heading1` 30px semibold, `heading2` 24px semibold, `heading` 16px
-semibold, matching §3's page title, section title and heading-small.
+16 ladder §3 arrived at by measuring cap heights.
+
+**Corrected in 2.13.2.** This section used to add that `Text` supplies the display
+sizes as `heading1` 30px, `heading2` 24px and `heading` 16px. All three of
+`heading1` / `heading2` / `heading3` are now marked **deprecated** in favour of
+`heading`, which is 16px and 20px at `size="lg"` — so there is no non-deprecated
+Kumo step above 20px, and §3's page title and section title have no `Text` variant
+to take. They stay the product's own type.
 
 That two independent derivations agree this closely is the strongest evidence available
 that §2–§8 describe the real system rather than one screenshot's rendering.
@@ -1163,6 +1168,22 @@ because they are what to reach for rather than build.
 | Data viz | Chart · TimeseriesChart · SankeyChart · BubbleMap · ChoroplethMap |
 | Other | CloudflareLogo · Link · Table |
 
+**The CLI's 48 is the catalogued set, not the exported one.** `npx
+@cloudflare/kumo ls` reads `ai/component-registry.json`, and the package's own
+entry point exports more than the registry lists. Everything below is exported
+by 2.13.2 and absent from the table above:
+
+| Also exported | What it is |
+| --- | --- |
+| **SkeletonLine** | A shimmer placeholder line. §11.4 said skeletons had no Kumo answer; they do. |
+| **RefreshButton** | A button with the `refresh` spin already on it — what §9.1's toolbar control was reproducing by hand. |
+| **DeleteResource** | A typed destructive-confirm flow. |
+| **CodeBlock** | `Code`'s block form, with a language hint and copy. |
+| **LinkButton**, **GridItem**, **Textarea**, **RadioGroup** | The partner components to Link, Grid, InputArea and Radio. |
+| **Flow** | A node/edge flow diagram (Node · Parallel · List · Anchor). |
+| **ChartLegend**, **ChartPalette** | The pieces `Chart` composes from. |
+| **PoweredByCloudflare** | A footer mark. |
+
 ### 11.4 Our primitives, and the Kumo component each one is
 
 Read this as "when a component is wanted, this is its name, its props and its
@@ -1193,8 +1214,19 @@ documentation" — and, if the console is ever rebuilt in React, as the replacem
 | quick search | **CommandPalette** | What our ⌘K popover is a sketch of |
 | `.chart` and the metric plots | **Chart**, **TimeseriesChart** | ECharts underneath |
 | `.card` `.well` | **Surface**, **LayerCard** | |
-| `.skel` | *(none)* | Kumo has **Loader**, a spinner; skeletons stay ours |
+| `.skel` | **SkeletonLine** | Corrected — see §11.3. Kumo also has **Loader**, a spinner, which is a different thing |
 | the assistant card | *(none)* | Product-specific |
+| `.unit` / `.unit-suffix` | **InputGroup** + `InputGroup.Suffix` | Was missing. Kumo's own example is this exact pattern |
+| `.toolbar` | **Toolbar** | Was missing. Renders its controls as one grouped card and locks them to one size |
+| `<input type="date">` | **DatePicker**, *composed* | Was missing — and it is the calendar, not the field. See §11.4b |
+| `copiedChip()` | **ClipboardText** | Was missing. A read-only field with a copy button, sm / base / lg |
+| `.mono` / §6.21 code block | **Code** / **CodeBlock** | Was missing |
+| the refresh button | **RefreshButton** | Was missing — see §11.3 |
+| `.grid` `.g2` `.g3` `.g4` | **Grid** | Was missing. `2up` / `3up` / `4up` / `2-1` / `1-2` / `side-by-side` cover all four |
+| `.t-h1` … `.t-xs`, `.fg-muted` | **Text** | Was missing. Note the deprecations in §11.1 |
+| `.btn-link` / `.srow-link` | **Link** / **LinkButton** | Was missing |
+| `.split` | **Button** + **DropdownMenu** | Compose it, as with the radio card |
+| sortable `<th>` | *(none)* | Kumo's Table ships selection, sticky columns and a resize handle — but no sort |
 
 ### 11.4a Table striping — decided
 
@@ -1209,29 +1241,85 @@ stripe is a background that means *nothing* — it is a reading aid — and putt
 marks that do mean something makes the meaningful ones harder to see. The 56px two-line
 rows and the hairline between them already do the work a stripe would.
 
-If Kumo's own `Table` is ever adopted for real, pass it the unstriped variant rather than
-overriding the stripe in CSS.
+**Corrected, now that Kumo's own `Table` has been adopted for real.** There is no
+unstriped variant to pass. `Table.Row`'s `variant` is `default` — which *is* the
+striped one, carrying `even:bg-kumo-elevated` in its class string — or `selected`.
+Holding this decision costs a CSS override, which is what this paragraph used to say
+would not be needed:
 
-### 11.5 How to adopt it
+```css
+.ih-table-scroll tbody tr:nth-child(even) {
+  background: var(--color-kumo-base);
+  --kumo-table-row-bg: var(--color-kumo-base);
+}
+```
 
-Kumo is a **React** library: its peer dependencies are React 18/19, `@phosphor-icons/react`,
-`echarts` and `zod`, and its styles assume Tailwind v4. This prototype is four static
-HTML documents with vanilla ES modules and no build step, so its components cannot be
-dropped in as they stand. Two honest positions, in order of cost:
+`--kumo-table-row-bg` is set alongside the background because Kumo's sticky-column
+cells paint themselves from it; leaving it on `elevated` makes a pinned cell a
+different colour from the row it belongs to.
 
-1. **Today — mirror it, which is what this repo does.** Every primitive is built to the
-   spec above, and `tokens-cloudflare.css` carries Kumo's own values, aliased to Kumo's
-   own token names at the foot of the file. A screen built here and the same screen
-   built in Kumo should be hard to tell apart, and the table in §11.4 is the diff.
-2. **When the prototype becomes an application — use it.** Kumo replaces the whole of
-   §6 and most of §5. At that point the work is React plus a bundler plus Tailwind v4,
-   `@import "@cloudflare/kumo/styles/tailwind"` **before** `@import "tailwindcss"`, and
-   a `@source` directive pointing at `node_modules/@cloudflare/kumo/dist` so Tailwind
-   discovers the utility classes the components use. The token layer written here does
-   not need to change: it already resolves to the same colours.
+### 11.4b Where a mapping needed composing
 
-What must **not** happen is a third position where some screens use Kumo and others
-mirror it. The mirror is only defensible while it is complete.
+Three rows in §11.4 name a Kumo component that is the right answer and is not a
+drop-in. Each is composed the way §11.4 already says to compose the radio card —
+from Kumo parts, with nothing re-implemented.
+
+**DatePicker is the calendar, not the field.** Kumo's `DatePicker` is
+react-day-picker under a Kumo skin, taking `mode` / `selected` / `onChange`, and it
+is always visible. The Schedule step has two date fields side by side with time
+inputs beside them; two always-open month grids would take over the step. So
+`DateField` wraps it: Kumo's `Popover` for the anchoring and dismissal, Kumo's
+`Button` for the field, `DatePicker` inside. `DateRangePicker` is wrong here for a
+different reason — Start and End carry independent Now / Never modes, which a range
+cannot express.
+
+**`Chart` / `TimeseriesChart` wrap ECharts.** That is the right destination for a
+real product and the wrong one for these plots: they are twenty stacked `<div>`s
+with a dashed version boundary drawn through them, and ECharts is a megabyte of
+canvas renderer to draw that. The plots stay DOM; the frame and the type are Kumo's.
+
+**`Meter` prints its own label above its own track.** §11.4 maps `.bar-track` /
+`.bar-fill` onto it and the idea is the same — a measured value in a known range —
+but a distribution row here is a three-column grid whose fill carries the rating
+ramp, which is the one thing about the row that means anything. Meter takes no
+per-row colour, so the geometry stays ours.
+
+---
+
+### 11.5 Adopted
+
+**This section used to describe a choice. It has been made: the console runs on the
+real components.** Kumo is a React library — peer dependencies React 18/19,
+`@phosphor-icons/react`, `echarts` and `zod`, styles assuming Tailwind v4 — and there
+is no non-React path. The one artifact that is not React, `kumo-standalone.css`, is a
+compiled Tailwind utility sheet with no component classes in it at all. So the mirror
+is gone and the build step §11.5 always said this would take is here.
+
+What that cost, and what it bought:
+
+- **Vite**, with the four screens as Rollup inputs so `/builder.html` and the rest
+  keep the URLs the README and Pages link to, and `base: '/Insight-Hub/'` because a
+  bundle with hashed assets cannot use the relative hrefs the vanilla build could.
+- **Tailwind v4**, in Kumo's documented order: the `@source` directive at
+  `node_modules` first (v4 does not scan it, and without this none of the utilities
+  Kumo's components reference are emitted), then Kumo's styles so its `@theme`
+  registers, then Tailwind.
+- **`kumo-tokens.css` and `scripts/kumo-tokens.mjs` are gone.** They existed only
+  because Kumo authors its tokens in oklch behind `light-dark()` and there was no
+  build step to resolve them. Tailwind compiles them now, and
+  `src/styles/tokens.css` aliases onto the live values.
+- **`data-theme` became `data-mode`.** Kumo reserves `data-theme` for the brand theme
+  (`kumo` / `fedramp`) and several of its own selectors carry `:not([data-theme])`,
+  so leaving `"dark"` there stopped them matching.
+- **The mirrored primitives are deleted** — `supabase.css`, `motion-kumo.css` and the
+  whole of `assets/js`. §6 is now a description of what Kumo renders rather than a
+  build sheet, and the half of `motion-kumo.css` that transcribed Kumo's own
+  keyframes is redundant: the package ships all five.
+
+What is left of the product's own CSS is `src/styles/product.css`, and it is exactly
+the list §11.4 marks *(none)*: the wizard stepper, the stat strip, the metric cards
+and their sparklines, the rating ramp, the template gallery, the phone preview, the
+assistant, and the shell glue around Kumo's Sidebar.
 
 ---
 
@@ -1388,10 +1476,11 @@ The spring row no longer carries "and only if rule 1 is being deliberately relax
 rule 1 now permits overshoot at a completion, and `--ease-bounce` covers that in CSS. A
 spring is still only worth the runtime where the settle must depend on distance travelled.
 
-Loading it needs one decision, because the prototype has no bundler and `node_modules` is
-not committed. Vendor the built ESM into `assets/vendor/` and import it relatively, rather
-than adding an import map — that is the one that keeps "clone it and open `index.html`"
-true.
+**Superseded by the Kumo port.** This paragraph used to say that loading `motion` needed a
+decision — vendor the built ESM into `assets/vendor/` rather than add an import map —
+because the prototype had no bundler and `node_modules` was not committed. There is a
+bundler now, so it is a plain `import`. The dependency is still declared and still unused:
+nothing in this product has yet needed a settle that depends on distance travelled.
 
 ### 12.5 What the colour change did to existing motion
 

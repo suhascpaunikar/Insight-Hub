@@ -170,7 +170,7 @@ not run the build.
 
 It also was not necessary. The React component's only job is to emit scoped CSS
 with a generated id; every prop it takes is a variable in a stylesheet. So the
-rules in `supabase.css` are the package's own — its conic gradients, its mask
+rules in `product.css` are the package's own — its conic gradients, its mask
 composite chain, its nine pinned blobs, its 1.96s lap, its ±30° hue drift under
 brightness 1.3 and saturate 1.2 — with the generated id replaced by the
 `.asst-card` selector.
@@ -442,14 +442,15 @@ full-screen focus mode and renders its own chrome instead of calling
 
 | File | Purpose |
 |---|---|
-| `assets/js/assistant.js` | the card, the transcript, the ask box, the word-by-word reveal |
-| `assets/js/assistant-context.js` | what the assistant can see — page, campaign, tab, filters, draft |
-| `assets/js/assistant-answers.js` | the intent registry and the answer composers |
-| `assets/js/assistant-insights.js` | what each panel's data says — one composer per panel |
-| `assets/js/assistant-pointer.js` | the cursor companion, dwell detection and panel arming |
-| `assets/js/assistant-orb.js` | the Siri-style orb — the two states, the renderer, and the state broadcast |
+| `src/app/Assistant.jsx` | the card, the transcript, the ask box, the word-by-word reveal |
+| `src/app/Orb.jsx` | the React handle on the orb: hand it a node, take it back on unmount |
+| `src/lib/assistant-context.js` | what the assistant can see — page, campaign, tab, filters, draft |
+| `src/lib/assistant-answers.js` | the intent registry and the answer composers |
+| `src/lib/assistant-insights.js` | what each panel's data says — one composer per panel |
+| `src/lib/assistant-pointer.js` | the cursor companion, dwell detection and panel arming |
+| `src/lib/assistant-orb.js` | the Siri-style orb — the two states, the renderer, and the state broadcast |
 
-Styles live at the end of `assets/css/supabase.css` under *Assistant*.
+Styles live at the end of `src/styles/product.css` under *The assistant*.
 
 ---
 
@@ -493,3 +494,20 @@ That would mean adding a serverless function, since a key must never ship in a
 static bundle, and GitHub Pages cannot run one. That is a constraint to solve
 within, not a reason to move hosts: this project deploys to Pages and not to
 Netlify (see CLAUDE.md).
+
+
+---
+
+## After the Kumo port
+
+The card is React now; the orb and the pointer are not, and deliberately. Both are
+imperative animation modules with their own loops, and React's job around them is to
+hand them a node and take it back — `Orb.jsx` is the whole of that. Streaming moved
+into component state: a words array, an index, and the revealed prefix kept apart
+from the transcript so a re-render per word touches one string.
+
+One thing improved. `assistant-context.js` used to read the insights filters back out
+of the rendered `<select>` elements, because `filters` was module-private to
+insights.js and scraping the DOM was less coupling than reaching into another module.
+The page publishes them now, through `publishFilters()` — the same coupling with none
+of the guesswork about a control's rendered value being the state.

@@ -1136,3 +1136,81 @@ body:has(.ih-builder-foot) .ih-asst { bottom: calc(var(--foot-h) + var(--sp-md))
   display: flex; justify-content: flex-end; padding: 4px;
   border-top: 1px solid var(--border-muted);
 }
+
+/* ==========================================================================
+   Motion the product owns (§12).
+
+   Kumo's own keyframes — bounce-in, toast-bump, clipboard-toast-bump,
+   refresh, skeleton — used to be transcribed into motion-kumo.css because
+   there was no package to load them from. The real package ships all five in
+   kumo-binding.css, so that half of the file is gone and its components
+   animate themselves. What is left is the motion Kumo has no opinion about.
+   ========================================================================== */
+
+/* A card the reader is scanning. One pixel and a brighter edge: enough to say
+   which card the pointer is on, not enough to look like it can be pressed. */
+.ih-metric, .ih-opt, .ih-goal, .ih-tpl-card {
+  transition: border-color var(--motion-fast) var(--ease-out),
+              background-color var(--motion-fast) var(--ease-out),
+              transform var(--motion-fast) var(--ease-out);
+}
+.ih-metric:hover, .ih-opt:hover, .ih-goal:hover, .ih-tpl-card:hover {
+  transform: translateY(-1px);
+  border-color: var(--border-strong);
+  /* Insurance against the stacking context the transform makes, and it keeps
+     the lifted edge over its neighbour's. */
+  position: relative; z-index: 2;
+}
+/* A card that is already chosen does not lift: it is not an offer any more,
+   and a selected control that moves under the pointer reads as though the
+   selection is still in question. */
+.ih-opt-on:hover, .ih-goal-soon:hover { transform: none; }
+
+/* The row under the pointer. The background was already there; this is the
+   hairline coming with it, so the row reads as one band rather than as a fill
+   that stops at the cell edges. */
+.ih-table-scroll tbody tr { transition: box-shadow var(--motion-fast) var(--ease-out); }
+.ih-table-scroll tbody tr:hover { box-shadow: inset 2px 0 0 var(--border-strong); }
+
+/* The horizontally overflowing table fades at whichever edge it runs past,
+   so the cut reads as "there is more this way" rather than as clipping.
+   Scroll-driven rather than time-driven: the fade *is* the scroll position,
+   not an animation of it.
+
+   The whole thing sits behind `@supports` — a browser without
+   `animation-timeline` keeps its scrollbar and loses nothing but the fade.
+   Unlike the vanilla build this needs no ResizeObserver to mark the scroller:
+   `scroll(self x)` simply never advances on a box that does not overflow. */
+@property --fade-left-n  { syntax: "<number>"; inherits: false; initial-value: 0; }
+@property --fade-right-n { syntax: "<number>"; inherits: false; initial-value: 0; }
+@keyframes ih-fade-x-left  { from { --fade-left-n: 0; }  to { --fade-left-n: 1; } }
+@keyframes ih-fade-x-right { from { --fade-right-n: 1; } to { --fade-right-n: 0; } }
+
+@supports (animation-timeline: scroll()) {
+  .ih-table-scroll {
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      white calc(var(--fade-left-n) * var(--scroll-fade-width, 3rem)),
+      white calc(100% - var(--fade-right-n) * var(--scroll-fade-width, 3rem)),
+      transparent
+    );
+    animation-name: ih-fade-x-left, ih-fade-x-right;
+    animation-timing-function: linear, linear;
+    animation-timeline: scroll(self x);
+    animation-range:
+      0 var(--scroll-fade-range, 3rem),
+      calc(100% - var(--scroll-fade-range, 3rem)) 100%;
+  }
+}
+
+/* Everything above is stilled for a reader who asked for that. Kumo's own
+   components honour the preference themselves. */
+@media (prefers-reduced-motion: reduce) {
+  .ih-metric, .ih-opt, .ih-goal, .ih-tpl-card { transition: none; }
+  .ih-metric:hover, .ih-opt:hover, .ih-goal:hover, .ih-tpl-card:hover { transform: none; }
+  .ih-asst-caret { animation: none; }
+  .ih-asst-turn[data-from="you"] .ih-asst-text,
+  .ih-asst-follow-btn { animation: none; }
+  .ih-asst-card { transition: none; }
+}
