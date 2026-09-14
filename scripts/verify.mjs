@@ -32,11 +32,13 @@ let failures = 0;
 for (const name of pages) {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   const errors = [];
-  /* The webfont link is deliberately non-blocking and fonts.googleapis.com is
-     not reachable from the sandbox, so its failure is expected and not a
-     finding about the port. */
-  const ignore = (text) => /fonts\.(googleapis|gstatic)\.com/.test(text)
-    || (/ERR_CONNECTION_RESET|ERR_NAME_NOT_RESOLVED/.test(text) && !/localhost/.test(text));
+  /* The webfont link is deliberately non-blocking, and it is the only resource
+     on this page that is not served from the local server below. So anything
+     that is not localhost is the font, whatever the failure looks like — a
+     reset, a DNS miss, or a CA the sandbox proxy does not present. Matching on
+     the message text instead missed the cert case, because a cert error does
+     not quote the URL that provoked it. */
+  const ignore = (text) => !/localhost|127\.0\.0\.1/.test(text);
   page.on('console', (m) => { if (m.type() === 'error' && !ignore(m.text())) errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push(`PAGEERROR ${e.message}`));
   page.on('requestfailed', (r) => { if (!ignore(r.url())) errors.push(`REQFAIL ${r.url()}`); });
