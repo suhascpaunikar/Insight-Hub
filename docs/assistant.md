@@ -490,4 +490,6 @@ because there is no model to do better, and leaving it in front of one would
 throw away the question before it was asked.
 
 That would mean adding a serverless function, since a key must never ship in a
-static bundle. GitHub Pages cannot run one; Netlify can.
+static bundle, and GitHub Pages cannot run one. That is a constraint to solve
+within, not a reason to move hosts: this project deploys to Pages and not to
+Netlify (see CLAUDE.md).

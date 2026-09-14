@@ -3,6 +3,9 @@
 An HTML prototype of the campaign creation flow described in
 [`docs/prd-v5.md`](docs/prd-v5.md), built in the **Cloudflare dashboard's design system**.
 
+**Live:** <https://suhascpaunikar.github.io/Insight-Hub/> — GitHub Pages, published
+from `main` by [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
+
 No build step, no dependencies. Open `index.html` in a browser.
 
 ```

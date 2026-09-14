@@ -1,15 +1,18 @@
-# Static prototype — no build step. Netlify publishes the repo root as-is.
+# This project does not deploy to Netlify. The live site is GitHub Pages:
+# https://suhascpaunikar.github.io/Insight-Hub/, published by
+# .github/workflows/pages.yml on every push to main.
+#
+# The file is kept rather than deleted because deleting it would not stop
+# anything: a linked Netlify project builds with its own defaults when there is
+# no config, so an empty repo root is still a published site. This cancels the
+# build instead.
+#
+# `ignore` is Netlify's build-skip hook and its exit code reads backwards from
+# the usual convention: exit 0 means "ignore this build" and cancels it, while
+# any non-zero code lets the build proceed. Returning 0 unconditionally is
+# therefore the off switch.
+#
+# The previous publish directory and the ES-module Content-Type headers are in
+# git history (before this commit) if this ever has to be reversed.
 [build]
-  publish = "."
-
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Content-Type-Options = "nosniff"
-    Referrer-Policy = "strict-origin-when-cross-origin"
-
-# The pages load ES modules; a wrong Content-Type makes the browser refuse them.
-[[headers]]
-  for = "/assets/js/*.js"
-  [headers.values]
-    Content-Type = "text/javascript; charset=utf-8"
+  ignore = "exit 0"
