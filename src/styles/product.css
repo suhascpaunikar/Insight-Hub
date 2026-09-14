@@ -1,0 +1,19 @@
+/* ==========================================================================
+   product.css — what Kumo does not ship.
+
+   Everything Kumo *does* ship was deleted from this project when the console
+   moved onto the real components; §11.4 of the guideline is the map. What is
+   left here is the list §11.4 marks "(none)" — the wizard stepper, the stat
+   strip and metric cards, the rating ramp, the skeletons, the mobile preview,
+   and the assistant — plus the shell glue around Kumo's Sidebar.
+   ========================================================================== */
+
+body {
+  margin: 0;
+  background: var(--background-200);
+  color: var(--foreground-default);
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+}

@@ -1,0 +1,18 @@
+/* ==========================================================================
+   The stylesheet entry.
+
+   Order is load-bearing and it is Kumo's, from its README: the `@source`
+   directive first, because Tailwind v4 does not scan node_modules and would
+   otherwise emit none of the utility classes Kumo's components reference;
+   then Kumo's own styles, so its `@theme` tokens are registered *before*
+   Tailwind builds its theme; then Tailwind itself.
+
+   Everything after that is this product's: the token bridge onto Kumo's
+   names, then the components Kumo has no answer for.
+   ========================================================================== */
+@source "../../node_modules/@cloudflare/kumo/dist/**/*.{js,jsx,ts,tsx}";
+@import "@cloudflare/kumo/styles/tailwind";
+@import "tailwindcss";
+
+@import "./tokens.css";
+@import "./product.css";
