@@ -203,9 +203,9 @@ function questionLogic(variant) {
       <div class="notice">
         ${raw(icon('info'))}
         <span>
-          <strong>${template?.name || 'This component'}</strong> cannot carry a rating question, so
-          question logic is hidden rather than disabled. Add elements it does support with
-          <em>Add content</em> above.
+          <strong>${template?.name || 'This component'}</strong> cannot carry a rating question,
+          so there is no question logic to set. Use <em>Add content</em> above to add what it
+          does support.
         </span>
       </div>`;
   }
@@ -226,7 +226,7 @@ function questionLogic(variant) {
                     aria-pressed="${variant.ratingElement === 'star'}"
                     ${raw(supports.includes('star') ? '' : 'disabled')}>${raw(icon('star'))}Star rating</button>
           </div>
-          <span class="hint">NPS is the default. Swapping to star fixes the scale at 5 points.</span>
+          <span class="hint">NPS is the default. Star rating is always 5 points.</span>
         </div>
 
         <div class="field">
@@ -255,8 +255,8 @@ function questionLogic(variant) {
             <span class="t-h3">Q2 · Follow-up differs by rating band</span>
             <p class="hint" style="margin-top:2px">
               ${raw(variant.ratingElement === 'star'
-                ? 'Star rating always branches — the three bands below are always in play.'
-                : 'Off by default. A 1–10 scale is used for more than feedback, so branching is never forced.')}
+                ? 'Star rating always branches, so all three bands below are in play.'
+                : 'Off by default. Turn it on to ask different follow-ups by rating.')}
             </p>
           </div>
           <input class="switch" type="checkbox" data-act="branching"
@@ -269,15 +269,15 @@ function questionLogic(variant) {
       ${raw(branchingOn ? html`<div class="stack">${raw(branchEditor(variant))}</div>` : html`
         <div class="notice">
           ${raw(icon('info'))}
-          <span>Every respondent sees the same follow-up. Turn branching on to ask
-            detractors, passives and promoters different questions.</span>
+          <span>Everyone sees the same follow-up. Turn branching on to ask detractors,
+            passives and promoters different questions.</span>
         </div>`)}
 
       <!-- FR-43 — Q3 is always present regardless of branch. -->
       <div class="field">
         <label class="label" for="open-q">Q3 · Open text — always asked</label>
         <input class="input" id="open-q" data-act="open-question" value="${variant.openTextQuestion}" />
-        <span class="hint">Shown to every respondent whichever band they land in.</span>
+        <span class="hint">Shown to everyone, whatever they answered.</span>
       </div>
     </div>`;
 }
@@ -409,7 +409,7 @@ export function renderContentStep(draft, issues) {
       <header class="sstep-head">
         <h2 class="t-h1" id="step-4-heading">Content</h2>
         <p class="t-sm fg-lighter" style="margin-top:4px">
-          Each variant carries its own content, component, questions and trigger.
+          Each variant has its own content, questions and trigger.
         </p>
       </header>
 
@@ -435,7 +435,7 @@ export function renderContentStep(draft, issues) {
         <div class="stack-lg">
           ${raw(stepPanel({
             title: 'Variant',
-            desc: 'What this variant is called, and how much of the audience it takes.',
+            desc: 'What this variant is called, and how much of the audience it gets.',
             rows: html`
             <div class="srow">
               <div class="srow-main">
@@ -482,7 +482,7 @@ export function renderContentStep(draft, issues) {
           ${raw(stepPanel({
             title: 'Template & component',
             required: true,
-            desc: 'The channel this variant is delivered on, and the component that renders it.',
+            desc: 'How this variant is delivered, and what it looks like.',
             actions: variant.templateId
               ? `<span class="mono t-xs fg-muted">In use: ${esc(variant.templateId)}</span>` : '',
             body: templatePicker(draft, variant),
@@ -491,7 +491,7 @@ export function renderContentStep(draft, issues) {
 
           ${raw(!template ? '' : stepPanel({
             title: 'Content elements',
-            desc: "What sits inside the template's slots. You edit values, never the layout.",
+            desc: 'What goes inside the template. You edit the content, not the layout.',
             // FR-35 — the add-content modal lists the elements this component allows.
             actions: `<button class="btn btn-outline btn-sm" data-act="add-content">${
               icon('plus')}Add content</button>`,
@@ -526,14 +526,14 @@ export function renderContentStep(draft, issues) {
           ${raw(!template ? '' : stepPanel({
             title: 'Questions',
             required: true,
-            desc: 'What the respondent is asked, and where each rating band takes them next.',
+            desc: 'What people are asked, and where each answer takes them next.',
             body: questionLogic(variant),
           }))}
 
           ${raw(stepPanel({
             title: 'Trigger, event & delay',
             required: true,
-            desc: 'The event that enrols a user into this variant, and how long after it they are asked.',
+            desc: 'What enrols someone into this variant, and how long after to ask them.',
             // FR-44 / FR-45 — per-variant trigger; delay is a text input, not a dropdown.
             actions: draft.variants.length > 1
               ? dropdown({ trigger: `${icon('copy')}Copy trigger from a variant`,
@@ -570,8 +570,8 @@ export function renderContentStep(draft, issues) {
             ${raw(divergent ? html`
               <div class="notice notice-warning">
                 ${raw(icon('warn'))}
-                <span>Your variants run different triggers. Content is no longer the single variable,
-                  so the comparison on the insights page will be flagged as not like-for-like.</span>
+                <span>Your variants use different triggers, so content is no longer the only thing
+                  that changed. The insights page will flag this comparison as not like-for-like.</span>
               </div>` : '')}
             </div>`,
           }))}
