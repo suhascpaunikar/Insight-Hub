@@ -492,7 +492,7 @@ function step2(draft, issues) {
       <header class="sstep-head">
         <h2 class="t-h1" id="s3">Audience</h2>
         <p class="t-sm fg-lighter" style="margin-top:4px">
-          Who gets asked. Exclusions are applied after inclusion.
+          Who gets asked, and who to leave out.
         </p>
       </header>
 
@@ -514,7 +514,7 @@ function step2(draft, issues) {
       ${raw(audience.mode !== 'segmented' ? '' : stepPanel({
         title: 'Segments',
         required: true,
-        desc: 'Rule-based groups from the shared library. Each one shows the rule it selects on.',
+        desc: 'Shared rule-based groups. Each shows the rule it matches on.',
         actions: `<button class="btn btn-outline btn-sm" data-act="new-segment">${
           icon('plus')}Create segment</button>`,
         // FR-13 — the rule is visible at the point of selection.
@@ -540,16 +540,16 @@ function step2(draft, issues) {
       ${raw(audience.mode !== 'user-data-table' ? '' : stepPanel({
         title: 'User ID list',
         required: true,
-        desc: 'Upload a CSV and this campaign targets exactly those users — no rule is evaluated.',
+        desc: 'Upload a CSV to target exactly those users. No rules are applied.',
         body: userListBody(draft),
-        note: 'IDs are matched against the user table on send. Anything in the file that does not '
-          + 'resolve to a user is dropped at that point, so the estimate below is an upper bound.',
+        note: 'IDs are matched when you send, and rows that do not match a user are dropped — '
+          + 'so the estimate below is an upper bound.',
         error: ui.showIssues && issue('userList') ? issue('userList').message : '',
       }))}
 
       ${raw(stepPanel({
         title: 'Exclude',
-        desc: 'Applied after inclusion. Select repeatedly to exclude more than one list.',
+        desc: 'Leave people out of the audience above. Add as many lists as you need.',
         // FR-16 — exclusion is a dropdown, multi-select via repeat selection.
         body: html`
           <div class="stack-sm">
@@ -581,7 +581,7 @@ function step2(draft, issues) {
 
       ${raw(stepPanel({
         title: 'Estimated reach',
-        desc: 'What the selections above work out to right now. Recomputed as you change them.',
+        desc: 'What your selections add up to. Updates as you change them.',
         body: html`
           <div class="grid g3">
             <div class="stat"><span class="stat-label">${raw(icon('users'))}Included</span>
@@ -592,18 +592,16 @@ function step2(draft, issues) {
               <span class="stat-value">${count(reach)}</span></div>
           </div>`,
         // FR-18 — rolling enrolment with a per-user lock at capture.
-        note: '<strong>Rolling enrolment.</strong> This audience re-evaluates continuously. A user is '
-          + 'enrolled the moment they first qualify and their variant assignment locks at that point — '
-          + 'someone who joins as <em>New</em> and later becomes <em>Repeat</em> stays under their '
-          + 'original assignment and is never re-bucketed.',
+        note: '<strong>Rolling enrolment.</strong> People join as soon as they qualify, and their '
+          + 'variant locks in at that moment — so nobody is re-bucketed later.',
       }))}
 
       <!-- FR-17 — warn before proceeding if exclusion empties the audience. -->
       ${raw(emptied ? html`
         <div class="notice notice-danger" role="alert">
           ${raw(icon('warn'))}
-          <span>Your exclusions remove everyone in the included audience. This campaign would reach
-            nobody — remove an exclusion or widen the inclusion before continuing.</span>
+          <span>Your exclusions remove everyone in this audience. Remove an exclusion or widen
+            the audience to continue.</span>
         </div>` : '')}
     </section>`;
 }
@@ -638,7 +636,7 @@ function step4(draft, issues) {
           ${raw(stepPanel({
             title: 'Start',
             required: true,
-            desc: 'When enrolment opens. The date and time are inert under Now.',
+            desc: 'When people start being enrolled.',
             // FR-46 — Now or Later; the date and time inputs are disabled under Now.
             body: html`
               <div class="stack-sm">
@@ -666,7 +664,7 @@ function step4(draft, issues) {
           ${raw(stepPanel({
             title: 'End',
             required: true,
-            desc: 'Whether enrolment ever closes on its own. An end must fall after the start.',
+            desc: 'Whether enrolment closes on its own. Any end date must be after the start.',
             // FR-47 — Never or End on; End must be after Start.
             body: html`
               <div class="stack-sm">
@@ -690,26 +688,23 @@ function step4(draft, issues) {
               </div>`,
             // FR-48 — a Never campaign keeps enrolling until an explicit manual stop.
             note: s.endMode === 'never'
-              ? 'With no end date this campaign runs indefinitely. Combined with rolling enrolment it '
-                + 'keeps enrolling users as they qualify, so it needs an explicit <strong>Stop</strong> — '
-                + "available on the campaign's insights page after publish."
+              ? 'With no end date this campaign keeps enrolling people until you '
+                + '<strong>Stop</strong> it, from its insights page after publishing.'
               : '',
             error: ui.showIssues && issue('end') ? issue('end').message : '',
           }))}
 
           ${raw(stepPanel({
             title: 'Re-entry',
-            desc: 'Whether a user who already responded can qualify again on a later trigger.',
+            desc: 'Whether someone who already responded can qualify again.',
             // FR-49 / OD-2 — re-entry, reconciled against the per-user lock in FR-18.
             rows: html`
               <div class="srow srow-top">
                 <div class="srow-main">
                   <div class="srow-label">Allow users to re-enter this campaign</div>
                   <p class="srow-desc">
-                    Off by default. A user is normally enrolled once and their variant locks at capture.
-                    Turning this on lets a user who already responded qualify again on a later trigger —
-                    they keep their original variant assignment, so re-entry adds responses without
-                    re-bucketing anyone.
+                    Off by default. Turning this on lets someone who already responded qualify again
+                    on a later trigger. They keep their original variant, so nobody is re-bucketed.
                   </p>
                 </div>
                 <div class="srow-ctl srow-ctl-auto">
@@ -717,15 +712,15 @@ function step4(draft, issues) {
                          ${raw(s.allowReentry ? 'checked' : '')} aria-label="Allow re-entry" />
                 </div>
               </div>`,
+            // OD-2 — the marker stays in the code; the reader gets the consequence.
             note: s.allowReentry
-              ? 'Open decision <span class="mono">OD-2</span> — with re-entry on, one user can appear in '
-                + 'the response count more than once. Per-respondent figures on the insights page will '
-                + 'read higher than unique users.'
+              ? 'With re-entry on, one person can be counted more than once — so response figures '
+                + 'on the insights page will read higher than unique users.'
               : '',
           }))}
           ${raw(stepPanel({
             title: 'Ready to publish',
-            desc: 'Everything the three steps before this one resolved to.',
+            desc: 'A last look at everything you have set.',
             actions: `<span class="badge badge-mono">${esc(draft.campaignId)}</span>`,
             body: html`
             <div class="stack-sm">
@@ -754,7 +749,7 @@ function step4(draft, issues) {
                   <p class="t-sm" style="margin-top:4px">${draft.objective.trim()}</p>`
                   : html`
                   <p class="t-sm fg-muted" style="margin-top:4px">
-                    Not set — this campaign publishes without a record of what it is for.
+                    Not set. This campaign will publish with no record of why you built it.
                     <button class="btn btn-link t-xs" data-act="goto" data-step="1">Add one on step 1</button>
                   </p>`)}
               </div>
@@ -764,7 +759,7 @@ function step4(draft, issues) {
           <!-- FR-51 — a Test action beside a saved-account dropdown and a direct user ID. -->
           ${raw(stepPanel({
             title: 'Send a test',
-            desc: 'Deliver the configured content to yourself before anyone else sees it.',
+            desc: 'See the real thing on your own device before anyone else does.',
             body: html`
             <div class="stack">
               <div class="grid g2">
@@ -793,13 +788,12 @@ function step4(draft, issues) {
               <!-- FR-52 — test sends never reach the results dashboard. -->
               <div class="notice">
                 ${raw(icon('info'))}
-                <span>Responses from a test send are excluded from the insights page entirely — they
-                  do not count toward delivery, response or impact figures.</span>
+                <span>Test responses never appear on the insights page.</span>
               </div>
             </div>`,
             // OD-5 — test is not a hard gate, and the preview simulates branches.
-            note: 'Testing is not required before publishing. The preview beside this panel is '
-              + 'interactive: tap a rating to walk the branch a respondent in that band would see.',
+            note: 'Testing is optional. The preview on the right is interactive — tap a rating to '
+              + 'see where that answer leads.',
           }))}
         </div>
 
@@ -812,8 +806,8 @@ function step4(draft, issues) {
           <!-- FR-50 / FR-54 — the actual configured questions, tappable through the branch. -->
           ${raw(phonePreview(variant, { interactive: true, picked: ui.previewPick }))}
           <p class="hint" style="margin-top:8px;max-width:292px">
-            Rendering ${templateOf(variant)?.name || 'no template'} on
-            ${variant.channel} with the questions configured in the Content step.
+            Showing ${templateOf(variant)?.name || 'no template'} on ${variant.channel},
+            with the questions from the Content step.
           </p>
         </aside>
       </div>
