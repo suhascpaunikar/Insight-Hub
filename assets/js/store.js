@@ -231,6 +231,35 @@ export function suggestGoalFromObjective(text) {
   return ranked[0].goal;
 }
 
+/**
+ * A name read out of the objective, offered behind the Generate button on step
+ * 1. No model here either: the goal supplies the base, and the qualifier is the
+ * first proper noun in the objective — a city, a release, a screen is almost
+ * always what the campaign is actually about. Sentence-initial words are
+ * skipped, being capitalised by grammar rather than because they name anything.
+ * Returns '' when there is no objective to read, which is what disables the
+ * button in the first place.
+ */
+const NAME_BASE = {
+  'user-feedback': 'User feedback',
+  'sale-push': 'Sale push',
+  'churn-rate': 'Churn diagnosis',
+};
+const NAME_SKIP = new Set(['After', 'Ask', 'Find', 'Our', 'That', 'The', 'They', 'This', 'We']);
+
+export function suggestNameFromObjective(text, goalId) {
+  const raw = String(text || '').trim();
+  if (!raw) return '';
+  const base = NAME_BASE[goalId] || 'Campaign';
+  const proper = raw.split(/\s+/)
+    .map((word, i) => ({ word: word.replace(/[^A-Za-z0-9'-]/g, ''), i }))
+    .find(({ word, i }) => i > 0 && /^[A-Z][a-z]{2,}$/.test(word) && !NAME_SKIP.has(word));
+  const qualifier = proper
+    ? proper.word
+    : new Date().toLocaleString('en-US', { month: 'long' });
+  return `${base} · ${qualifier}`;
+}
+
 export function audienceReach(draft) {
   const { audience } = draft;
   const included =
@@ -310,7 +339,7 @@ const DEFAULT_STATE = {
      the boxed stepper the wizard was built with, which says more per step —
      a state word under each label — at the cost of a band of its own. Both
      are wired; Settings → Prototype state switches them. */
-  builderChrome: 'strip',
+  builderChrome: 'stepper',
   /* Dark or light. Dark is the default and the theme the console was designed
      on; light is the alternate, from Appendix B of the guideline. Switched
      from Settings → General → Appearance. Read at boot by the inline script

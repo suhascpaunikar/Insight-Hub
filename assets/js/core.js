@@ -1089,10 +1089,10 @@ export function confirmDestructive({ title, description, confirmLabel = 'Discard
    and rides under it on the panel's own footer.  */
 export function stepPanel({
   id = '', title, desc = '', required = false, actions = '',
-  body = '', rows = '', note = '', error = '', bare = false,
+  body = '', rows = '', note = '', error = '', insightKey = '',
 } = {}) {
   return html`
-    <section class="ssection">
+    <section class="ssection"${raw(insightKey ? ` data-insight="${esc(insightKey)}"` : '')}>
       <div class="ssection-head">
         <div style="min-width:0">
           <h3 class="ssection-title" ${raw(id ? `id="${esc(id)}"` : '')}>${title}${raw(
@@ -1101,9 +1101,9 @@ export function stepPanel({
         </div>
         ${raw(actions ? `<div class="ssection-actions">${actions}</div>` : '')}
       </div>
-      <div class="spanel${raw(bare ? ' spanel-bare' : '')}">
-        ${raw(rows || `<div class="spanel-body">${body}</div>`)}
-        ${raw(note ? `<div class="spanel-note">${note}</div>` : '')}
+      <div class="sbody">
+        ${raw(rows || body)}
+        ${raw(note ? `<div class="sbody-note">${note}</div>` : '')}
       </div>
       ${raw(error ? `<p class="error" role="alert">${esc(error)}</p>` : '')}
     </section>`;

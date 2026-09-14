@@ -31,7 +31,7 @@
 import { html, raw, icon, $, on } from './core.js';
 import { snapshot } from './assistant-context.js';
 import { answer, intentLabel, route } from './assistant-answers.js';
-import { insight } from './assistant-insights.js';
+import { insight, builderTip, hasBuilderTip } from './assistant-insights.js';
 import { campaignKind } from './data.js';
 import { setPointer, pointerActive } from './assistant-pointer.js';
 import { mountOrb, orbThinking } from './assistant-orb.js';
@@ -289,9 +289,14 @@ function setPointerMode(on) {
 
 /** Report what one panel's data says. Called when the pointer settles on it. */
 export function readPanel(key) {
-  // Three panel keys appear on both kinds and read different sources, so the
-  // composer is told which campaign it is standing in front of.
-  const found = insight(key, campaignKind(snapshot().campaign));
+  const snap = snapshot();
+  // A wizard section is answered from the draft, not from campaign data — there
+  // is none yet. Tried first because these keys exist on no campaign panel.
+  const found = hasBuilderTip(key)
+    ? builderTip(key, snap.draft)
+    // Three panel keys appear on both kinds and read different sources, so the
+    // composer is told which campaign it is standing in front of.
+    : insight(key, campaignKind(snap.campaign));
   if (!found || !rootElement) return;
   rootElement.dataset.open = 'true';
   streamAnswer(

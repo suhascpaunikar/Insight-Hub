@@ -17,7 +17,9 @@ export function crumbsMarkup(list) {
     const node = last || !crumb.href
       ? `<span class="crumb"${last ? ' aria-current="page"' : ''}>${inner}</span>`
       : `<a class="crumb" href="${esc(crumb.href)}">${inner}</a>`;
-    return `${i ? `<span class="crumb-sep" aria-hidden="true">${icon('right')}</span>` : ''}${node}`;
+    // A chevron, not an arrow: an arrow reads as "go here", and a separator is
+    // punctuation between two labels rather than a direction to travel.
+    return `${i ? `<span class="crumb-sep" aria-hidden="true">${icon('chevRight')}</span>` : ''}${node}`;
   }).join('');
 }
 
