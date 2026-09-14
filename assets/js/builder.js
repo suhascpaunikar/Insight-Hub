@@ -328,6 +328,19 @@ function objectiveSection(draft) {
           </div>
         </div>
 
+        <!-- The same action as Generate on the name field, offered where the text
+             it reads is actually written. The field is above this one and can be
+             off screen, so the toast quotes what it produced rather than making
+             you scroll up to find out. Appears with the objective: there is
+             nothing to read before that. -->
+        ${raw(value.trim() ? html`
+          <div class="row wrap" style="gap:8px">
+            <button class="btn btn-outline btn-sm" data-act="name-suggest">
+              ${raw(icon('sparkles'))}Name this campaign
+            </button>
+            <span class="t-xs fg-muted">Fills the campaign name above from what you wrote.</span>
+          </div>` : '')}
+
         <div class="row wrap" style="gap:6px">
           <span class="t-xs fg-lighter">Examples:</span>
           ${starters.map((starter) => html`
@@ -1410,7 +1423,9 @@ function wireCommon(root) {
     const name = suggestNameFromObjective(d.objective, d.goal);
     if (!name) return;
     set({ name });
-    toast('Name suggested', 'Read from your objective — edit it like any other field.');
+    // Quoted, because the field this writes to is above the objective section
+    // and the reader may be nowhere near it.
+    toast('Campaign named', `“${name}” — edit it like any other field.`);
   });
 
   /* Step 2 */
