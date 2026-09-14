@@ -1677,6 +1677,25 @@ a.crumb:hover { color: var(--foreground-default); }
   font-size: 12px; line-height: 1.5; color: var(--foreground-lighter);
 }
 
+/* A section whose panel drops its container. The heading still governs the
+   group, but with the box gone a bordered control inside it — an option card,
+   a textarea — carries the only edge in the region instead of the inner of
+   two. Content goes flush with the heading, so the padding the box paid for
+   goes too. */
+.spanel-bare {
+  background: none; border: 0; border-radius: 0; overflow: visible;
+}
+.spanel-bare > .spanel-body,
+.spanel-bare > .srow { padding: 0; }
+.spanel-bare > .spanel-body + .spanel-body,
+.spanel-bare > .spanel-body + .srow,
+.spanel-bare > .srow + .spanel-body,
+.spanel-bare > .srow { border-top: 0; }
+.spanel-bare > .srow + .srow { margin-top: var(--sp-lg); }
+.spanel-bare > .spanel-note {
+  padding: 0; margin-top: 10px; background: none; border-top: 0;
+}
+
 /* ---------- File drop ----------
    Upload target for a list of user IDs. Dashed while empty so it reads as a
    place to put something rather than a control that does something. */

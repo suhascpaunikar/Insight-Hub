@@ -1089,7 +1089,7 @@ export function confirmDestructive({ title, description, confirmLabel = 'Discard
    and rides under it on the panel's own footer.  */
 export function stepPanel({
   id = '', title, desc = '', required = false, actions = '',
-  body = '', rows = '', note = '', error = '',
+  body = '', rows = '', note = '', error = '', bare = false,
 } = {}) {
   return html`
     <section class="ssection">
@@ -1101,7 +1101,7 @@ export function stepPanel({
         </div>
         ${raw(actions ? `<div class="ssection-actions">${actions}</div>` : '')}
       </div>
-      <div class="spanel">
+      <div class="spanel${raw(bare ? ' spanel-bare' : '')}">
         ${raw(rows || `<div class="spanel-body">${body}</div>`)}
         ${raw(note ? `<div class="spanel-note">${note}</div>` : '')}
       </div>

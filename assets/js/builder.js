@@ -197,6 +197,7 @@ function step1(draft, issues) {
         id: 's1-goal',
         title: 'Starting point',
         required: true,
+        bare: true,
         desc: 'Pick one. Everything it sets stays editable as you go.',
         body: goals,
         // FR-69 — only the goal blocks here; the name and app errors ride on
@@ -209,6 +210,7 @@ function step1(draft, issues) {
         ${raw(stepPanel({
           title: 'Campaign name',
           required: true,
+          bare: true,
           desc: 'Used as the identifier across the builder, the campaign list and the insights page.',
           rows: html`
             <div class="srow">
@@ -230,6 +232,7 @@ function step1(draft, issues) {
         ${raw(stepPanel({
           title: 'Apps',
           required: true,
+          bare: true,
           desc: 'At least one. App selection constrains the components available in the Content step.',
           body: html`
             <div class="grid g3">
@@ -246,6 +249,7 @@ function step1(draft, issues) {
         ${raw(stepPanel({
           title: 'Campaign type',
           required: true,
+          bare: true,
           desc: 'How many pieces of content this campaign runs, and who decides the split.',
           body: html`
             <div class="stack-sm">
@@ -347,6 +351,7 @@ function objectiveSection(draft) {
   return stepPanel({
     id: 's1-obj',
     title: 'Campaign objective',
+    bare: true,
     desc: 'Why this campaign exists, in your own words. It configures nothing and travels with the draft.',
     actions: '<span class="badge">Optional</span>',
     body,
