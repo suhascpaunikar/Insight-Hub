@@ -18,6 +18,16 @@ pnpm dev                        # or `pnpm build && pnpm preview`
 > hand. It now uses the real components, which are React — so there is a build. See
 > [§11.5 of the guideline](docs/ui-guidelines-cloudflare-dark.md) for what that
 > changed and why the mirror could not stay.
+>
+> **That build is still here.** `html-prototype-v1` tags the last commit before the
+> port, and `scripts/revert-to-html.sh` restores it —
+> [`docs/revert-to-html.md`](docs/revert-to-html.md) covers both, including what
+> reverting costs.
+
+```bash
+git switch html-prototype && python3 -m http.server 8000   # the old build, no install
+scripts/revert-to-html.sh --check                          # what reverting would change
+```
 
 ---
 
@@ -146,14 +156,17 @@ src/
     assistant-insights.js what each panel's data says
     assistant-pointer.js  the cursor companion and its dwell
     assistant-orb.js      the Siri-style orb — idle and thinking
-scripts/verify.mjs   loads every built screen in Chromium and fails on any error
+scripts/
+  verify.mjs         loads every built screen in Chromium and fails on any error
+  revert-to-html.sh  restores the pre-port HTML prototype from its tag
 docs/
   prd-v5.md            the source PRD
   prd-coverage.md      FR-by-FR map, the 21 open decisions, what changed vs Magic Patterns
   insights-data-plan.md  every data point the campaign data screen can carry, by kind
   assistant.md         the companion card — what it is, and what it isn't
   ui-guidelines-cloudflare-dark.md  the design system: tokens, components, motion, both themes
-  revamp.md            the restyle handover — what is done, what is open, what is settled
+  revamp.md            the restyle handover — superseded by the port, kept as its record
+  revert-to-html.md    how to get the no-build-step prototype back, and what it costs
 DESIGN.md              the superseded Supabase system, kept as the record of what it replaced
 ```
 

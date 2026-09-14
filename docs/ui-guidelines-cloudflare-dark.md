@@ -1321,6 +1321,12 @@ the list §11.4 marks *(none)*: the wizard stepper, the stat strip, the metric c
 and their sparklines, the rating ramp, the template gallery, the phone preview, the
 assistant, and the shell glue around Kumo's Sidebar.
 
+**The mirror is deleted, not lost.** `html-prototype-v1` tags the last commit that
+carried it, and `scripts/revert-to-html.sh` puts it back on a branch of your choosing
+without touching the port's history. `docs/revert-to-html.md` is the whole procedure,
+and it is honest about the cost: the tagged tree predates every correction in §11.1,
+§11.3 and §11.4a, because finding them is what adopting the real components was for.
+
 ---
 
 ## 12. Motion
