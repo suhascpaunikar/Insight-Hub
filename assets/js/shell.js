@@ -90,7 +90,7 @@ export function navRail(active, collapsed) {
           <span class="rail-text rail-brand-name truncate">${workspaceName()}</span>
           <span class="rail-text rail-brand-glyph" aria-hidden="true">${raw(icon('updown'))}</span>
         </button>
-        <div class="dd-menu rail-menu" data-align="start" role="menu" data-dismiss="1" hidden>
+        <div class="dd-menu rail-menu" data-anchor="css" data-align="start" role="menu" data-dismiss="1" hidden>
           ${raw(switcherMenu())}
         </div>
       </div>
@@ -101,7 +101,7 @@ export function navRail(active, collapsed) {
           <span class="rail-text grow truncate">Quick search</span>
           <kbd class="rail-text rail-kbd" aria-hidden="true">⌘K</kbd>
         </button>
-        <div class="dd-menu rail-menu quick-search" data-align="start" role="dialog"
+        <div class="dd-menu rail-menu quick-search" data-anchor="css" data-align="start" role="dialog"
              aria-label="Quick search" hidden>
           <label class="search-wrap">
             <span class="sr-only">Search InsightHub</span>
