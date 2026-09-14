@@ -421,8 +421,8 @@ function deliveryTab(c) {
           ${raw(c.versions > 1 && boundaryShown ? html`
             <div class="notice notice-ai" style="margin-top:12px">
               ${raw(icon('layers'))}
-              <span>The dashed rule marks where <strong>version 2</strong> begins. This series spans a
-                question change — filter to a single version above to read either side on its own.</span>
+              <span>The dashed rule marks where <strong>version 2</strong> begins — this series
+                spans a question change.</span>
             </div>` : '')}
         </div>
       </section>
@@ -434,10 +434,8 @@ function deliveryTab(c) {
           <div style="padding:0 var(--sp-lg)">
             <div class="notice">
               ${raw(icon('info'))}
-              <span>Read at this window's share of the run. The seed behind this prototype
-                breaks down sends and completions by day but not failures, so these are
-                proportional rather than counted — the mix between reasons is exact, the
-                totals are an estimate.</span>
+              <span>Scaled to this window's share of the run, so the mix between reasons is
+                exact and the totals are an estimate.</span>
             </div>
           </div>`)}
         <div class="card-body dist">
@@ -480,7 +478,7 @@ function responsesTab(c) {
         <div class="card-head">
           <div>
             <h3 class="t-h2">${block.question}</h3>
-            <span class="t-xs fg-lighter">Q1 · ${elementLabel(c)} · the campaign's single rating element</span>
+            <span class="t-xs fg-lighter">Q1 · ${elementLabel(c)} · the only rating question</span>
           </div>
           <span class="row" style="gap:14px">
             <span class="col" style="gap:0;align-items:flex-end">
@@ -633,12 +631,13 @@ function openResponseDetail(id) {
               <p class="t-body fg-light" style="margin-top:4px">${a.answer}</p>
             </li>`)}
         </ol>
-        <!-- OD-22 — the respondent is pseudonymous in this prototype. -->
+        <!-- OD-22 — the respondent is pseudonymous in this prototype. The marker stays in
+             the code; the reader gets the guarantee it makes. The segment and order context
+             are on screen above, so the sentence no longer lists them. -->
         <div class="notice">
           ${raw(icon('info'))}
-          <span>Open decision <span class="mono">OD-22</span> — the respondent is shown here as a
-            pseudonymous response ID with segment and order context, never a name or contact detail.
-            Export inherits the same posture.</span>
+          <span>Respondents are identified by response ID only — never a name or contact
+            detail. Exports work the same way.</span>
         </div>
       </div>`,
     actions: [{ label: 'Close', kind: 'default', value: true }],
@@ -696,8 +695,8 @@ function engagementTab(c) {
           })}
         </div>
         <div class="card-foot">
-          <span class="t-xs fg-muted">Bars are tap-through rate against a 20% ceiling, so the
-            columns compare directly. The count beside each is the taps behind it.</span>
+          <span class="t-xs fg-muted">Bars are tap-through rate against a fixed 20% ceiling,
+            so the columns compare directly.</span>
         </div>
       </section>`;
   };
@@ -731,7 +730,7 @@ function engagementTab(c) {
               ${raw(e.impressions
                 ? figureValue('eng:ttr', (e.taps / e.impressions) * 100, 1)
                 : '<span class="figure-value">—</span>')}
-              <span class="figure-note">Of impressions — the honest denominator</span>
+              <span class="figure-note">Of impressions, not sends</span>
             </div>
           </div>
         </div>
@@ -768,9 +767,9 @@ function engagementTab(c) {
                reporting half of what the send did. -->
           <div class="notice notice-warning">
             ${raw(icon('warn'))}
-            <span><strong>${count(e.optOuts)} users muted this channel</strong> after the send —
-              <span class="mono">${rate(e.optOuts, e.uniqueReach)}</span> of everyone reached. That
-              audience is not reachable by the next campaign.</span>
+            <span><strong>${count(e.optOuts)} people muted this channel</strong> after the send —
+              <span class="mono">${rate(e.optOuts, e.uniqueReach)}</span> of everyone reached.
+              Your next campaign cannot reach them.</span>
           </div>
         </div>
       </section>
@@ -795,8 +794,8 @@ function engagementTab(c) {
               </div>`)}
           </div>
           <div class="card-foot">
-            <span class="t-xs fg-muted">Where the mass sits says whether the send window is right —
-              a long tail means the delay could move.</span>
+            <span class="t-xs fg-muted">Where the mass sits tells you whether your send window
+              is right — a long tail means the delay could move.</span>
           </div>
         </section>
 
@@ -819,7 +818,7 @@ function engagementTab(c) {
               </div>`)}
           </div>
           <div class="card-foot">
-            <span class="t-xs fg-muted">A body tap is a user who wanted the offer without being
+            <span class="t-xs fg-muted">A body tap is someone who wanted the offer without being
               told where to press.</span>
           </div>
         </section>
@@ -859,8 +858,8 @@ function feedbackImpactTab(c) {
           <div>
             <h3 class="t-h2">Score drivers</h3>
             <span class="t-xs fg-lighter">
-              Every theme found in the open responses, ranked by how much it pulls
-              the <span class="mono">${ratingText(RATING_BLOCK.average)}</span> average down.
+              Every theme in the open responses, ranked by how far it pulls the
+              <span class="mono">${ratingText(RATING_BLOCK.average)}</span> average down.
             </span>
           </div>
         </div>
@@ -957,8 +956,7 @@ function feedbackImpactTab(c) {
             <div class="notice notice-warning">
               ${raw(icon('warn'))}
               <span>These variants run <strong>different triggers</strong>, so content is not the
-                single variable between them. Read this as two campaigns sharing a name, not as an
-                A/B result.</span>
+                only variable. Read this as two campaigns sharing a name, not an A/B result.</span>
             </div>` : '')}
           <div class="grid g2">
             ${VARIANT_RESULTS.map((v) => html`
@@ -1072,8 +1070,8 @@ function announcementImpactTab(c) {
           </div>
         </div>
         <div class="card-foot">
-          <span class="t-xs fg-muted">Revenue per recipient is the figure that makes two variants
-            with different reach comparable — a bigger send is not a better one.</span>
+          <span class="t-xs fg-muted">Revenue per recipient makes variants with different reach
+            comparable — a bigger send is not a better one.</span>
         </div>
       </section>
 
@@ -1081,7 +1079,7 @@ function announcementImpactTab(c) {
       <section class="card" data-insight="holdout">
         <div class="card-head">
           <h3 class="t-h2">Holdout lift</h3>
-          <span class="t-xs fg-lighter">Measured against ${count(HOLDOUT.controlSize)} users held back from the send</span>
+          <span class="t-xs fg-lighter">Measured against ${count(HOLDOUT.controlSize)} people held back from the send</span>
         </div>
         <div class="card-body stack">
           <div class="grid g3">
@@ -1152,8 +1150,7 @@ function announcementImpactTab(c) {
             <div class="notice notice-warning">
               ${raw(icon('warn'))}
               <span>These variants run <strong>different triggers</strong>, so content is not the
-                single variable between them. Read this as two campaigns sharing a name, not as an
-                A/B result.</span>
+                only variable. Read this as two campaigns sharing a name, not an A/B result.</span>
             </div>` : '')}
           <div class="grid g2">
             ${ANNOUNCE_VARIANTS.map((v) => {
@@ -1206,7 +1203,7 @@ function weightHistoryCard(variants) {
       </div>
       <div class="card-body">
         <p class="t-body fg-lighter" style="margin-bottom:12px">
-          A shift in results can be read against the shift in traffic allocation that produced it.
+          Read a shift in results against the shift in traffic that produced it.
         </p>
         <div class="stack-sm">
           ${WEIGHT_HISTORY.map((w) => html`
@@ -1550,9 +1547,8 @@ const campaignActions = {
     const ok = await dialog({
       title: 'Stop this campaign?',
       body: html`<p class="t-body fg-light">
-        Stopping ends enrolment permanently — this campaign has no end date, so a manual stop is
-        the only way it finishes. Everything already collected stays on this page. A stopped
-        campaign cannot be resumed.</p>`,
+        Stopping ends enrolment permanently and cannot be undone. Everything already collected
+        stays on this page.</p>`,
       actions: [
         { label: 'Cancel', kind: 'outline', value: false },
         { label: 'Stop campaign', kind: 'danger', value: true },
@@ -1570,10 +1566,10 @@ const campaignActions = {
     const ok = await dialog({
       title: 'Edit a live campaign?',
       body: html`<p class="t-body fg-light">
-        This campaign stays editable while it runs. Saving any change to its content, audience or
-        schedule creates <strong>version ${c.versions + 1}</strong> and timestamps it — responses
-        collected before and after are split at that boundary, so an edited question never blends
-        two datasets into one series. Renaming a variant is exempt.</p>`,
+        This campaign stays editable while it runs. Saving a change to its content, audience or
+        schedule creates <strong>version ${c.versions + 1}</strong> — responses before and after
+        are split at that boundary, so an edited question never blends two datasets into one
+        series. Renaming a variant is exempt.</p>`,
       actions: [
         { label: 'Cancel', kind: 'outline', value: false },
         { label: 'Open in builder', kind: 'primary', value: true },
@@ -1592,7 +1588,7 @@ const campaignActions = {
       title: 'Export this view',
       body: html`
         <p class="t-body fg-light">
-          The file carries everything needed to read it away from this screen.
+          The file carries everything you need to read it away from this screen.
         </p>
         <ul class="stack-sm" style="margin-top:12px">
           ${[
@@ -1648,7 +1644,7 @@ function wire(host) {
       body: html`
         <p class="t-body fg-light">
           The <span class="mono">${count(driver.volume)}</span> responses behind this driver go to
-          <strong>${owner}</strong> with the filter already applied — nobody rebuilds it by hand.
+          <strong>${owner}</strong> with the filter already applied.
         </p>
         <div class="stack-sm" style="margin-top:14px">
           ${[
