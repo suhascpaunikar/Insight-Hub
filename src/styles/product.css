@@ -509,3 +509,334 @@ body {
   --kumo-table-row-bg: var(--color-kumo-base);
 }
 .ih-table-scroll tbody tr:hover { background: var(--surface-100); }
+
+/* ==========================================================================
+   The wizard (§9.3).
+
+   Kumo's Sidebar, Tabs, Input, Select, Switch, Radio, Checkbox, Banner,
+   Dialog, DatePicker and Popover do the controls. What is left here is the
+   wizard's own shape: the stepper, the section rhythm, the option card's
+   frame, the template gallery and the phone.
+   ========================================================================== */
+
+.ih-step-page { max-width: var(--content-max); padding-bottom: var(--sp-xl); }
+
+/* The footer bar. */
+.ih-builder-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-md);
+  flex: none; height: var(--foot-h); padding: 0 20px;
+  background: var(--background-200); border-top: 1px solid var(--border-default);
+}
+.ih-topbar-wide { gap: var(--sp-lg); }
+
+/* A stop per step, joined by the line between them. The stop is the circle and
+   its label; the line belongs to the step it leaves, so a completed step fills
+   the run to the next one and progress reads as one continuous track. The
+   button carries no box of its own — the circle is the marker, and a card
+   around it would put two edges around one number. */
+.ih-stepper-bar {
+  display: flex; align-items: center; flex: none; padding: 10px 20px;
+  background: var(--background-200); border-bottom: 1px solid var(--border-default);
+}
+.ih-stepper { display: flex; align-items: center; width: 100%; margin: 0; padding: 0; list-style: none; }
+.ih-stepstop { display: flex; align-items: center; min-width: 0; }
+.ih-stepstop:not(:last-child) { flex: 1 1 auto; }
+.ih-step-line {
+  flex: 1 1 auto; min-width: 16px; height: 2px; margin: 0 10px; border-radius: 1px;
+  background: var(--border-default);
+  transition: background-color var(--motion-base) var(--ease-out);
+}
+.ih-stepstop[data-state="complete"] .ih-step-line { background: var(--brand-default); }
+
+.ih-step {
+  position: relative; display: flex; align-items: center; gap: 9px; min-width: 0;
+  padding: 6px 10px; border-radius: var(--radius-md);
+  background: none; border: 0; text-align: left; cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out);
+}
+.ih-step:hover:not(:disabled) { background: var(--surface-100); }
+.ih-step-num {
+  display: grid; place-items: center; flex: none; width: 22px; height: 22px;
+  border: 1px solid var(--border-strong); border-radius: var(--radius-full);
+  font-family: var(--font-mono); font-size: 10.5px; color: var(--foreground-lighter);
+  transition: background-color var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out);
+}
+.ih-step-label { display: block; font-size: 12px; font-weight: 500; color: var(--foreground-light); }
+
+/* Legible in greyscale (FR-65): fill, weight and glyph carry the state, not hue. */
+.ih-step[data-state="current"] .ih-step-num {
+  background: var(--brand-default); border-color: var(--brand-default);
+  color: var(--on-brand); font-weight: 600;
+}
+.ih-step[data-state="current"] .ih-step-label { color: var(--foreground-default); font-weight: 600; }
+.ih-step[data-state="complete"] .ih-step-num {
+  background: var(--brand-default); border-color: var(--brand-default); color: var(--on-brand);
+}
+.ih-step[data-state="complete"] .ih-step-label { color: var(--foreground-default); }
+.ih-step[data-state="locked"] { opacity: .5; cursor: not-allowed; }
+.ih-step[data-state="locked"] .ih-step-num { border-style: dashed; }
+.ih-step[data-state="attention"] .ih-step-num {
+  background: var(--destructive-200); border-color: var(--destructive); color: var(--destructive-fg);
+}
+.ih-step[data-state="attention"] .ih-step-label { color: var(--destructive-fg); }
+
+/* A step is a stack of sections with a rule between them. The rule is the
+   point: with the panel box gone, nothing said where one decision ended and
+   the next began, and five identically-typeset regions in one column read as
+   one. The ratio does the work — 24px and a hairline between sections against
+   10px from a heading to the controls it governs. */
+.ih-ssections { display: flex; flex-direction: column; }
+.ih-w-940 { max-width: 940px; }
+.ih-sstep-head { padding-bottom: var(--sp-xs); }
+.ih-sstep-desc { margin: 4px 0 0; max-width: 70ch; font-size: var(--fs-sm); color: var(--foreground-lighter); }
+.ih-t-h1 { margin: 0; font-size: var(--fs-section); font-weight: var(--fw-title); letter-spacing: var(--tracking-title-sm); }
+.ih-t-h2 { margin: 0; font-size: var(--fs-lg); font-weight: var(--fw-title); }
+.ih-t-h3 { font-size: var(--fs-body); font-weight: var(--fw-title); }
+
+.ih-ssection {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: var(--sp-xl) 0; border-top: 1px solid var(--border-muted);
+}
+.ih-ssections > .ih-ssection:first-of-type { border-top: 0; }
+/* Prose and short fields are held to a column; a gallery of cards is not. The
+   cap goes on the content rather than the section, so the separator above a
+   narrow section still spans the step — a rule that changes width between one
+   section and the next reads as a mistake rather than as a boundary. */
+.ih-ssection-narrow > .ih-ssection-head,
+.ih-ssection-narrow > .ih-sbody { max-width: 820px; }
+.ih-ssection-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--sp-md); flex-wrap: wrap;
+}
+.ih-ssection-title { margin: 0; font-size: var(--fs-lg); font-weight: var(--fw-title); line-height: 1.4; }
+.ih-ssection-desc {
+  margin: 6px 0 0; max-width: 62ch;
+  font-size: var(--fs-body); line-height: var(--lh-body); color: var(--foreground-light);
+}
+.ih-ssection-actions { display: flex; align-items: center; gap: var(--sp-sm); flex-wrap: wrap; }
+.ih-sbody { display: flex; flex-direction: column; gap: var(--sp-md); }
+.ih-sbody-note {
+  font-size: var(--fs-sm); line-height: var(--lh-body); color: var(--foreground-lighter);
+}
+.ih-req { margin-left: 4px; color: var(--destructive-fg); }
+.ih-error { margin: 0; font-size: var(--fs-sm); color: var(--destructive-fg); }
+.ih-issue-list { margin: 6px 0 0; padding-left: 16px; }
+
+/* The option card: §11.4's "no single Kumo card-radio; compose it". Surface
+   supplies the frame and its ring; the control inside is a real Kumo Radio or
+   Checkbox, so keyboard and screen-reader behaviour come with it. */
+.ih-opt {
+  display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px;
+  cursor: pointer; text-align: left; width: 100%;
+  transition: background-color var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out);
+}
+.ih-opt:hover { background: var(--surface-200); }
+.ih-opt-on { background: var(--surface-200); border-color: var(--border-strong); }
+.ih-opt[aria-disabled="true"]:hover { background: transparent; }
+.ih-opt-body { display: block; min-width: 0; }
+.ih-opt-title { display: block; font-size: var(--fs-lg); font-weight: var(--fw-title); color: var(--foreground-default); }
+.ih-opt-note { display: block; margin-top: 6px; font-size: var(--fs-body); line-height: var(--lh-body); color: var(--foreground-light); }
+.ih-opt-icon { display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: var(--radius-md); background: var(--surface-100); color: var(--foreground-lighter); }
+.ih-opt-tight { padding: 6px 8px; align-items: center; }
+.ih-opt-full { width: 100%; }
+
+/* The goal gallery. */
+.ih-goal {
+  display: flex; flex-direction: column; align-items: stretch; padding: 14px;
+  text-align: left; cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
+}
+.ih-goal:hover { background: var(--surface-200); }
+.ih-goal-name { margin-top: 12px; font-size: var(--fs-lg); font-weight: var(--fw-title); }
+.ih-goal-note { margin-top: 6px; font-size: var(--fs-sm); color: var(--foreground-light); }
+.ih-goal-badge { margin-top: 12px; align-self: flex-start; }
+/* FR-6 — present but non-interactive, cannot be focused, does not count. */
+.ih-goal-soon { border-style: dashed; opacity: .55; cursor: not-allowed; background: transparent; }
+
+/* The AI accent, for a claim rather than a measurement (FR-91). Kumo's Banner
+   variants are default / alert / error / secondary — it has no AI rung — so
+   this one notice stays the product's own. */
+.ih-notice-ai {
+  display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px;
+  background: var(--ai-200); border: 1px solid var(--ai-400); border-radius: var(--radius-md);
+  color: var(--ai-fg); font-size: var(--fs-sm); line-height: var(--lh-body);
+}
+.ih-notice-ai svg { flex: none; margin-top: 1px; }
+
+/* Layout helpers the steps reach for. */
+.ih-grid { display: grid; gap: var(--sp-md); }
+.ih-g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ih-g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ih-g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .ih-g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .ih-g2, .ih-g3, .ih-g4 { grid-template-columns: minmax(0, 1fr); } }
+.ih-stack { display: flex; flex-direction: column; gap: var(--sp-md); }
+.ih-stack-sm { display: flex; flex-direction: column; gap: var(--sp-sm); }
+.ih-stack-lg { display: flex; flex-direction: column; gap: var(--sp-xl); }
+.ih-col { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ih-row-wrap { display: flex; align-items: center; gap: var(--sp-sm); flex-wrap: wrap; }
+.ih-row-stretch { display: flex; align-items: stretch; gap: var(--sp-sm); }
+.ih-grow { flex: 1 1 auto; min-width: 0; }
+.ih-min-0 { min-width: 0; }
+.ih-align-start { align-items: flex-start; gap: var(--sp-lg); }
+.ih-mono { font-family: var(--font-mono); }
+.ih-mt-4 { margin-top: 4px; }
+.ih-mt-6 { margin-top: 6px; }
+.ih-mt-8 { margin-top: var(--sp-sm); }
+.ih-mb-8 { margin-bottom: var(--sp-sm); }
+.ih-mb-10 { margin-bottom: 10px; }
+.ih-mb-20 { margin-bottom: 20px; }
+.ih-block { display: block; }
+.ih-w-88 { width: 88px; }
+.ih-w-130 { width: 130px; }
+.ih-w-280 { width: 280px; }
+.ih-w-292 { max-width: 292px; }
+.ih-w-320 { width: 320px; }
+.ih-flip { transform: scaleY(-1); }
+
+.ih-radio-row { display: flex; align-items: center; gap: var(--sp-sm); cursor: pointer; }
+.ih-radio-inline { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: var(--fs-sm); }
+.ih-radio-label { font-size: var(--fs-sm); font-weight: var(--fw-label); }
+.ih-when-row { display: flex; align-items: center; gap: var(--sp-sm); padding-left: 25px; }
+.ih-date-field { min-width: 170px; justify-content: flex-start; }
+.ih-date-empty { color: var(--foreground-muted); }
+
+.ih-step4-grid,
+.ih-content-grid {
+  display: grid; grid-template-columns: minmax(0, 1fr) 292px; gap: var(--sp-xl); align-items: start;
+}
+@media (max-width: 1100px) {
+  .ih-step4-grid, .ih-content-grid { grid-template-columns: minmax(0, 1fr); }
+}
+.ih-preview-rail { position: sticky; top: 16px; }
+.ih-summary-row {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-md);
+  padding: 5px 0; border-bottom: 1px solid var(--border-muted);
+}
+
+/* Estimated reach. */
+.ih-stat {
+  display: flex; flex-direction: column; gap: 6px; padding: var(--sp-md);
+  background: var(--well); border: 1px solid var(--border-muted); border-radius: var(--radius-md);
+}
+.ih-stat-key { border-color: var(--brand-default); }
+.ih-stat-label { display: flex; align-items: center; gap: 6px; font-size: var(--fs-xs); color: var(--foreground-lighter); }
+.ih-stat-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--fs-section); font-weight: var(--fw-title); }
+
+/* Exclusion chips. */
+.ih-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.ih-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 6px 3px 10px;
+  background: var(--surface-100); border: 1px solid var(--border-muted);
+  border-radius: var(--radius-full); font-size: var(--fs-xs);
+}
+.ih-chip button {
+  display: grid; place-items: center; width: 16px; height: 16px; padding: 0;
+  border: 0; border-radius: var(--radius-full); background: none;
+  color: var(--foreground-muted); cursor: pointer;
+}
+.ih-chip button:hover { background: var(--surface-300); color: var(--foreground-default); }
+
+/* The CSV drop zone. */
+.ih-drop {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: var(--sp-xl); width: 100%; cursor: pointer;
+  background: none; border: 1px dashed var(--border-strong); border-radius: var(--radius-md);
+  color: var(--foreground-lighter);
+  transition: border-color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out);
+}
+.ih-drop:hover, .ih-drop[data-over] { border-color: var(--brand-default); background: var(--brand-200); }
+.ih-drop-title { font-size: var(--fs-body); font-weight: var(--fw-label); color: var(--foreground-default); }
+.ih-drop-note { max-width: 46ch; text-align: center; font-size: var(--fs-xs); }
+.ih-dropped {
+  display: flex; align-items: flex-start; gap: var(--sp-md); padding: var(--sp-md);
+  background: var(--well); border: 1px solid var(--border-muted); border-radius: var(--radius-md);
+}
+.ih-dropped-body { min-width: 0; flex: 1 1 auto; }
+.ih-dropped-name { margin: 0; font-size: var(--fs-body); font-weight: var(--fw-title); }
+
+/* Variant tabs and content rows. */
+.ih-variant-tabs { display: flex; align-items: center; gap: var(--sp-sm); flex-wrap: wrap; padding: var(--sp-md) 0; }
+.ih-variant-tab { display: inline-flex; align-items: center; gap: 6px; }
+.ih-element-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-md); padding: 10px 12px; }
+.ih-choice-row { display: flex; align-items: center; gap: 6px; }
+.ih-choice-letter { width: 20px; justify-content: center; }
+.ih-rule-row { display: grid; grid-template-columns: 52px minmax(0, 1.4fr) minmax(0, 1.2fr) minmax(0, 1fr) auto; align-items: center; gap: 6px; }
+.ih-rule-join { text-align: right; }
+
+/* The template gallery (FR-27 … FR-33). */
+.ih-tpl-group-head { padding: var(--sp-md) 0 6px; border-bottom: 1px solid var(--border-muted); margin-bottom: var(--sp-md); }
+.ih-tpl-grid { display: grid; gap: var(--sp-md); grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); }
+.ih-tpl-card {
+  position: relative; display: flex; flex-direction: column; gap: var(--sp-sm); padding: 10px;
+  background: var(--background-100); border: 1px solid var(--border-muted);
+  border-radius: var(--radius-md); cursor: pointer; text-align: left; overflow: hidden;
+  transition: border-color var(--motion-fast) var(--ease-out);
+}
+.ih-tpl-card:hover { border-color: var(--border-strong); }
+.ih-tpl-card.ih-opt-on { border-color: var(--brand-default); }
+.ih-tpl-name { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; min-width: 0; }
+.ih-tpl-name b { font-size: var(--fs-sm); font-weight: var(--fw-label); }
+.ih-tpl-name i { font-family: var(--font-mono); font-size: 10px; font-style: normal; color: var(--foreground-muted); }
+/* FR-32 — hover surfaces the primary action over the preview. */
+.ih-tpl-hover {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--background-200) 78%, transparent);
+  opacity: 0; transition: opacity var(--motion-fast) var(--ease-out);
+}
+.ih-tpl-card:hover .ih-tpl-hover, .ih-tpl-card:focus-visible .ih-tpl-hover { opacity: 1; }
+.ih-tpl-cta {
+  display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px;
+  background: var(--brand-default); border-radius: var(--radius-sm);
+  color: var(--on-brand); font-size: var(--fs-sm); font-weight: var(--fw-label);
+}
+
+/* The wireframe inside a template card: bars and blocks, never copy. */
+.ih-device {
+  display: block; height: 112px; padding: 5px;
+  background: var(--panel); border: 1px solid var(--border-muted); border-radius: var(--radius-sm);
+}
+.ih-dv { background: var(--surface-200); border-radius: 3px; }
+.ih-dv-col { display: flex; flex-direction: column; gap: 5px; padding: 6px 4px; }
+.ih-dv-line { height: 6px; background: var(--surface-300); border-radius: 3px; }
+.ih-w70 { width: 70%; } .ih-w45 { width: 45%; }
+.ih-dv-img { background: var(--surface-300); }
+.ih-dv-dots { display: flex; gap: 4px; }
+.ih-dv-dot { width: 7px; height: 7px; border-radius: var(--radius-full); background: var(--surface-300); }
+.ih-dv-cta { background: var(--brand-200); }
+.ih-h-14 { height: 14px; } .ih-h-16 { height: 16px; } .ih-h-22 { height: 22px; }
+.ih-h-34 { height: 34%; } .ih-h-38 { height: 38%; } .ih-h-70 { height: 70%; }
+
+/* The phone (FR-50 / FR-54) — §11.4's "(none)". */
+.ih-phone {
+  position: relative; width: 292px; padding: 10px;
+  background: var(--panel); border: 1px solid var(--border-strong); border-radius: 22px;
+}
+.ih-phone-notch {
+  width: 64px; height: 5px; margin: 2px auto 8px;
+  background: var(--surface-300); border-radius: var(--radius-full);
+}
+.ih-phone-screen {
+  display: flex; flex-direction: column; gap: var(--sp-md); min-height: 380px; padding: var(--sp-md);
+  background: var(--background-100); border-radius: 14px;
+}
+.ih-phone-empty { display: grid; place-items: center; text-align: center; }
+.ih-phone-q { margin: 0; font-size: var(--fs-body); font-weight: var(--fw-title); }
+.ih-phone-submit { width: 100%; margin-top: auto; }
+.ih-dv-field { height: 44px; margin-top: 6px; }
+.ih-rate-row { display: flex; gap: 4px; margin-top: var(--sp-sm); flex-wrap: wrap; }
+.ih-rate-btn {
+  flex: 1 1 0; min-width: 22px; height: 28px; padding: 0;
+  background: var(--surface-100); border: 1px solid var(--border-muted); border-radius: var(--radius-xs);
+  color: var(--foreground-lighter); font-family: var(--font-mono); font-size: 11px; cursor: pointer;
+}
+.ih-rate-btn:disabled, .ih-star-btn:disabled { cursor: default; }
+.ih-rate-btn.ih-on { background: var(--brand-default); border-color: var(--brand-default); color: var(--on-brand); }
+.ih-star-btn {
+  padding: 0 2px; background: none; border: 0; cursor: pointer;
+  color: var(--surface-300); font-size: 22px; line-height: 1;
+}
+.ih-star-btn.ih-on { color: var(--rating-4); }
