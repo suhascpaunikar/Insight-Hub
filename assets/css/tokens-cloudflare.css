@@ -1,137 +1,152 @@
 /* ==========================================================================
-   InsightHub — Cloudflare dashboard, dark: design tokens
+   InsightHub — design tokens
 
    A drop-in override for the `:root` tokens in supabase.css. Load it AFTER
-   that file and the primitives take the palette unchanged:
+   kumo-tokens.css and BEFORE nothing else needs to change:
 
      <link rel="stylesheet" href="assets/css/supabase.css" />
+     <link rel="stylesheet" href="assets/css/kumo-tokens.css" />
      <link rel="stylesheet" href="assets/css/tokens-cloudflare.css" />
 
-   Values come from **@cloudflare/kumo** (2.13.2), Cloudflare's own component
-   library, resolved out of `dist/styles/theme-kumo.css` — its tokens are
-   authored in oklch behind `light-dark()`, so each one below is that file's
-   dark branch converted to sRGB. Where Kumo has no token for something the
-   screenshots clearly show, the measured value is kept and marked. The
-   comparison, and the handful of places the two disagreed, is
-   docs/ui-guidelines-cloudflare-dark.md §11.
+   Every colour here is a `var()` onto **@cloudflare/kumo**'s own token, not a
+   hex copied out of it. kumo-tokens.css is generated straight from the
+   installed package (`node scripts/kumo-tokens.mjs`), so a package upgrade
+   moves this console with it and there is no transcription to drift.
 
-   Names are InsightHub's, so nothing downstream had to change; the Kumo
-   aliases at the foot give every token its official name as well, which is
-   what a later move onto Kumo's own components would be renaming to.
+   Names stay InsightHub's so nothing downstream had to change. What follows
+   is a translation table, and the only interesting rows are the ones where
+   this console needed a step Kumo does not name — each of those says so.
+
+   Kumo's surface ladder, darkest first: canvas (the page) → elevated →
+   recessed → base (the card) → tint → interact. In dark mode that runs from
+   near-black up to grey; in light mode it inverts, and the card is the white
+   one. Both directions come out of the generated file, so nothing below is
+   theme-specific.
    ========================================================================== */
 
 :root {
-  /* ---------- Neutral surfaces ----------
-     Kumo's surface ladder, top to bottom: canvas is the page, elevated a
-     half-step off it, recessed a well, base the card. Note the naming is
-     the reverse of the intuition — "elevated" is *darker* here, because in
-     dark mode a raised surface is the one that catches more light, and the
-     ladder is written from the page outward. */
-  --background-200: #030303;   /* kumo canvas   — page, rail, top bar, footer */
-  --background-100: #0f0f0f;   /* kumo base     — cards, tables, dialogs, secondary buttons */
-  --surface-100: #18181b;      /* kumo control  — inputs, inset wells, hover on the page */
-  --surface-200: #262626;      /* kumo fill     — pressed, selected row, secondary fill */
-  --surface-300: #404040;      /* kumo fill-hover — the strongest neutral fill */
-  --well: #000000;             /* no Kumo token: settings panels and form fields read as true black */
-  --band: #060606;             /* kumo elevated — chart-card header, table category rows */
-  --panel: #0b0b0b;            /* kumo recessed — drawer, card body under a header */
+  /* ---------- Neutral surfaces ---------- */
+  --background-200: var(--color-kumo-canvas);    /* the page behind everything */
+  --background-100: var(--color-kumo-base);      /* cards, tables, dialogs, secondary buttons */
+  --surface-100: var(--color-kumo-control);      /* inputs, selects, inset wells */
+  --surface-200: var(--color-kumo-fill);         /* pressed, selected row, secondary fill */
+  --surface-300: var(--color-kumo-interact);     /* the strongest neutral fill */
+  --well: var(--color-kumo-control);             /* form fields — Kumo's control, never black */
+  --band: var(--color-kumo-elevated);            /* chart-card header, alternating table rows */
+  --panel: var(--color-kumo-recessed);           /* drawer, tab track, card body under a header */
 
-  /* ---------- Borders ---------- */
-  --border-muted: #262626;     /* kumo hairline */
-  --border-default: #333333;   /* kumo line — every default 1px border */
-  --border-strong: #404040;    /* kumo interact */
-  --border-overlay: #333333;   /* overlays separate by frame, not by a lifted border */
-  --border-input: #737373;     /* no Kumo token: the dashboard's form fields carry a visible ring */
+  /* ---------- Borders ----------
+     Kumo draws these as rings rather than borders, but the colours are the
+     same three: hairline between flat surfaces, line on anything elevated,
+     interact on a control the pointer is over or that is selected. */
+  --border-muted: var(--color-kumo-hairline);
+  --border-default: var(--color-kumo-line);
+  --border-strong: var(--color-kumo-interact);
+  --border-overlay: var(--color-kumo-line);
+  --border-input: var(--color-kumo-line);        /* Kumo inputs ring in `line`, like every other frame */
 
   /* ---------- Text ----------
-     Kumo's ramp is strong / default / subtle / placeholder / inactive. The
-     one step it has no name for is body copy between default and subtle,
-     which the settings screens clearly use; it is snapped to neutral-300,
-     the nearest colour that is actually in the palette. */
-  --foreground-strong: #fafafa;    /* kumo text strong — the top of the ramp */
-  --foreground-default: #f5f5f5;   /* kumo text default — titles, values, cells */
-  --foreground-light: #d4d4d4;     /* neutral-300 — paragraph copy, key-value labels */
-  --foreground-lighter: #a1a1a1;   /* kumo text subtle — descriptions, table headers, inactive tabs */
-  --foreground-muted: #737373;     /* kumo text placeholder — form labels, placeholders */
-  --foreground-disabled: #525252;  /* kumo text inactive */
+     Kumo's ramp is strong / default / subtle / placeholder / inactive. The one
+     step it has no name for is body copy between default and subtle, which the
+     settings screens clearly use; `--foreground-light` is that step, and it is
+     the only text colour here that is not a Kumo token. */
+  --foreground-strong: var(--text-color-kumo-strong);
+  --foreground-default: var(--text-color-kumo-default);
+  --foreground-light: #d4d4d4;                   /* no Kumo token: paragraph copy, key-value labels */
+  --foreground-lighter: var(--text-color-kumo-subtle);
+  --foreground-muted: var(--text-color-kumo-placeholder);
+  --foreground-disabled: var(--text-color-kumo-inactive);
 
   /* ---------- Brand = the action blue ----------
-     Kumo's brand is a flat colour. The dashboard paints its primary button
-     as a gradient over it, which the screenshots show plainly, so the
-     gradient is kept and re-based on Kumo's brand rather than on the
-     measured stops. */
-  --brand-default: #045ede;                    /* kumo brand */
-  --brand-600: #1447e6;                        /* kumo brand-hover; also the primary border */
-  --brand-400: rgba(4, 94, 222, 0.35);
-  --brand-200: rgba(4, 94, 222, 0.12);
+     Kumo's brand is a flat colour. The dashboard paints its primary button as
+     a gradient over it, which the screenshots show plainly, so the gradient is
+     kept and mixed out of Kumo's brand rather than out of measured stops. */
+  --brand-default: var(--color-kumo-brand);
+  --brand-600: var(--color-kumo-brand-hover);
+  --brand-400: color-mix(in srgb, var(--color-kumo-brand) 35%, transparent);
+  --brand-200: color-mix(in srgb, var(--color-kumo-brand) 12%, transparent);
   --on-brand: #ffffff;
-  --brand-gradient: linear-gradient(180deg, #2f7ce8 0%, #0f68e2 50%, #045ede 100%);
-  --brand-disabled: #2a4a72;
-  --link: #51a2ff;          /* kumo text link — links in prose */
-  --link-soft: #51a2ff;     /* kumo text link — links in tables and on raised surfaces */
-  --link-action: #8ec5ff;   /* one step up: text-only action buttons, link hover */
+  --brand-gradient: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-kumo-brand) 82%, #ffffff) 0%,
+    color-mix(in srgb, var(--color-kumo-brand) 94%, #ffffff) 50%,
+    var(--color-kumo-brand) 100%
+  );
+  --brand-disabled: color-mix(in srgb, var(--color-kumo-brand) 45%, var(--color-kumo-base));
+  --link: var(--text-color-kumo-link);
+  --link-soft: var(--text-color-kumo-link);
+  --link-action: color-mix(in srgb, var(--text-color-kumo-link) 70%, #ffffff);
 
   /* ---------- Semantic ----------
-     Kumo pairs each of these with a low-alpha tint for the surface behind
-     it, which is what its Badge and Banner variants fill with. */
-  --success: #00d492;                          /* kumo success — Live dot, toggle */
-  --success-fg: #a4f4cf;                       /* kumo text success */
-  --success-tint: rgba(10, 85, 45, 0.2);
-  --success-track: #1a6535;                    /* toggle, on */
-  --success-knob: #55d484;
+     Each pairs a solid — the dot, the icon, the fill — with the low-alpha tint
+     Kumo's Badge and Banner variants wash behind it, and a text weight that
+     clears its contrast floor on a card. */
+  --success: var(--color-kumo-success);
+  --success-fg: var(--text-color-kumo-success);
+  --success-tint: var(--color-kumo-success-tint);
+  --success-track: var(--color-kumo-success);    /* the switch, on */
+  --success-knob: var(--color-kumo-base);        /* and the knob that rides it */
 
-  --destructive: #e7000b;                      /* kumo danger */
-  --destructive-fg: #ff6467;                   /* kumo text danger */
-  --destructive-400: rgba(231, 0, 11, 0.35);
-  --destructive-200: rgba(154, 0, 0, 0.17);    /* kumo danger-tint */
-  --destructive-gradient: linear-gradient(180deg, #f5333a 0%, #e7000b 100%);
-  --destructive-disabled: #7b211e;
-  --destructive-icon: #ff6467;
+  --destructive: var(--color-kumo-danger);
+  --destructive-fg: var(--text-color-kumo-danger);
+  --destructive-400: color-mix(in srgb, var(--color-kumo-danger) 35%, transparent);
+  --destructive-200: var(--color-kumo-danger-tint);
+  --destructive-gradient: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-kumo-danger) 85%, #ffffff) 0%,
+    var(--color-kumo-danger) 100%
+  );
+  --destructive-disabled: color-mix(in srgb, var(--color-kumo-danger) 45%, var(--color-kumo-base));
+  --destructive-icon: var(--text-color-kumo-danger);
 
-  --warning: #db6809;                          /* kumo warning */
-  --warning-fg: #ff8904;                       /* kumo text warning */
-  --warning-400: rgba(219, 104, 9, 0.35);
-  --warning-200: rgba(87, 49, 0, 0.37);        /* kumo warning-tint */
+  --warning: var(--color-kumo-warning);
+  --warning-fg: var(--text-color-kumo-warning);
+  --warning-400: color-mix(in srgb, var(--color-kumo-warning) 35%, transparent);
+  --warning-200: var(--color-kumo-warning-tint);
 
-  --info: #00a6f4;                             /* kumo info */
-  --info-fg: #51a2ff;
-  --info-400: rgba(0, 166, 244, 0.35);
-  --info-200: rgba(27, 59, 141, 0.22);         /* kumo info-tint */
+  --info: var(--color-kumo-info);
+  --info-fg: var(--text-color-kumo-info);
+  --info-400: color-mix(in srgb, var(--color-kumo-info) 35%, transparent);
+  --info-200: var(--color-kumo-info-tint);
 
-  /* AI accent — machine inference only (FR-91). Kumo's badge-purple is
-     #8200db; the dashboard's documentation chip measures #7367e5, and that
-     softer violet is what reads as a claim rather than an alert here. */
-  --ai: #7367e5;
-  --ai-400: rgba(115, 103, 229, 0.35);
-  --ai-200: rgba(115, 103, 229, 0.12);
-  --ai-fg: #a9a2f0;
+  /* AI accent — machine inference only (FR-91), on Kumo's badge purple so the
+     violet that means "a machine said this" is a colour from the palette
+     rather than one invented for it. */
+  --ai: var(--color-kumo-badge-purple);
+  --ai-400: color-mix(in srgb, var(--color-kumo-badge-purple) 35%, transparent);
+  --ai-200: color-mix(in srgb, var(--color-kumo-badge-purple) 14%, transparent);
+  --ai-fg: color-mix(in srgb, var(--color-kumo-badge-purple) 45%, #ffffff);
 
   /* ---------- Rating ramp — normalised to any scale (FR-79 / FR-89) ----------
      Five stops on Kumo's own semantic colours, so the top of the ramp and a
-     Live dot are one colour: both mean "as good as it gets". */
-  --rating-1: #ff6467;
-  --rating-2: #ff8904;
-  --rating-3: #ffac00;
-  --rating-4: #7cc47f;
-  --rating-5: #00d492;
+     Live dot are one colour: both mean "as good as it gets". The two middle
+     stops are mixes, because Kumo names no colour between warning and success. */
+  --rating-1: var(--text-color-kumo-danger);
+  --rating-2: var(--text-color-kumo-warning);
+  --rating-3: var(--color-kumo-badge-orange);
+  --rating-4: color-mix(in srgb, var(--color-kumo-success) 55%, var(--color-kumo-badge-orange));
+  --rating-5: var(--color-kumo-success);
 
   /* ---------- Focus ----------
-     Kumo focuses with a near-white ring at 1.5px, not a coloured one: on a
-     near-black canvas that is the highest-contrast mark available, and it
-     never collides with the blue that means "action". */
-  --focus-ring: #e9e9e9;
-  --focus-ring-soft: rgba(233, 233, 233, 0.5);
+     Kumo focuses with the highest-contrast neutral it has against the canvas,
+     not with a colour: on near-black that is near-white, on near-white it is
+     ink, and it never collides with the blue that means "action". */
+  --focus-ring: var(--color-kumo-focus);
+  --focus-ring-soft: color-mix(in srgb, var(--color-kumo-focus) 50%, transparent);
 
-  /* ---------- Elevation: none. Overlays separate by frame and backdrop. ---------- */
-  --shadow-1: none;
-  --shadow-2: none;
-  --shadow-3: none;
+  /* ---------- Elevation ----------
+     Kumo's two shadow colours, in its own three shapes: `shadow-xs` on a card,
+     `shadow-sm` on a tab indicator, `shadow-lg` on anything that floats. On a
+     dark canvas a drop shadow does almost nothing, which is why Kumo rings
+     every surface as well — the ring is what separates, the shadow only
+     seats it. */
+  --shadow-1: 0 1px 2px 0 var(--color-kumo-shadow-drop);
+  --shadow-2: 0 1px 3px 0 var(--color-kumo-shadow-drop), 0 1px 2px -1px var(--color-kumo-shadow-drop);
+  --shadow-3: 0 10px 15px -3px var(--color-kumo-shadow-drop), 0 4px 6px -4px var(--color-kumo-shadow-drop);
 
   /* ---------- Radii ----------
-     Kumo's controls are rounded-lg (8px) at base and lg, rounded-md (6px)
-     at sm, rounded-sm (4px) at xs. Containers are 8px, the dialog frame 12px.
-     This is the one shape correction the screenshots got wrong: controls are
-     8px, not 6px. */
+     Kumo's controls are rounded-lg (8px) at base and lg, rounded-md (6px) at
+     sm, rounded-sm (4px) at xs. Containers are 8px, the dialog frame 12px. */
   --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -150,9 +165,9 @@
   --control-lg: 40px;
 
   /* ---------- Type ----------
-     Kumo declares exactly four steps — 12 / 13 / 14 / 16 — which is the
-     scale the screenshots measured to. Its Text component adds the display
-     sizes: heading1 30px, heading2 24px, heading 16px, all semibold. */
+     Kumo declares exactly four steps — 12 / 13 / 14 / 16 — which is the scale
+     the screenshots measured to. Its Text component adds the display sizes:
+     heading1 30px, heading2 24px, heading 16px, all semibold. */
   --fs-title: 30px;
   --fs-section: 24px;
   --fs-title-sm: 20px;
@@ -169,12 +184,14 @@
   --tracking-title: -0.02em;
   --tracking-title-sm: -0.01em;
 
-  /* ---------- Chrome ---------- */
+  /* ---------- Chrome ----------
+     Measurements, not colours: Kumo's Sidebar header is `h-[58px]` and its
+     footer `h-12`, and the rest is this console's own layout. */
   --logo: #3ecf8e;                 /* the IH mark only: a logo, never an action */
   --rail-w: 260px;
   --rail-w-collapsed: 56px;
   --rail-item: 32px;
-  --bar-h: 58px;
+  --bar-h: 58px;                   /* kumo Sidebar.Header */
   --strip-h: 76px;
   --foot-h: 72px;                  /* the wizard's footer bar */
   --site-foot-h: 60px;
@@ -182,47 +199,43 @@
   --content-list: 1024px;
   --content-form: 800px;
   --content-settings: 954px;
-  --topbar-border: #252525;
-  --tabgroup-bg: #0b0b0b;
-  --tabgroup-border: #1c1c1c;
+  --topbar-border: var(--color-kumo-line);
+  --tabgroup-bg: var(--color-kumo-recessed);
+  --tabgroup-border: color-mix(in srgb, var(--color-kumo-hairline) 70%, transparent);
 
-  /* ---------- Overlays ---------- */
-  --backdrop: rgba(10, 10, 10, 0.85);
-  --frame: #080808;
+  /* ---------- Overlays ----------
+     Kumo dims behind a dialog with its recessed surface rather than with a
+     black wash, so the backdrop belongs to the theme in both directions. */
+  --backdrop: color-mix(in srgb, var(--color-kumo-recessed) 85%, transparent);
+  --frame: var(--color-kumo-elevated);
 
   /* ---------- Charts ----------
-     Kumo defers charts to ECharts and ships no series palette, so these stay
-     as measured from the dashboard's own charts. */
-  --chart-grid: #2b2d2e;
-  --chart-axis: #9da3af;
+     Kumo defers charts to ECharts and ships no series palette, so the grid and
+     axis take neutrals off its ladder and the series are picked to stay
+     distinguishable in both themes. */
+  --chart-grid: var(--color-kumo-fill);
+  --chart-axis: var(--text-color-kumo-subtle);
   --chart-0: #848589;
   --chart-1: #4390f0;
   --chart-2: #f0b620;
   --chart-3: #e7639d;
 
-  /* Documentation chip (§6.7). Same hex as `--ai`, deliberately a separate
-     name: FR-91 keeps the AI violet for machine inference, and a link to a
-     manual is not a claim about the data. */
+  /* Documentation chip (§6.7). Deliberately a separate name from `--ai`:
+     FR-91 keeps the violet for machine inference, and a link to a manual is
+     not a claim about the data. */
   --docs-chip: #7367e5;
 
   /* ---------- Code ---------- */
-  --code-bg: #313131;
-  --code-field-bg: #232628;
-  --code-accent: #52a2ff;
+  --code-bg: var(--color-kumo-fill);
+  --code-field-bg: var(--color-kumo-control);
+  --code-accent: var(--text-color-kumo-link);
 
   /* ---------- Motion ----------
-     Kumo's, and this is the one place the restyle changed a rule rather than
-     a value. The scale the console inherited was built on "nothing
-     overshoots"; Kumo ships two overshoot curves and two keyframes that use
-     them, so the rule now names where a bounce is allowed instead of banning
-     it outright. docs/ui-guidelines-cloudflare-dark.md §12 carries the
-     rewrite; the rules it did not touch — animate in, animate out; a close is
-     not an open reversed; delay is an intent gate — all still hold.
-
-     `--motion-fast` is Kumo's `--default-transition-duration` exactly. Kumo
-     declares no second or third duration, because Tailwind's `duration-*`
-     utilities supply them, so base and slow are that utility scale's next two
-     steps rather than a value invented here. */
+     Kumo's. `--motion-fast` is its `--default-transition-duration` exactly;
+     Kumo declares no second or third duration because Tailwind's `duration-*`
+     utilities supply them, so base and slow are that scale's next two steps
+     rather than values invented here. docs/ui-guidelines-cloudflare-dark.md
+     §12 carries the rules. */
   --motion-fast: 100ms;            /* kumo --default-transition-duration */
   --motion-base: 200ms;            /* tailwind duration-200 */
   --motion-slow: 300ms;            /* tailwind duration-300 */
@@ -231,6 +244,7 @@
   --ease-out: cubic-bezier(0, 0, 0.2, 1);          /* kumo --ease-out */
   --ease-bounce: cubic-bezier(0.2, 0, 0, 1.5);     /* kumo --ease-bounce */
   --ease-back: cubic-bezier(0.34, 1.56, 0.64, 1);  /* kumo, on both toast bumps */
+  --ease-sidebar: cubic-bezier(0.77, 0, 0.175, 1); /* kumo SIDEBAR_EASING */
 
   /* Kumo runs its skeleton shimmer at 1.5s and its chart shimmer at 1.8s —
      the chart's is slower because the wave behind it is static. */
@@ -238,217 +252,52 @@
   --shimmer-duration-chart: 1.8s;
   --spin-duration: 0.5s;           /* kumo --animate-refresh */
 
-  /* The skeleton sweep, which is the one place a literal white would not
-     survive the theme swap. */
-  --skel-sweep: rgba(255, 255, 255, 0.05);
-}
-
-/* --------------------------------------------------------------------------
-   Kumo aliases
-
-   Every token above under the name Kumo gives it. Nothing in this repo reads
-   these yet; they exist so a stylesheet can be written against the official
-   vocabulary today, and so the eventual move onto Kumo's own components is a
-   rename rather than a re-derivation. Kumo's real file defines them through
-   `light-dark()`; these are the dark branch only, because this console has
-   one theme.
-   -------------------------------------------------------------------------- */
-:root {
-  --color-kumo-canvas: var(--background-200);
-  --color-kumo-elevated: var(--band);
-  --color-kumo-recessed: var(--panel);
-  --color-kumo-base: var(--background-100);
-  --color-kumo-control: var(--surface-100);
-  --color-kumo-tint: var(--surface-200);
-  --color-kumo-fill: var(--surface-200);
-  --color-kumo-fill-hover: var(--surface-300);
-  --color-kumo-overlay: var(--surface-200);
-  --color-kumo-interact: var(--border-strong);
-  --color-kumo-line: var(--border-default);
-  --color-kumo-hairline: var(--border-muted);
-  --color-kumo-contrast: var(--foreground-strong);
-  --color-kumo-focus: var(--focus-ring);
-  --color-kumo-brand: var(--brand-default);
-  --color-kumo-brand-hover: var(--brand-600);
-  --color-kumo-success: var(--success);
-  --color-kumo-danger: var(--destructive);
-  --color-kumo-warning: var(--warning);
-  --color-kumo-info: var(--info);
-  --color-kumo-success-tint: var(--success-tint);
-  --color-kumo-danger-tint: var(--destructive-200);
-  --color-kumo-warning-tint: var(--warning-200);
-  --color-kumo-info-tint: var(--info-200);
-
-  --text-color-kumo-strong: var(--foreground-strong);
-  --text-color-kumo-default: var(--foreground-default);
-  --text-color-kumo-subtle: var(--foreground-lighter);
-  --text-color-kumo-placeholder: var(--foreground-muted);
-  --text-color-kumo-inactive: var(--foreground-disabled);
-  --text-color-kumo-link: var(--link);
-  --text-color-kumo-success: var(--success-fg);
-  --text-color-kumo-danger: var(--destructive-fg);
-  --text-color-kumo-warning: var(--warning-fg);
-  --text-color-kumo-brand: #f6821f;            /* the Cloudflare orange: identity only, never a control */
+  /* The skeleton sweep, on Kumo's own edge highlight: white at 10% in dark,
+     black at 12% in light, which is the one place a literal would not survive
+     the theme swap. */
+  --skel-sweep: var(--color-kumo-shadow-edge);
 
   --default-transition-duration: var(--motion-fast);
   --animate-refresh: refresh var(--spin-duration) ease-in-out infinite;
 }
 
-/* ==========================================================================
+/* --------------------------------------------------------------------------
    Light mode
 
-   Dark stays the default: `<html data-theme="dark">` ships on all four pages
-   and nothing here fires unless the theme is switched to `light`. That is
-   deliberate — the console was designed on the dark scale, every screenshot
-   the guideline measures is dark, and light is the alternate rather than the
-   other half of a pair.
-
-   Values are Appendix B of docs/ui-guidelines-cloudflare-dark.md, measured
-   from the dashboard's light theme at 06.39.55, with three additions the
-   appendix does not record because a dark-only build never needed them: the
-   semantic colours re-picked for contrast on white, the rating ramp
-   re-darkened, and the chart series likewise. A palette tuned to sit on
-   `#030303` does not survive being dropped onto `#fbfbfb` — mid-greens and
-   ambers that read clearly against near-black fall under 3:1 against white —
-   so those three are re-derived rather than reused.
-
-   Only what changes is listed. Radii, control heights, type, spacing, motion
-   and the chrome measurements are all theme-independent and stay above.
-   ========================================================================== */
+   Almost nothing. Every colour above is a `var()` onto a Kumo token, and
+   kumo-tokens.css already carries both branches, so the theme switch is
+   handled a layer down. What is left is the handful of values Kumo has no
+   token for, which have to be re-picked by hand for the other canvas.
+   -------------------------------------------------------------------------- */
 :root[data-theme="light"] {
-  /* ---------- Neutral surfaces ----------
-     The dark ladder inverted, not merely lightened: the page is the tinted
-     one and the card is pure white, which is the opposite of dark mode, where
-     the page is the darkest thing and the card lifts off it. */
-  --background-200: #fbfbfb;   /* page, rail, top bar, footer */
-  --background-100: #ffffff;   /* cards, tables, dialogs, secondary buttons */
-  --surface-100: #f3f3f3;      /* inputs, inset wells, hover on the page */
-  --surface-200: #e9e9e9;      /* pressed, selected row, secondary fill */
-  --surface-300: #d4d4d4;      /* the strongest neutral fill */
-  --well: #f9f9f9;             /* settings panels and form fields */
-  --band: #f9f9f9;             /* card header band, table category rows */
-  --panel: #ffffff;            /* drawer, card body under a header */
-
-  /* ---------- Borders ---------- */
-  --border-muted: #ececec;
-  --border-default: #e3e3e3;
-  --border-strong: #d4d4d4;
-  --border-overlay: #e3e3e3;
-  --border-input: #a3a3a3;
-
-  /* ---------- Text ----------
-     The same five-step ramp read from the other end. `#171717` and `#737373`
-     are the appendix's two; the three between and beyond are the neutral
-     scale's own steps, so the ramp stays evenly spaced. */
-  --foreground-strong: #0a0a0a;
-  --foreground-default: #171717;
+  /* The unnamed step between `default` and `subtle`, read from the other end. */
   --foreground-light: #404040;
-  --foreground-lighter: #737373;
-  --foreground-muted: #8a8a8a;   /* the appendix's icon grey */
-  --foreground-disabled: #a3a3a3;
 
-  /* ---------- Brand ----------
-     The appendix records the primary button as a `#3583ff → #0d70ff` gradient
-     with a `#055fde` edge, so the gradient is taken verbatim and the flat
-     brand is its foot. `--link` takes the edge colour rather than the fill:
-     `#0d70ff` on white is about 3.6:1, which is under the floor for text,
-     and `#055fde` clears it at 5.3:1. */
-  --brand-default: #0d70ff;
-  --brand-600: #055fde;
-  --brand-400: rgba(13, 112, 255, 0.35);
-  --brand-200: rgba(13, 112, 255, 0.10);
-  --on-brand: #ffffff;
-  --brand-gradient: linear-gradient(180deg, #3583ff 0%, #0d70ff 100%);
-  --brand-disabled: #a8c8f5;
-  --link: #055fde;
-  --link-soft: #055fde;
-  --link-action: #0d70ff;
+  /* On white, `--on-brand` and the gradient's white mix both still hold, but
+     a knob mixed out of `--color-kumo-base` would be white on a white track.
+     Kumo's own Switch knob is `bg-kumo-base` in light and neutral-400 in dark,
+     which is exactly this inversion — spelled out because our switch is one
+     element with a pseudo-element, not two divs. */
+  --success-knob: #ffffff;
 
-  /* ---------- Semantic ----------
-     Re-picked, not reused. Kumo's dark greens and ambers are chosen to glow
-     against near-black; the same hues on white are the ones that fail. Each
-     `-fg` is the text weight and clears 4.5:1 on the card, each base is the
-     fill or dot, and each tint is the low-alpha wash behind a badge. */
-  --success: #00a06e;
-  --success-fg: #026c4c;
-  --success-tint: rgba(0, 160, 110, 0.12);
-  --success-track: #00a06e;      /* toggle, on — the fill is the colour now */
-  --success-knob: #ffffff;       /* and the knob is what sits on it */
-
-  --destructive: #d1000a;
-  --destructive-fg: #b00008;
-  --destructive-400: rgba(209, 0, 10, 0.35);
-  --destructive-200: rgba(209, 0, 10, 0.09);
-  --destructive-gradient: linear-gradient(180deg, #ef3239 0%, #d1000a 100%);
-  --destructive-disabled: #f0b3b5;
-  --destructive-icon: #d1000a;
-
-  --warning: #b45309;
-  --warning-fg: #92400e;
-  --warning-400: rgba(180, 83, 9, 0.35);
-  --warning-200: rgba(180, 83, 9, 0.10);
-
-  --info: #0284c7;
-  --info-fg: #036ba1;
-  --info-400: rgba(2, 132, 199, 0.35);
-  --info-200: rgba(2, 132, 199, 0.10);
-
-  /* AI accent — still violet, still machine inference only (FR-91), a shade
-     deeper so it holds against white as it holds against black. */
-  --ai: #6355d8;
-  --ai-fg: #4c3fbf;
-  --ai-400: rgba(99, 85, 216, 0.35);
-  --ai-200: rgba(99, 85, 216, 0.10);
-
-  /* The documentation chip is a filled pill with a white glyph on it, so it
-     keeps its hex in both themes — the glyph's contrast never changes. */
-  --docs-chip: #7367e5;
-
-  /* ---------- Rating ramp (FR-79 / FR-89) ----------
-     The same five meanings at weights that survive a white card. Red barely
-     moves; the amber and both greens move a long way, because those are the
-     stops that disappear. The order and the spacing are unchanged, so a
-     colour still means on this theme what it means on the other. */
-  --rating-1: #d1000a;
-  --rating-2: #c2410c;
+  /* A palette tuned to glow against near-black is the one that fails on white:
+     mid-greens and ambers that read clearly at #030303 fall under 3:1 at
+     #fbfbfb. Kumo re-picks its own semantics per theme and the ramp follows
+     them, but the two mixed stops and the chart series are ours, so they are
+     re-derived here rather than reused. */
   --rating-3: #a16207;
   --rating-4: #4d8f52;
-  --rating-5: #00875a;
 
-  /* ---------- Focus ----------
-     Kumo's focus ring is the highest-contrast neutral available against the
-     canvas. On near-black that was near-white; on near-white it is near-black.
-     The rule is the same one, read the other way. */
-  --focus-ring: #171717;
-  --focus-ring-soft: rgba(23, 23, 23, 0.45);
-
-  /* ---------- Chrome ---------- */
-  --topbar-border: #e3e3e3;
-  --tabgroup-bg: #f3f3f3;
-  --tabgroup-border: #e3e3e3;
-
-  /* ---------- Overlays ----------
-     The backdrop dims towards ink rather than towards more black, and the
-     dialog's frame is white so the 5px ring reads as a mat around the panel
-     instead of a hole cut in the page. */
-  --backdrop: rgba(23, 23, 23, 0.35);
-  --frame: #ffffff;
-
-  /* ---------- Charts ----------
-     Series darkened to the same rule as the ramp: the neutral and the amber
-     are the two that vanish on white, so they move most. */
-  --chart-grid: #e9e9e9;
-  --chart-axis: #737373;
   --chart-0: #9a9a9e;
   --chart-1: #2a7de1;
   --chart-2: #c48a06;
   --chart-3: #d1477f;
 
-  /* ---------- Code ---------- */
-  --code-bg: #f3f4f6;
-  --code-field-bg: #f9fafb;
-  --code-accent: #0757c9;
+  /* The documentation chip is a filled pill with a white glyph on it, so it
+     keeps its hex in both themes — the glyph's contrast never changes. */
+  --docs-chip: #7367e5;
 
-  /* The sweep darkens the block instead of lightening it. */
-  --skel-sweep: rgba(0, 0, 0, 0.055);
+  /* The AI violet needs one step more contrast on white than the mix above
+     lands on; `--ai` itself is Kumo's badge purple and holds in both. */
+  --ai-fg: #4c3fbf;
 }

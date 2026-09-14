@@ -800,9 +800,12 @@ header — 30px title, a one-line description, and `New campaign` (primary lg) a
 action; the range control ("Last 30 days") sits alone on the row above the cards, right
 aligned. The four metric cards become §6.9 stat cards with sparklines, 16px gaps.
 Toolbar, **above the card rather than inside it**: search (flex) + "Columns" and sort
-selects as secondary md + refresh icon button, 12px gaps. The table per §6.11 at two-line
-rows (name + ID), status pill, mono trigger, mono figures, rating in the ramp colour,
-relative time `#a1a1a1`, a chevron, and ⋯. Pagination row beneath. Footer.
+selects as secondary md + refresh icon button, 12px gaps. The card then opens with the
+status tab strip — it changes which campaigns the list is *about*, where the toolbar only
+changes how that set is shown — and the table per §6.11 at two-line rows (name + ID),
+status pill, mono trigger, mono figures, rating in the ramp colour, relative time
+`#a1a1a1`, a chevron, and ⋯. Column headers sort, carrying `aria-sort`. Pagination row
+beneath. Footer.
 
 **Four things this screen used to carry, and why it does not.** A `Docs` button beside
 `New campaign`, at the same size, competing with the one action the page exists for — and
@@ -816,10 +819,13 @@ name, ID and trigger together.
 
 **The row is the button.** `Open →` / `Resume →` has gone from the end of the row: the
 whole row opens the campaign, on the `.srow-link` pattern the settings rows already use —
-hover fill, and a chevron that leans two pixels toward its destination. The row keeps its
-`<tr>` semantics rather than taking a `role`, so the accessible target is the campaign
-name, marked up as a button and the only part of the row in the tab order. The objective
-preview came out of the cell with it: the cell is name over ID, and nothing else.
+hover fill, the name brightening, and a chevron that leans two pixels toward its
+destination. With the row itself pressable, a button at the end of it was a second target
+for the same action. The row keeps its `<tr>` semantics rather than taking a `role` — a
+`<tr>` with a role bolted on stops being a row to a screen reader — so the accessible
+target is the campaign name, marked up as a button, labelled "Open …" or "Resume …" to
+match the status, and the only part of the row in the tab order. The objective preview
+came out of the cell with it: the cell is name over ID, and nothing else.
 
 ### 9.2 Insights (`insights.html`)
 

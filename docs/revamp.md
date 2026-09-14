@@ -23,8 +23,9 @@ what is left, and which decisions are already settled so they are not relitigate
 | File | What it is |
 | --- | --- |
 | `docs/ui-guidelines-cloudflare-dark.md` | **The specification.** ~1250 lines. Colour, type, spacing, the shell, every component with its states, do/don'ts, page-by-page notes, and a migration map. §11 is Kumo; §12 is motion. |
-| `assets/css/tokens-cloudflare.css` | Every token, on Kumo's values, aliased to Kumo's own names. Loaded **second** on all four pages. Now carries the motion scale and, at the foot, the whole light theme. |
-| `assets/css/motion-kumo.css` | **New.** Kumo's keyframes, its utility classes under its own names, and the three places this product is allowed to overshoot. Loaded **third**, so its rules are out of reach of `supabase.css`'s reduced-motion block and are stilled again at its own foot. |
+| `assets/css/kumo-tokens.css` | **Generated — do not edit.** Kumo's own tokens, resolved out of the installed package by `scripts/kumo-tokens.mjs`: each var() chain followed, each oklch converted to sRGB, each `light-dark()` pair split into the two themes. Loaded **second** on all four pages. Rebuild it after upgrading `@cloudflare/kumo`. |
+| `assets/css/tokens-cloudflare.css` | The translation table: InsightHub's token names onto Kumo's. Every colour is a `var()` into the generated file, so nothing here can drift from the package. What Kumo has no token for is listed by hand and says why. Loaded **third**; carries the motion scale, and the light-mode block is now only the handful of values Kumo does not name. |
+| `assets/css/motion-kumo.css` | Kumo's keyframes, its utility classes under its own names, and the three places this product is allowed to overshoot. Loaded **fourth**, so its rules are out of reach of `supabase.css`'s reduced-motion block and are stilled again at its own foot. |
 | `assets/css/supabase.css` | The primitives. Still named for the system it replaced; the *App shell* block is the new chrome. |
 | `assets/js/chrome.js` | Owns the breadcrumb, the tab strip (including docking) and now the stat strip. Kept separate from `shell.js` so a page module can import it without pulling the assistant into an import cycle. |
 | `assets/js/shell.js` | The rail, the bar, the footer, the switcher and quick-search popovers. |

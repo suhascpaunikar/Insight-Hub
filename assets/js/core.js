@@ -1125,6 +1125,12 @@ const DD_CLOSE = 120;
 /** Matches the 4px offset the stylesheet puts between trigger and menu. */
 const DD_GAP = 4;
 
+/** Breathing room between a capped menu and the edge of the viewport. */
+const DD_EDGE = 12;
+
+/** Below this a scrolling menu is more frustrating than one that overhangs. */
+const DD_MIN = 120;
+
 function closeMenu(menu) {
   if (menu.hidden || menu.dataset.closing === '1') return;
   menu.dataset.closing = '1';
@@ -1150,17 +1156,62 @@ function closeMenu(menu) {
  * Flipped only when up is genuinely better: a viewport too short for either
  * direction keeps the menu below, where its first items are at least visible.
  */
+const triggerFor = (menu) => menu.closest('.dd')?.querySelector('[data-dd-trigger]');
+
+/**
+ * Lay an open menu out against the viewport, from its trigger's box.
+ *
+ * The menu is `position: fixed` while it is open (see the note on
+ * `[data-anchor="fixed"]` in the stylesheet), so nothing between it and the
+ * document can clip it — which is what a `.table-scroll` or a scrolled sidebar
+ * was doing to menus that flipped upward out of the rows near the bottom.
+ *
+ * Order matters here. The cap is cleared and the position reset before the
+ * measure, because a menu still carrying the height and offset of its last
+ * open measures as whatever it was clipped to and would never flip again.
+ */
+function place(menu, trigger) {
+  menu.style.removeProperty('--dd-max');
+  menu.style.left = '';
+  menu.style.top = '';
+  menu.dataset.anchor = 'fixed';
+
+  const anchor = trigger.getBoundingClientRect();
+  const height = menu.offsetHeight;
+  const width = menu.offsetWidth;
+  const below = window.innerHeight - anchor.bottom - DD_GAP;
+  const above = anchor.top - DD_GAP;
+  const up = height > below && above > below;
+  if (up) menu.dataset.drop = 'up'; else delete menu.dataset.drop;
+
+  /* The room the menu actually has, which is Base UI's `--available-height`
+     under another name. The stylesheet caps `max-height` to it and scrolls the
+     rest, so a menu longer than the screen — a segment list, a question
+     library — ends in a scrollbar rather than off the bottom of the page. */
+  const room = Math.max(DD_MIN, (up ? above : below) - DD_EDGE);
+  menu.style.setProperty('--dd-max', `${room}px`);
+
+  /* Aligned to whichever edge of the trigger the menu was authored against,
+     then held inside the viewport: a menu on a right-hand column would
+     otherwise hang off the screen on a narrow window. */
+  const left = menu.dataset.align === 'start' ? anchor.left : anchor.right - width;
+  const clamped = Math.min(Math.max(DD_EDGE, left), window.innerWidth - width - DD_EDGE);
+  const top = up ? anchor.top - DD_GAP - Math.min(height, room) : anchor.bottom + DD_GAP;
+  menu.style.left = `${Math.round(clamped)}px`;
+  menu.style.top = `${Math.round(top)}px`;
+}
+
 function openMenu(menu) {
   delete menu.dataset.closing;
   delete menu.dataset.drop;
   menu.hidden = false;
 
-  const trigger = menu.closest('.dd')?.querySelector('[data-dd-trigger]');
-  if (!trigger) return;
-  const anchor = trigger.getBoundingClientRect();
-  const height = menu.offsetHeight;
-  const below = window.innerHeight - anchor.bottom;
-  if (height + DD_GAP > below && anchor.top - DD_GAP > below) menu.dataset.drop = 'up';
+  const trigger = triggerFor(menu);
+  /* `data-anchor="css"` is the sidebar's two menus, which are hand-offset
+     against the rail in the stylesheet and have nothing above them that
+     clips. Everything else is placed here. */
+  if (!trigger || menu.dataset.anchor === 'css') return;
+  place(menu, trigger);
 }
 
 /** Open means visible and not on its way out. */
@@ -1200,6 +1251,25 @@ export function wireDropdowns(root = document) {
   if (closerBound) return;
   closerBound = true;
   const closeAll = () => $$('.dd-menu').forEach(closeMenu);
+
+  /* A fixed menu does not travel with the page, so it has to be re-placed as
+     the page moves under it — on the capture phase, because the scroller is
+     usually `.scroll` or a `.table-scroll` rather than the window. A trigger
+     that has scrolled out of its own scroller takes its menu with it: a menu
+     still standing over a row that is no longer there is worse than one that
+     closed. */
+  const settle = () => {
+    $$('.dd-menu[data-anchor="fixed"]').forEach((menu) => {
+      if (!menuIsOpen(menu)) return;
+      const trigger = triggerFor(menu);
+      if (!trigger) return;
+      const box = trigger.getBoundingClientRect();
+      if (box.bottom < 0 || box.top > window.innerHeight) closeMenu(menu);
+      else place(menu, trigger);
+    });
+  };
+  document.addEventListener('scroll', settle, true);
+  window.addEventListener('resize', settle);
   document.addEventListener('click', (event) => {
     if (!event.target.closest('[data-dd-wired="1"]')) closeAll();
   });
@@ -1257,7 +1327,10 @@ function markOverflow(el) {
  * true only while it actually overflows. Safe to call on every paint.
  */
 export function observeOverflow(root = document) {
-  const nodes = $$('.table-scroll', root);
+  /* Tab lists as well as tables: Kumo's own Tabs list is `overflow-x-auto`
+     with the same fade, and a strip of six tabs on a narrow window overflows
+     for exactly the same reason a wide table does. */
+  const nodes = $$('.table-scroll, .tabgroup', root);
   if (!nodes.length) return;
   if (!overflowObserver) {
     if (typeof ResizeObserver === 'undefined') { nodes.forEach(markOverflow); return; }

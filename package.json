@@ -6,6 +6,7 @@
   "license": "MIT",
   "scripts": {
     "start": "python3 -m http.server 8000",
+    "kumo:tokens": "node scripts/kumo-tokens.mjs",
     "kumo:ls": "kumo ls",
     "kumo:doc": "kumo doc"
   },
