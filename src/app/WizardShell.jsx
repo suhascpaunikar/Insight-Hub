@@ -17,6 +17,7 @@ import { Sidebar, Toasty, TooltipProvider, Breadcrumbs, Badge, Button } from '@c
 import { NavRail } from './NavRail.jsx';
 import { TabGroup } from './TabStrip.jsx';
 import { QuickSearch } from './QuickSearch.jsx';
+import { Assistant } from './Assistant.jsx';
 import { Icon } from '../lib/icons.jsx';
 import { useStore, useTheme } from '../lib/useStore.js';
 import { toastManager } from '../lib/toast.js';
@@ -135,6 +136,9 @@ function WizardFrame({ draft, tabs, stepper, footer, onExit, children }) {
         </footer>
       </div>
       <QuickSearch open={searchOpen} onOpenChange={setSearchOpen} />
+      {/* The wizard renders its own chrome rather than the console's, so the
+          companion is mounted here too. */}
+      <Assistant />
     </Sidebar.Provider>
   );
 }

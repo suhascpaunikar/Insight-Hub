@@ -1005,3 +1005,134 @@ body {
 .ih-weight-row { display: flex; align-items: center; gap: 10px; }
 .ih-weight-bar { display: flex; flex: 1; width: 100%; height: 16px; border-radius: 4px; overflow: hidden; }
 .ih-weight-bar > * { height: 100%; }
+
+/* ==========================================================================
+   The assistant — the companion card (FR-91). §11.4's "(none)", and still is:
+   Kumo ships no companion card. What Kumo does supply is everything inside
+   it — the Badge, the Buttons, the Textarea and the Tooltip.
+
+   Violet throughout: the design system reserves the AI accent for machine
+   claims, so the whole surface reads as inference and never as measurement.
+   The card is a fixed 320×380 box — the transcript scrolls inside it rather
+   than growing it, so the console layout never shifts underneath an answer.
+   ========================================================================== */
+.ih-asst {
+  position: fixed; right: var(--sp-lg); bottom: var(--sp-lg);
+  z-index: 80;                     /* over dropdowns and tooltips, under dialogs and toasts */
+  display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-sm);
+  /* The closed card keeps its box — it hides with `visibility`, not `display`,
+     so the reveal has something to animate from. That would make this
+     container a 320×436 hole in the corner of every page that ate clicks on
+     whatever was under it, so the panel is transparent to the pointer and its
+     two children take it back. */
+  pointer-events: none;
+}
+.ih-asst-bubble, .ih-asst[data-open="true"] .ih-asst-card { pointer-events: auto; }
+
+/* The wizard is the one screen carrying a bar of its own along the bottom
+   edge, and at the default 16px the 44px launcher lands on top of Next — the
+   primary action of the whole screen, half-covered by a floating orb. */
+body:has(.ih-builder-foot) .ih-asst { bottom: calc(var(--foot-h) + var(--sp-md)); }
+
+.ih-asst-bubble {
+  width: 44px; height: 44px; flex: none;
+  display: grid; place-items: center; padding: 0; overflow: hidden;
+  border: 1px solid var(--ai-400); border-radius: var(--radius-full);
+  background: transparent;         /* the orb paints its own ground */
+  box-shadow: var(--shadow-2); cursor: pointer;
+}
+
+.ih-asst-card {
+  position: relative; width: 320px; height: 380px; max-height: calc(100vh - 120px);
+  display: flex; flex-direction: column;
+  border: 1px solid var(--border-default); border-radius: var(--radius-md);
+  background: var(--background-100); overflow: hidden;
+  transform-origin: bottom right;
+  transition: opacity 180ms ease, transform 180ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.ih-asst[data-open="false"] .ih-asst-card {
+  opacity: 0; transform: translateY(8px) scale(0.96); visibility: hidden;
+}
+.ih-asst[data-open="true"] .ih-asst-card { opacity: 1; transform: none; visibility: visible; }
+
+.ih-asst-head {
+  display: flex; align-items: center; gap: var(--sp-sm); flex: none;
+  padding: var(--sp-sm) var(--sp-md); border-bottom: 1px solid var(--border-default);
+}
+.ih-asst-head-orb { width: 20px; height: 20px; flex: none; display: block; }
+.ih-asst-head-title { flex: 1; font-size: 12px; font-weight: 500; }
+.ih-asst-icon-btn {
+  display: grid; place-items: center; width: 22px; height: 22px; flex: none;
+  border: 0; border-radius: var(--radius-sm);
+  background: transparent; color: var(--foreground-muted); cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+}
+.ih-asst-icon-btn:hover { background: var(--surface-200); color: var(--foreground-default); }
+.ih-asst-icon-btn[aria-pressed="true"] { background: var(--ai-200); color: var(--ai-fg); }
+
+/* The scrolling transcript — the only part that grows. */
+.ih-asst-body {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  padding: var(--sp-md); cursor: default;
+}
+/* Turns stack oldest first and the newest is the one in view. A question is
+   the reader's own words, so it sits against the right edge on the console's
+   own surface; an answer is the assistant's, so it runs the full width as
+   prose and carries no bubble at all. A claim about the data should read as a
+   sentence rather than as chat furniture, and only one side of this
+   conversation is a person. */
+.ih-asst-log { display: flex; flex-direction: column; gap: var(--sp-md); }
+.ih-asst-turn { display: flex; flex-direction: column; }
+.ih-asst-turn[data-from="you"] { align-items: flex-end; }
+.ih-asst-turn[data-from="you"] .ih-asst-text {
+  max-width: 85%; padding: 5px 9px; border-radius: var(--radius-md);
+  background: var(--surface-200); color: var(--foreground-light);
+  animation: ih-asst-rise var(--motion-base) var(--ease-out) both;
+}
+/* Which panel a reading came from. The header title only ever names the newest
+   reply, so a pointer reading further up the log would lose its subject. */
+.ih-asst-turn-label {
+  margin-bottom: 3px;
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--ai-fg);
+}
+.ih-asst-text { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--foreground-default); }
+.ih-asst-caret {
+  display: inline-block; width: 2px; height: 12px; margin-left: 2px; vertical-align: -2px;
+  border-radius: var(--radius-full); background: var(--ai-fg);
+  animation: ih-asst-blink 1s steps(2, start) infinite;
+}
+@keyframes ih-asst-blink { 50% { opacity: 0; } }
+@keyframes ih-asst-rise { from { opacity: 0; transform: translateY(8px); } }
+
+/* Pinned to the bottom edge — present only once the answer has landed. */
+.ih-asst-follow { flex: none; padding: 0 var(--sp-md) var(--sp-sm); }
+.ih-asst-follow:empty { display: none; }
+.ih-asst-follow-btn {
+  display: flex; align-items: center; gap: var(--sp-sm); width: 100%;
+  padding: 5px var(--sp-xs);
+  border: 0; border-top: 1px solid var(--border-muted);
+  background: transparent; color: var(--foreground-light);
+  font: inherit; font-size: 12px; text-align: left; cursor: pointer;
+  animation: ih-asst-rise 350ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+}
+.ih-asst-follow-btn:hover { background: var(--surface-100); color: var(--foreground-default); }
+.ih-asst-follow-btn svg { flex: none; color: var(--ai-fg); }
+.ih-asst-follow-label { min-width: 0; }
+
+/* The ask box: a field with a squared-off bar beneath it, and a send button
+   that lights only once there is something to send. */
+.ih-asst-ask { flex: none; padding: 0 var(--sp-md) var(--sp-md); }
+.ih-asst-ask-shell {
+  border: 1px solid var(--border-muted); border-radius: var(--radius-md);
+  background: var(--well); overflow: hidden;
+}
+.ih-asst-ask-field {
+  width: 100%; min-height: 34px; max-height: 90px; border: 0; background: transparent;
+  resize: none; font-size: 12.5px;
+}
+.ih-asst-ask-bar {
+  display: flex; justify-content: flex-end; padding: 4px;
+  border-top: 1px solid var(--border-muted);
+}

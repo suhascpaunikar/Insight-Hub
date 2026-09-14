@@ -19,6 +19,7 @@ import { TabGroup } from './TabStrip.jsx';
 import { StatStrip } from './StatStrip.jsx';
 import { SiteFooter } from './SiteFooter.jsx';
 import { QuickSearch } from './QuickSearch.jsx';
+import { Assistant } from './Assistant.jsx';
 import { useStore, useTheme } from '../lib/useStore.js';
 import { toastManager } from '../lib/toast.js';
 
@@ -114,6 +115,8 @@ function ShellFrame({ active, collapseKey, children }) {
         </div>
       </div>
       <QuickSearch open={searchOpen} onOpenChange={setSearchOpen} />
+      {/* Docked bottom-right on every screen, outside the scroller. */}
+      <Assistant />
     </Sidebar.Provider>
   );
 }

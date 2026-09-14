@@ -21,6 +21,7 @@ import {
   CHANNEL_LABEL, elementLabel, scaleMax, tabsFor, variantsOf, volumeLabel, volumeOf,
 } from '../lib/insights-lib.js';
 import { SEGMENTS, KIND_LABEL, campaignKind, isFeedback } from '../lib/data.js';
+import { publishFilters } from '../lib/assistant-context.js';
 
 const params = () => new URLSearchParams(window.location.search);
 
@@ -53,6 +54,11 @@ export function Insights() {
       version: f.version !== 'all' && Number(f.version) > (c.versions || 1) ? 'all' : f.version,
     }));
   }, [c?.id]);
+
+  /* What the assistant is allowed to say this page is filtered to. The
+     vanilla build read it back out of the rendered selects; publishing it is
+     the same coupling with none of the guesswork. */
+  useEffect(() => { publishFilters(filters); }, [filters]);
 
   const tabs = c ? tabsFor(c) : [];
   const active = tabs.includes(tab) ? tab : 'delivery';
