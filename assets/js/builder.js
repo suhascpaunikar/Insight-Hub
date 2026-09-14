@@ -212,7 +212,6 @@ function step1(draft, issues) {
       }))}
 
       <div class="stack-lg" style="max-width:820px">
-        ${raw(objectiveSection(draft))}
         ${raw(stepPanel({
           title: 'Campaign name',
           required: true,
@@ -241,9 +240,10 @@ function step1(draft, issues) {
                 ? `<span class="error" role="alert">${esc(issue('name').message)}</span>`
                 : `<span class="hint">${draft.objective && draft.objective.trim()
                     ? 'Generate reads your objective, or write your own.'
-                    : 'Write the campaign objective above to generate one from it.'}</span>`)}
+                    : 'Write the campaign objective below to generate one from it.'}</span>`)}
             </div>`,
         }))}
+        ${raw(objectiveSection(draft))}
 
         ${raw(stepPanel({
           title: 'Apps',
