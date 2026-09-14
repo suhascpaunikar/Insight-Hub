@@ -26,6 +26,22 @@
    ========================================================================== */
 
 :root {
+  /* ---------- Spacing and families ----------
+     The 4px scale the layout is built on, and the two families. These were in
+     supabase.css's :root, which the port deleted along with the rest of the
+     mirrored primitives — but Kumo names neither (its own spacing is
+     Tailwind's utilities, which the product's remaining CSS cannot reach), so
+     they move here rather than disappearing. */
+  --sp-xxs: 2px;
+  --sp-xs: 4px;
+  --sp-sm: 8px;
+  --sp-md: 12px;
+  --sp-lg: 16px;
+  --sp-xl: 24px;
+  --sp-xxl: 32px;
+  --font-sans: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
   /* ---------- Neutral surfaces ---------- */
   --background-200: var(--color-kumo-canvas);    /* the page behind everything */
   --background-100: var(--color-kumo-base);      /* cards, tables, dialogs, secondary buttons */

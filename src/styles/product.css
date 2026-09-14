@@ -17,3 +17,287 @@ body {
   line-height: var(--lh-body);
   -webkit-font-smoothing: antialiased;
 }
+
+/* ==========================================================================
+   The shell frame (§5).
+
+   Kumo's Sidebar owns the rail — its width, its collapse, its tooltips and
+   its surface — so what is left here is the column beside it: the bar, the
+   scroller, the two bands, and the footer. The 260/56px rail widths, the
+   `.rail-text` fade and the whole `.tabgroup` pill track are gone; they were
+   the mirror.
+   ========================================================================== */
+
+.ih-main {
+  display: flex; flex-direction: column; min-width: 0; flex: 1;
+  height: 100vh; overflow: hidden;
+}
+
+/* The bar (§5.3): 58px, breadcrumb left, three utilities right. */
+.ih-topbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  flex: none; height: var(--bar-h); padding: 0 16px;
+  background: var(--background-200);
+  border-bottom: 1px solid var(--topbar-border);
+}
+.ih-topbar-dock { display: flex; align-items: center; min-width: 0; }
+.ih-topbar-right { display: flex; align-items: center; gap: 4px; flex: none; }
+
+/* FR-62 — the environment dot. Staging is the one that has to look different
+   at a glance, so it takes the warning colour and Production the success. */
+.ih-env-dot {
+  width: 7px; height: 7px; border-radius: var(--radius-full);
+  background: var(--success);
+}
+.ih-env-dot[data-env="Staging"] { background: var(--warning); }
+
+.ih-avatar {
+  width: 28px; height: 28px; padding: 0; border-radius: var(--radius-full);
+  background: var(--surface-200); color: var(--foreground-default);
+  font-size: 11px; font-weight: var(--fw-title); letter-spacing: 0.02em;
+}
+
+.ih-rail-mark {
+  display: grid; place-items: center; flex: none; width: 22px; height: 22px;
+  border-radius: var(--radius-sm);
+  background: var(--logo); color: #121212;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.02em;
+}
+
+.ih-kbd {
+  padding: 1px 5px; border: 1px solid var(--border-muted); border-radius: var(--radius-xs);
+  font-family: var(--font-mono, ui-monospace, monospace); font-size: 10px;
+  color: var(--foreground-muted);
+}
+
+.ih-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+.ih-content { padding: 20px 20px 0; }
+
+/* The tab strip band (§5.4). The group inside it is Kumo's Tabs; this is
+   only the band it sits in, which keeps its height while empty so the
+   content does not move when the group docks into the bar. */
+.ih-tabstrip {
+  display: flex; align-items: center; flex: none; height: var(--bar-h); padding: 0 16px;
+  background: var(--background-200); border-bottom: 1px solid var(--border-default);
+}
+.ih-tab-label { display: inline-flex; align-items: center; gap: 8px; }
+/* The wizard's steps carry their number, or the mark their state has earned:
+   a check when complete, a lock when out of reach, an alert when a step the
+   reader has left needs something. */
+.ih-tab-glyph {
+  display: grid; place-items: center; flex: none; width: 18px; height: 18px;
+  border-radius: var(--radius-full);
+  background: var(--surface-200); color: var(--foreground-lighter);
+  font-family: var(--font-mono, ui-monospace, monospace); font-size: 10.5px; line-height: 1;
+}
+[data-selected] .ih-tab-glyph { background: var(--brand-default); color: var(--on-brand); }
+
+/* The stat strip (§6.8): the band under the tab strip on a detail page,
+   carrying the state the breadcrumb cannot — status, trigger, channel,
+   audience, volume — with the campaign's own actions at the right end.
+   One of the components §11.4 marks "(none)".
+
+   `--strip-h` is a minimum, not a fixed height: at narrow widths the columns
+   wrap and the band grows rather than clipping a value. */
+.ih-statstrip {
+  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+  flex: none; min-height: var(--strip-h); padding: 12px 20px;
+  background: var(--background-200); border-bottom: 1px solid var(--border-default);
+}
+.ih-statstrip-cols { display: flex; align-items: center; flex-wrap: wrap; gap: 16px 48px; min-width: 0; }
+/* §6.8 asks for an 80px gap, which assumes the band is nothing but columns.
+   §9.2 then puts the campaign's four actions at its right end, and the two
+   cannot both hold at 1352px — so the gap gives way rather than the actions. */
+.ih-statstrip-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; max-width: 260px; }
+.ih-statstrip-label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: var(--fs-xs); line-height: 1; color: var(--foreground-lighter); white-space: nowrap;
+}
+.ih-statstrip-value {
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+  font-size: var(--fs-body); font-weight: var(--fw-title); line-height: 1.2;
+  color: var(--foreground-default); white-space: nowrap;
+}
+/* A value that is an identifier or a figure is monospaced, so the strip's
+   numbers line up with the same values wherever else they are printed. */
+.ih-statstrip-value.ih-mono { font-family: var(--font-mono, ui-monospace, monospace); font-weight: var(--fw-label); }
+.ih-statstrip-acts { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; flex: none; }
+.ih-hint-mark { display: inline-flex; color: var(--foreground-muted); }
+
+/* Below the point where five columns and four buttons stop fitting, the
+   actions drop under the columns rather than the columns shrinking — a
+   truncated audience label is worse than a taller band. */
+@media (max-width: 1100px) {
+  .ih-statstrip { flex-direction: column; align-items: flex-start; gap: 12px; }
+}
+
+/* The site footer (§5.7). */
+.ih-site-foot {
+  display: flex; align-items: center; justify-content: center; gap: 20px; flex: none;
+  height: var(--site-foot-h, 60px); margin-top: 24px;
+  border-top: 1px solid var(--border-default); font-size: 14px;
+}
+.ih-site-foot-links { display: flex; align-items: center; margin: 0; padding: 0; list-style: none; }
+.ih-site-foot-links li { display: flex; align-items: center; }
+.ih-site-foot-links li + li::before {
+  content: ""; width: 1px; height: 16px; margin: 0 20px; background: var(--border-default);
+}
+.ih-site-foot-copy { font-size: 13px; color: var(--foreground-lighter); }
+
+/* Quick search rows. */
+.ih-cmd-row { display: flex; align-items: center; gap: 10px; width: 100%; }
+.ih-cmd-icon { display: inline-flex; color: var(--foreground-lighter); }
+.ih-cmd-note { margin-left: auto; font-size: var(--fs-xs); color: var(--foreground-muted); }
+
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ==========================================================================
+   Page and settings patterns (§6.7, §6.11).
+
+   The row *layout* stays here — Kumo ships no settings row — but everything
+   inside a row is a Kumo component now, and the panel around it is a
+   LayerCard. What went away with the mirror: `.spanel`'s own border and
+   surface (LayerCard's), every control's styling, and the `.pill`, `.badge`,
+   `.notice` and `.btn` rules these rows used to reach for.
+   ========================================================================== */
+
+.ih-page { max-width: var(--content-settings); margin: 0 auto; }
+.ih-page-body { margin-top: var(--sp-xl); }
+
+/* Title, a one-line description, and the actions that belong to the whole
+   page. The description is the screen's only prose: it says what the screen
+   is for, not what each control does. */
+.ih-page-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--sp-lg); flex-wrap: wrap; margin-bottom: 40px;
+}
+.ih-page-head-title {
+  margin: 0; font-size: var(--fs-title); font-weight: var(--fw-title);
+  letter-spacing: var(--tracking-title); line-height: var(--lh-title);
+}
+.ih-page-head-desc {
+  margin: 8px 0 0; max-width: 64ch;
+  font-size: var(--fs-body); line-height: var(--lh-body); color: var(--foreground-lighter);
+}
+.ih-page-head-actions { display: flex; align-items: center; gap: var(--sp-md); flex-wrap: wrap; }
+
+/* Names the group of rows beneath it. Sized a step under the page title so a
+   screen of four groups still has one obvious first line. */
+.ih-section-head { margin: var(--sp-xxl) 0 var(--sp-lg); }
+.ih-section-head:first-child { margin-top: 0; }
+.ih-section-head h2 {
+  display: flex; align-items: center; gap: var(--sp-md); margin: 0;
+  font-size: var(--fs-lg); font-weight: var(--fw-title); line-height: 1.4;
+}
+.ih-section-head p {
+  margin: 8px 0 0; max-width: 62ch;
+  font-size: var(--fs-body); line-height: var(--lh-body); color: var(--foreground-light);
+}
+
+/* The documentation chip (§6.7): a 30×20 violet pill beside a section title.
+
+   It keeps its own token rather than reading `--ai`, even though the two hold
+   the same hex today. FR-91 reserves the AI violet for machine inference — a
+   violet element is a claim, never a measurement — and a link to a manual is
+   neither. One value, two ideas: naming them apart is what lets the AI accent
+   move later without dragging the chip with it. */
+.ih-docs-chip {
+  display: inline-grid; place-items: center; flex: none; width: 30px; height: 20px;
+  border: 0; background: var(--docs-chip); border-radius: var(--radius-full);
+  color: #ffffff; cursor: pointer;
+  transition: opacity var(--motion-fast) var(--ease-out);
+}
+.ih-docs-chip:hover { opacity: .85; }
+
+/* One container, hairline-divided rows. Every row is label plus explanation
+   on the left and its control on the right — the shape that makes a settings
+   screen scannable without reading it. */
+.ih-spanel { overflow: hidden; margin-bottom: var(--sp-lg); }
+.ih-srow {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-xl); padding: var(--sp-lg); width: 100%;
+  border-top: 1px solid var(--border-muted);
+  background: none; text-align: left; color: inherit; font: inherit;
+}
+.ih-srow:first-child { border-top: 0; }
+.ih-srow-top { align-items: flex-start; }
+.ih-srow-main { flex: 1 1 auto; min-width: 0; }
+.ih-srow-label {
+  font-size: var(--fs-body); font-weight: var(--fw-label); color: var(--foreground-default);
+}
+.ih-srow-desc {
+  margin: 6px 0 0; max-width: 64ch;
+  font-size: var(--fs-body); line-height: var(--lh-body); color: var(--foreground-lighter);
+}
+.ih-block { display: block; }
+.ih-srow-ctl {
+  flex: none; display: flex; flex-direction: column; align-items: flex-end;
+  gap: 5px; width: 300px;
+}
+.ih-srow-ctl-auto { width: auto; }
+
+/* A row that navigates. The whole row is the target, the chevron says so. */
+.ih-srow-link { cursor: pointer; transition: background-color var(--motion-fast) var(--ease-out); }
+.ih-srow-link:hover { background: var(--surface-100); }
+/* The link row's right side is a status beside its chevron, not stacked above
+   it — `.ih-srow-ctl` is a column by default and would otherwise win on order. */
+.ih-srow-link .ih-srow-ctl { flex-direction: row; align-items: center; gap: 10px; }
+.ih-srow-chev {
+  display: inline-flex; color: var(--foreground-muted);
+  transition: color var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out);
+}
+.ih-srow-link:hover .ih-srow-chev { color: var(--foreground-default); transform: translateX(2px); }
+
+/* A notice that lives inside the panel, between the rows it qualifies. */
+.ih-srow-notice { display: block; padding: var(--sp-md) var(--sp-lg); background: var(--background-200); }
+
+/* The panel's own footer: the one save for everything above it. */
+.ih-spanel-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-md);
+  padding: 14px var(--sp-lg);
+  background: var(--background-200); border-top: 1px solid var(--border-muted);
+}
+.ih-row-gap { display: flex; align-items: center; gap: var(--sp-sm); }
+.ih-unit-note { text-align: right; }
+
+/* A standing condition with the action that resolves it. Kumo's Banner is
+   the component (§11.2: the one place §8's "never tint" gives way); this is
+   only the space it sits in. */
+.ih-callout { margin-bottom: var(--sp-xl); }
+
+/* One primary action with its variants folded behind the chevron. §11.4:
+   "no single Kumo split button; compose it". The seam is the radius, so the
+   two halves stay one object. */
+.ih-split { display: inline-flex; align-items: stretch; }
+.ih-split > :first-child > button,
+.ih-split > button:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.ih-split > :last-child button,
+.ih-split > button:last-child {
+  border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: -1px; padding: 0 8px;
+}
+
+/* The AI accent, on a badge that means a machine did the work (FR-91). */
+.ih-badge-ai {
+  margin-left: 7px; padding: 1px 6px; border-radius: var(--radius-full);
+  background: var(--ai-200); color: var(--ai-fg);
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500; letter-spacing: .04em;
+}
+
+/* Dialog interior. Kumo owns the frame, the scrim and the focus trap. */
+.ih-dialog-title { margin: 0 0 var(--sp-md); font-size: var(--fs-lg); font-weight: var(--fw-title); }
+.ih-dialog-body { display: flex; flex-direction: column; gap: var(--sp-md); }
+.ih-dialog-foot { display: flex; justify-content: flex-end; gap: var(--sp-sm); margin-top: var(--sp-xl); }
+.ih-well {
+  padding: var(--sp-md); border: 1px solid var(--border-muted); border-radius: var(--radius-md);
+  background: var(--well); display: flex; flex-direction: column; gap: var(--sp-sm);
+}
+.ih-row-between { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-md); }
+
+/* Kumo's Sidebar.MenuBadge is `inline-flex` inside a `relative` MenuItem and
+   carries no placement of its own, so without this it takes a line under the
+   item it belongs to. Right-aligned and vertically centred over the button,
+   which is where the rail's Beta chips sat before the port. */
+[data-sidebar="menu-item"] > [data-sidebar="menu-badge"] {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  pointer-events: none;
+}
