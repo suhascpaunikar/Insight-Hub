@@ -14,7 +14,7 @@ import {
 } from './core.js';
 import {
   store, createVariant, reconcileVariants, validateStep, furthestReachableStep,
-  audienceReach, templateOf, suggestGoalFromObjective, STEP_COUNT,
+  audienceReach, templateOf, suggestGoalFromObjective, suggestNameFromObjective, STEP_COUNT,
 } from './store.js';
 import {
   GOALS, EXCLUSION_LISTS, RULE_FIELDS, RULE_OPERATORS, TEST_ACCOUNTS, OBJECTIVE_STARTERS,
@@ -39,7 +39,7 @@ import { mountAssistant, openAssistant } from './assistant.js';
  * their own validation, and neither is half of anything.
  */
 export const STEPS = [
-  { n: 1, label: 'Start & details' },
+  { n: 1, label: 'Details' },
   { n: 2, label: 'Audience' },
   { n: 3, label: 'Content' },
   { n: 4, label: 'Schedule & publish' },
@@ -106,22 +106,26 @@ function applyStepTabs(draft) {
   });
 }
 
-/** The boxed stepper the wizard was built with, kept as the alternative. */
+/**
+ * The wizard's stepper: a numbered stop per step, joined by the line between
+ * them. The line after a completed step is filled, so how far through the
+ * wizard you are is one continuous read across the row rather than something
+ * to infer from which tab happens to be highlighted.
+ */
 function stepper(draft) {
+  const model = stepModel(draft);
   return html`
     <ol class="stepper" aria-label="Campaign creation steps">
-      ${stepModel(draft).map((s) => {
+      ${model.map((s, i) => {
         const { state, glyph, isCurrent, isLocked } = s;
         return html`
-          <li style="flex:1;min-width:0">
-            <button class="step" style="width:100%" data-state="${state}" data-act="goto" data-step="${s.n}"
+          <li class="stepstop" data-state="${state}">
+            <button class="step" data-state="${state}" data-act="goto" data-step="${s.n}"
                     ${raw(isLocked ? 'disabled' : '')} ${raw(isCurrent ? 'aria-current="step"' : '')}>
               <span class="step-num">${raw(glyph)}</span>
-              <span style="min-width:0">
-                <span class="step-label truncate">${s.label}</span>
-                <span class="step-state">${state === 'ready' ? 'ready' : state === 'attention' ? 'needs attention' : state}</span>
-              </span>
+              <span class="step-label truncate">${s.label}</span>
             </button>
+            ${raw(i === model.length - 1 ? '' : '<span class="step-line" aria-hidden="true"></span>')}
           </li>`;
       })}
     </ol>`;
@@ -144,10 +148,14 @@ const APP_OPTIONS = [
 const TYPE_OPTIONS = [
   { id: 'regular', label: 'Regular', note: 'One piece of content, one tab in the Content step.' },
   { id: 'ab', label: 'A/B Testing', note: 'Two variants you weight yourself. Extensible to more.' },
-  { id: 'intelligent-ab', label: 'Intelligent A/B', note: 'Starts at an even split, then AI shifts weight to the winner.' },
+  { id: 'intelligent-ab', label: 'Intelligent A/B', note: 'Starts at an even split, then AI shifts weight to the winner.', recommended: true },
 ];
 
 function step1(draft, issues) {
+  // The dwell recommendations read the objective, so without one there is
+  // nothing to say and the section is not a target at all — an empty answer
+  // would teach the reader that resting on a panel does nothing.
+  const tip = (key) => (draft.objective && draft.objective.trim() ? key : '');
   const issue = (f) => issues.find((i) => i.field === f);
   const goals = html`
       <div class="grid g4">
@@ -184,20 +192,19 @@ function step1(draft, issues) {
   return html`
     <section class="stack-lg" aria-labelledby="s1">
       <header>
-        <!-- FR-7 — this step reads as "start from"; "template" is reserved for
-             the Content step. -->
-        <h2 class="t-h1" id="s1">What do you want to find out?</h2>
-        <p class="t-body fg-lighter" style="margin-top:2px;max-width:70ch">
-          The goal you start from sets the defaults for every step after this. The three
-          answers under it decide which components and elements the Content step can offer you.
+        <h2 class="t-h1" id="s1">Campaign details</h2>
+        <p class="t-sm fg-lighter" style="margin-top:4px;max-width:70ch">
+          What this campaign is for, and where it runs. Your template sets the defaults
+          for every step after this.
         </p>
       </header>
 
       ${raw(stepPanel({
         id: 's1-goal',
-        title: 'Starting point',
+        title: 'Select a template',
+        insightKey: tip('pick-template'),
         required: true,
-        desc: 'Pick one. Everything it sets stays editable as you go.',
+        desc: 'Everything it sets stays editable as you go.',
         body: goals,
         // FR-69 — only the goal blocks here; the name and app errors ride on
         // their own panels below, where the field the reader has to fix is.
@@ -205,32 +212,44 @@ function step1(draft, issues) {
       }))}
 
       <div class="stack-lg" style="max-width:820px">
-        ${raw(objectiveSection(draft))}
         ${raw(stepPanel({
           title: 'Campaign name',
           required: true,
-          desc: 'Used as the identifier across the builder, the campaign list and the insights page.',
-          rows: html`
-            <div class="srow">
-              <div class="srow-main">
-                <label class="srow-label" for="cname">Name</label>
-                <p class="srow-desc">Somewhere between a label and a sentence — enough for the next
-                  person to recognise it in a list.</p>
-              </div>
-              <div class="srow-ctl">
-                <input class="input" id="cname" data-act="name" value="${draft.name}"
+          desc: 'How this campaign is identified in the list and on its insights page.',
+          // The field is the point of this section, so it gets the width and sits
+          // directly under the heading. Behind a label in a right-hand column it
+          // read as a footnote to its own section.
+          body: html`
+            <div class="field">
+              <div class="row" style="gap:8px;align-items:stretch">
+                <input class="input grow" id="cname" data-act="name" value="${draft.name}"
                        placeholder="e.g. Post-delivery feedback · Bandra"
                        aria-invalid="${!!(ui.showIssues && issue('name'))}" />
-                ${raw(ui.showIssues && issue('name')
-                  ? `<span class="error" role="alert">${esc(issue('name').message)}</span>` : '')}
+                <!-- Reads the objective, so it cannot run before there is one.
+                     Disabled rather than hidden: a control that appears out of
+                     nowhere never teaches what unlocked it. -->
+                <button class="btn btn-outline" data-act="name-suggest"
+                        ${raw(draft.objective && draft.objective.trim() ? '' : 'disabled')}
+                        title="${raw(draft.objective && draft.objective.trim()
+                          ? 'Suggest a name from your objective'
+                          : 'Write the campaign objective first')}">
+                  ${raw(icon('sparkles'))}Generate
+                </button>
               </div>
+              ${raw(ui.showIssues && issue('name')
+                ? `<span class="error" role="alert">${esc(issue('name').message)}</span>`
+                : `<span class="hint">${draft.objective && draft.objective.trim()
+                    ? 'Generate reads your objective, or write your own.'
+                    : 'Write the campaign objective below to generate one from it.'}</span>`)}
             </div>`,
         }))}
+        ${raw(objectiveSection(draft))}
 
         ${raw(stepPanel({
           title: 'Apps',
+          insightKey: tip('pick-apps'),
           required: true,
-          desc: 'At least one. App selection constrains the components available in the Content step.',
+          desc: 'At least one. This limits the components the Content step can offer.',
           body: html`
             <div class="grid g3">
               ${APP_OPTIONS.map((a) => html`
@@ -245,6 +264,7 @@ function step1(draft, issues) {
 
         ${raw(stepPanel({
           title: 'Campaign type',
+          insightKey: tip('pick-type'),
           required: true,
           desc: 'How many pieces of content this campaign runs, and who decides the split.',
           body: html`
@@ -253,7 +273,11 @@ function step1(draft, issues) {
                 <label class="opt ${draft.type === t.id ? 'is-on' : ''}">
                   <input class="radio" type="radio" name="ctype" data-act="type" data-id="${t.id}"
                          ${raw(draft.type === t.id ? 'checked' : '')} />
-                  <span><span class="opt-title">${t.label}</span><span class="opt-note">${t.note}</span></span>
+                  <span>
+                    <span class="opt-title">${t.label}${raw(t.recommended
+                      ? ' <span class="badge badge-brand">Recommended</span>' : '')}</span>
+                    <span class="opt-note">${t.note}</span>
+                  </span>
                 </label>`)}
             </div>`,
           // FR-11 — channel is deliberately not here.
@@ -304,6 +328,19 @@ function objectiveSection(draft) {
           </div>
         </div>
 
+        <!-- The same action as Generate on the name field, offered where the text
+             it reads is actually written. The field is above this one and can be
+             off screen, so the toast quotes what it produced rather than making
+             you scroll up to find out. Appears with the objective: there is
+             nothing to read before that. -->
+        ${raw(value.trim() ? html`
+          <div class="row wrap" style="gap:8px">
+            <button class="btn btn-outline btn-sm" data-act="name-suggest">
+              ${raw(icon('sparkles'))}Name this campaign
+            </button>
+            <span class="t-xs fg-muted">Fills the campaign name above from what you wrote.</span>
+          </div>` : '')}
+
         <div class="row wrap" style="gap:6px">
           <span class="t-xs fg-lighter">Examples:</span>
           ${starters.map((starter) => html`
@@ -347,7 +384,7 @@ function objectiveSection(draft) {
   return stepPanel({
     id: 's1-obj',
     title: 'Campaign objective',
-    desc: 'Why this campaign exists, in your own words. It configures nothing and travels with the draft.',
+    desc: 'Why this campaign exists, in your own words. Gives the assistant the context it needs.',
     actions: '<span class="badge">Optional</span>',
     body,
   });
@@ -1015,31 +1052,9 @@ function exitStep(direction) {
  */
 function stepperHead(draft) {
   return html`
-    <header class="builder-head">
-      <div class="row" style="height:var(--bar-h);padding:0 12px;gap:12px">
-        <button class="btn btn-ghost btn-icon btn-sm" data-act="exit" aria-label="Exit builder">
-          ${raw(icon('x'))}
-        </button>
-        <div style="min-width:0">
-          <h1 class="t-h2 truncate">${draft.name || 'New campaign'}</h1>
-          <span class="mono t-xs fg-muted">${draft.campaignId}${raw(
-            draft.status === 'Live' ? ` · live · v${draft.version}` : ` · ${esc(draft.status)}`)}</span>
-        </div>
-        <!-- FR-68 has two halves and both still hold. The draft indicator stays
-             here by the stepper; saving moves to the footer, beside the control
-             that leaves the step. Save-and-exit is now the exit control's primary
-             action, so it is still reachable from every step — as one route out
-             rather than two buttons that both save. -->
-        <div class="push row t-xs fg-lighter" style="gap:6px">
-          <span style="width:7px;height:7px;border-radius:50%;background:${raw(
-            draft.dirty ? 'var(--warning)' : 'var(--success)')}"></span>
-          ${draft.dirty ? 'Unsaved changes'
-            : draft.lastSavedAt ? `Saved ${relativeTime(draft.lastSavedAt)}` : 'Nothing to save yet'}
-        </div>
-      </div>
-      <!-- FR-64 / FR-67 — all four visible at once, and the rail persists on scroll. -->
-      <div style="padding:0 12px 12px">${raw(stepper(draft))}</div>
-    </header>`;
+    ${raw(wizardTopbar(draft))}
+    <!-- FR-64 / FR-67 — all four visible at once, and the stepper persists on scroll. -->
+    <div class="stepper-bar">${raw(stepper(draft))}</div>`;
 }
 
 /**
@@ -1048,7 +1063,13 @@ function stepperHead(draft) {
  * screen's tabs, and the strip docks into the bar on scroll. The draft
  * indicator moves to the bar's right cluster as a neutral pill.
  */
-function stripHead(draft) {
+/**
+ * The wizard's top bar: where you are, what state the draft is in, and the way
+ * out. Both chromes wear it, so the breadcrumb is the way back to the campaign
+ * list no matter which one is on — the stepper used to carry a bare X and the
+ * campaign's name instead, which said where you were but not what it was under.
+ */
+function wizardTopbar(draft, { dock = false } = {}) {
   const saved = draft.dirty ? 'Unsaved changes'
     : draft.lastSavedAt ? `Saved ${relativeTime(draft.lastSavedAt)}` : 'Nothing to save yet';
   return html`
@@ -1057,7 +1078,7 @@ function stripHead(draft) {
         { label: 'Campaigns', href: 'index.html', icon: 'megaphone' },
         { label: draft.name || 'New campaign' },
       ]))}</nav>
-      <div class="topbar-dock"></div>
+      ${raw(dock ? '<div class="topbar-dock"></div>' : '')}
       <div class="topbar-right" style="gap:16px">
         <span class="badge badge-mono">${draft.campaignId}</span>
         <!-- FR-68 — the draft indicator, in the shape every other state in the
@@ -1068,6 +1089,10 @@ function stripHead(draft) {
         <button class="topbar-btn" data-act="exit">${raw(icon('x'))}Close</button>
       </div>
     </header>`;
+}
+
+function stripHead(draft) {
+  return wizardTopbar(draft, { dock: true });
 }
 
 export function renderBuilder() {
@@ -1136,10 +1161,10 @@ function paintBuilder() {
          one lands; a Back button beside it was a second, worse route to the
          same place, and the only one that could not skip. -->
     <footer class="builder-foot">
-      <span class="mono t-xs fg-muted">Step ${step} of ${STEP_COUNT} · ${STEPS[step - 1].label}</span>
-      <!-- Paired in one span so the footer's space-between still reads as three
-           columns rather than four evenly spread ones. Save sits left of the
-           action that moves you on, which is the only place it is ever wanted. -->
+      <!-- The step counter that used to sit here said what the stepper says,
+           one region above it and better. Its column is kept so the actions
+           still sit right rather than sliding across an empty footer. -->
+      <span></span>
       <span class="row" style="gap:8px">
         <button class="btn btn-outline" data-act="save-draft">${raw(icon('save'))}Save draft</button>
         ${raw(step < STEP_COUNT
@@ -1390,6 +1415,18 @@ function wireCommon(root) {
   });
 
   on(root, 'click', '[data-act="objective-clear"]', () => set({ objective: '' }));
+
+  /* Reads the objective into a name. The button is disabled without one, so
+     this only runs when there is something to read. */
+  on(root, 'click', '[data-act="name-suggest"]', () => {
+    const d = draft();
+    const name = suggestNameFromObjective(d.objective, d.goal);
+    if (!name) return;
+    set({ name });
+    // Quoted, because the field this writes to is above the objective section
+    // and the reader may be nowhere near it.
+    toast('Campaign named', `“${name}” — edit it like any other field.`);
+  });
 
   /* Step 2 */
   on(root, 'input', '[data-act="name"]',

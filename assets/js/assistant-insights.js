@@ -12,13 +12,14 @@
    read. Where a sentence interprets rather than measures, it says so.
    ========================================================================== */
 import { count, percent, ratingText, LOW_SAMPLE } from './core.js';
+import { suggestGoalFromObjective } from './store.js';
 import {
   DELIVERY_FUNNEL, DELIVERY_SERIES, FAILURE_REASONS, RATING_BLOCK,
   BRANCH_BLOCKS, OPEN_RESPONSES, SCORE_DRIVERS, VARIANT_RESULTS,
   WEIGHT_HISTORY, THEMES,
   ANNOUNCE_FUNNEL, ANNOUNCE_SERIES, ANNOUNCE_FAILURE_REASONS, ENGAGEMENT,
   TIME_TO_TAP, TAP_DESTINATIONS, ENGAGEMENT_BY_APP, ENGAGEMENT_BY_SEGMENT,
-  CONVERSION_FUNNEL, CONVERSION, HOLDOUT, OFFER, ANNOUNCE_VARIANTS,
+  CONVERSION_FUNNEL, CONVERSION, HOLDOUT, OFFER, ANNOUNCE_VARIANTS, GOALS,
 } from './data.js';
 
 const share = (n, total) => (total < LOW_SAMPLE ? count(n) : percent((n / total) * 100));
@@ -509,6 +510,69 @@ const PANELS = {
 };
 
 export const hasInsight = (key) => Object.prototype.hasOwnProperty.call(PANELS, key);
+
+/* ---------- Builder recommendations ----------
+   The wizard has no data to read, so these are not findings — they read the
+   objective the reader typed and say what it argues for. Same standing as the
+   goal suggestion under the objective field: a word list rather than a model,
+   offered and never applied, and each one says out loud that it is a
+   suggestion (FR-91). They only exist once there is an objective to read,
+   which is what gates the dwell target in the first place. */
+const BUILDER_TIPS = {
+  'pick-template': (draft) => {
+    const read = suggestGoalFromObjective(draft.objective);
+    const current = GOALS.find((g) => g.id === draft.goal);
+    const suggested = read && read !== draft.goal ? GOALS.find((g) => g.id === read) : null;
+    return {
+      title: 'Which template',
+      text: suggested
+        ? `Your objective reads like a **${suggested.name}** campaign${current ? `, not ${current.name}` : ''}. `
+          + 'That is a keyword match on what you wrote, not a judgement about the campaign — '
+          + `switch it if it fits, and ${current ? current.name : 'the current template'} stays a fair choice if it does not.`
+        : `Nothing in your objective argues against **${current ? current.name : 'this template'}**. `
+          + 'It sets the defaults for later steps, and every one of them stays editable.',
+      followUps: ['objective'],
+    };
+  },
+  'pick-apps': (draft) => {
+    const wantsWeb = /\b(web|site|website|browser|desktop)\b/i.test(draft.objective || '');
+    const push = draft.goal === 'sale-push';
+    return {
+      title: 'Which apps',
+      text: (wantsWeb
+        ? 'Your objective mentions the web, so **Web** belongs in the selection — '
+          + 'without it the Content step cannot offer on-site or web push components. '
+        : 'Your objective does not mention the web, so **Android and iOS** cover it. ')
+        + (push
+          ? 'A Sale Push reaches people outside the app, so every app you tick widens the audience that can receive it.'
+          : 'Each app you add widens the component set the Content step can offer, so tick only the ones you will actually send to.'),
+      followUps: ['objective'],
+    };
+  },
+  'pick-type': (draft) => {
+    const compares = /\b(test|compare|which|versus|vs\.?|variant|experiment|better)\b/i.test(draft.objective || '');
+    return {
+      title: 'Which campaign type',
+      text: compares
+        ? 'Your objective is phrased as a comparison, which is what **Intelligent A/B** is for — '
+          + 'it opens at an even split and moves weight to whichever variant earns it, so you do not '
+          + 'have to watch the numbers and rebalance by hand.'
+        : 'Your objective asks one question rather than comparing two answers, so **Regular** is the '
+          + 'honest pick — one piece of content, one tab in the Content step. Switching to a test later '
+          + 'costs nothing, and this stays editable.',
+      followUps: ['objective'],
+    };
+  },
+};
+
+export const hasBuilderTip = (key) =>
+  Object.prototype.hasOwnProperty.call(BUILDER_TIPS, key);
+
+/** Read one wizard section and say what the objective argues for. */
+export function builderTip(key, draft) {
+  const composer = BUILDER_TIPS[key];
+  return composer && draft ? composer(draft) : null;
+}
 
 /** Read one panel and report what its numbers say, for the kind on screen. */
 export function insight(key, kind = 'feedback') {

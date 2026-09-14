@@ -1143,8 +1143,8 @@ img { max-width: 100%; }
 .crumb svg { width: 16px; height: 16px; flex: none; }
 a.crumb:hover { color: var(--foreground-default); }
 .crumb[aria-current="page"] { color: var(--foreground-default); font-weight: 500; }
-.crumb-sep { display: inline-flex; flex: none; margin: 0 12px; color: var(--foreground-disabled, #595959); }
-.crumb-sep svg { width: 14px; height: 14px; }
+.crumb-sep { display: inline-flex; flex: none; margin: 0 8px; color: var(--foreground-disabled, #595959); }
+.crumb-sep svg { width: 13px; height: 13px; }
 .topbar-dock { display: none; flex: 1 1 auto; min-width: 0; }
 .topbar[data-docked="true"] .crumbs { display: none; }
 .topbar[data-docked="true"] .topbar-dock { display: flex; align-items: center; }
@@ -1290,39 +1290,63 @@ a.crumb:hover { color: var(--foreground-default); }
 .site-foot-copy { font-size: 13px; color: var(--foreground-lighter); }
 
 /* ---------- Stepper (FR-64 … FR-69) ---------- */
-.stepper { display: flex; gap: 4px; }
+/* The stepper's own bar under the top bar: same ground and hairline as the
+   tab strip it replaces, so the head still reads as one block. */
+.stepper-bar {
+  flex: none; padding: 10px var(--sp-lg);
+  background: var(--background-100);
+  border-bottom: 1px solid var(--border-default);
+}
+
+/* ---------- Stepper ----------
+   A stop per step, joined by the line between them. The stop is the circle and
+   its label; the line belongs to the step it leaves, so a completed step fills
+   the run to the next one and progress reads as one continuous track. The
+   button carries no box of its own — the circle is the marker, and a card
+   around it would put two edges around one number. */
+.stepper { display: flex; align-items: center; }
+.stepstop { display: flex; align-items: center; min-width: 0; }
+.stepstop:not(:last-child) { flex: 1 1 auto; }
+.step-line {
+  flex: 1 1 auto; min-width: 16px; height: 2px; margin: 0 10px; border-radius: 1px;
+  background: var(--border-default);
+  transition: background-color var(--motion-base) var(--ease-out);
+}
+.stepstop[data-state="complete"] .step-line { background: var(--brand-default); }
+
 .step {
   position: relative;
-  display: flex; align-items: center; gap: 10px; flex: 1 1 0; min-width: 0; padding: 10px 14px;
-  border: 1px solid var(--border-default); border-radius: var(--radius-md);
-  background: var(--background-100); text-align: left;
-  transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
+  display: flex; align-items: center; gap: 9px; min-width: 0;
+  padding: 6px 10px; border-radius: var(--radius-md);
+  background: none; border: 0; text-align: left;
+  transition: background-color var(--motion-fast) var(--ease-out);
 }
-.step:hover:not(:disabled) { background: var(--surface-100); border-color: var(--border-strong); }
+.step:hover:not(:disabled) { background: var(--surface-100); }
 .step-num {
-  display: grid; place-items: center; flex: none; width: 21px; height: 21px;
+  display: grid; place-items: center; flex: none; width: 22px; height: 22px;
   border: 1px solid var(--border-strong); border-radius: var(--radius-full);
   font-family: var(--font-mono); font-size: 10.5px; color: var(--foreground-lighter);
+  transition: background-color var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out);
 }
 .step-num svg { width: 12px; height: 12px; }
 .step-label { display: block; font-size: 12px; font-weight: 500; color: var(--foreground-light); }
-.step-state { display: block; font-family: var(--font-mono); font-size: 9px; letter-spacing: .05em; text-transform: uppercase; color: var(--foreground-muted); }
+
 /* Legible in greyscale (FR-65): fill, weight and glyph carry the state, not hue. */
-.step[data-state="current"] { background: var(--surface-200); border-color: var(--border-overlay); }
-/* The current marker is a real element rather than an inset shadow: same 2px
-   bar in the same place, but a shadow cannot wipe and an element can. */
-.step[data-state="current"]::after {
-  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
-  background: var(--brand-default); border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+.step[data-state="current"] .step-num {
+  background: var(--brand-default); border-color: var(--brand-default);
+  color: var(--on-brand, #fff); font-weight: 600;
 }
-.step[data-state="current"] .step-num { background: var(--foreground-default); border-color: var(--foreground-default); color: var(--background-200); font-weight: 600; }
 .step[data-state="current"] .step-label { color: var(--foreground-default); font-weight: 600; }
-.step[data-state="complete"] .step-num { background: var(--surface-300); border-color: var(--border-overlay); color: var(--foreground-default); }
+.step[data-state="complete"] .step-num {
+  background: var(--brand-default); border-color: var(--brand-default); color: var(--on-brand, #fff);
+}
 .step[data-state="complete"] .step-label { color: var(--foreground-default); }
-.step[data-state="locked"] { background: transparent; border-style: dashed; opacity: .55; cursor: not-allowed; }
-.step[data-state="attention"] { border-color: var(--destructive-400); background: var(--destructive-200); }
-.step[data-state="attention"] .step-num { border-color: var(--destructive); color: var(--destructive-fg); }
-.step[data-state="attention"] .step-state { color: var(--destructive-fg); }
+.step[data-state="locked"] { opacity: .5; cursor: not-allowed; }
+.step[data-state="locked"] .step-num { border-style: dashed; }
+.step[data-state="attention"] .step-num { background: var(--destructive-200); border-color: var(--destructive); color: var(--destructive-fg); }
+.step[data-state="attention"] .step-label { color: var(--destructive-fg); }
 
 /* ---------- Step state changes ----------
    Only the steps that actually changed animate, and each state gets the motion
@@ -1330,10 +1354,9 @@ a.crumb:hover { color: var(--foreground-default); }
    animations rather than transitions — a fresh node has no previous value for
    a transition to run from. builder.js decides which steps are marked. */
 
-/* Arriving: the marker wipes out from the centre, the badge settles in. */
-.step[data-changed="current"]::after { animation: step-mark var(--motion-base) var(--ease-out); }
+/* Arriving: the badge settles in. The marker bar it used to wipe out is gone —
+   the filled circle is the marker now. */
 .step[data-changed="current"] .step-num { animation: step-settle var(--motion-base) var(--ease-out); }
-@keyframes step-mark   { from { transform: scaleX(0); } }
 @keyframes step-settle { from { transform: scale(.88); } }
 
 /* Finishing: the badge trades its number for a check, so the swap is marked. */
@@ -1675,6 +1698,20 @@ a.crumb:hover { color: var(--foreground-default); }
   padding: 10px var(--sp-lg); background: var(--background-200);
   border-top: 1px solid var(--border-default);
   font-size: 12px; line-height: 1.5; color: var(--foreground-lighter);
+}
+
+/* The step section's content region. Deliberately not a container: the heading
+   above already names the group, and the controls inside — option cards, a
+   textarea, a picker — carry their own borders and their own selected state.
+   A box here would only add the outer of two competing edges and push the
+   selected thing a rank down the visual order. Settings keeps `.spanel`,
+   where label-and-control rows do need the frame to read as a table. */
+.sbody { display: flex; flex-direction: column; }
+.sbody > .srow { padding: 0; border-top: 0; }
+.sbody > .srow + .srow { margin-top: var(--sp-lg); }
+.sbody-note {
+  margin-top: 10px; font-size: 12px; line-height: 1.5;
+  color: var(--foreground-lighter);
 }
 
 /* ---------- File drop ----------

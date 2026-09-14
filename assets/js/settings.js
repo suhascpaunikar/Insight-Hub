@@ -226,7 +226,7 @@ function generalTab() {
         + 'word under each step at the cost of the height it takes.',
         html`<select class="select" data-act="set-builder-chrome" aria-label="Builder chrome">
           <option value="strip" ${raw(store.state.builderChrome !== 'stepper' ? 'selected' : '')}>Step strip</option>
-          <option value="stepper" ${raw(store.state.builderChrome === 'stepper' ? 'selected' : '')}>Boxed stepper</option>
+          <option value="stepper" ${raw(store.state.builderChrome === 'stepper' ? 'selected' : '')}>Progress stepper</option>
         </select>`,
         { top: true }))}
 
