@@ -413,9 +413,13 @@ img { max-width: 100%; }
   border-radius: var(--radius-md);
 }
 .card-pad { padding: var(--sp-lg); }
+/* §6.10 — a 44px band. The height is the min, not the padding: a one-line head
+   is held open to 44px and centred in it, and a head that runs taller — a title
+   over a subtitle, a figure pair beside it — grows from 10px of its own rather
+   than pressing its first and last lines against the rules above and below. */
 .card-head {
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-md);
-  min-height: 44px; padding: 0 var(--sp-lg); border-bottom: 1px solid var(--border-muted);
+  min-height: 44px; padding: 10px var(--sp-lg); border-bottom: 1px solid var(--border-muted);
 }
 .card-body { padding: var(--sp-lg); }
 .card-foot {

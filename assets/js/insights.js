@@ -15,7 +15,7 @@ import {
   DELIVERY_FUNNEL, DELIVERY_SERIES, DELIVERY_STEP_DAYS, FAILURE_REASONS, RATING_BLOCK, BRANCH_BLOCKS,
   OPEN_RESPONSES, SCORE_DRIVERS, OWNER_TEAMS, VARIANT_RESULTS, WEIGHT_HISTORY,
   AI_SUGGESTIONS, SEGMENTS,
-  campaignKind, isFeedback, KIND_LABEL,
+  campaignKind, isFeedback,
   ANNOUNCE_FUNNEL, ANNOUNCE_SERIES, ANNOUNCE_STEP_DAYS, ANNOUNCE_FAILURE_REASONS, ENGAGEMENT,
   TIME_TO_TAP, TAP_DESTINATIONS, ENGAGEMENT_BY_APP, ENGAGEMENT_BY_SEGMENT,
   CONVERSION_FUNNEL, CONVERSION, HOLDOUT, OFFER, ANNOUNCE_VARIANTS,
@@ -1394,26 +1394,11 @@ function paintInsights(host, { pending = false, entering = false } = {}) {
 
   host.innerHTML = html`
     <div class="page">
-      <!-- FR-86 — identity is the breadcrumb's job on a detail page, and the
-           five columns the reader checks first are the stat strip's (§9.2).
-           What is left here is the rest: the kind, which decides the tab set,
-           and the two facts that did not earn a column. -->
-      <div class="row wrap" style="gap:10px;align-items:center;
-           padding-bottom:16px;border-bottom:1px solid var(--border-default)">
-        <span class="badge tip" data-tip="${feedback
-          ? 'Collects answers — rating, follow-up questions, open text'
-          : 'Collects no answers — reach, engagement and what it converted'}"
-          >${KIND_LABEL[campaignKind(c)]}</span>
-        ${raw(c.versions > 1
-          ? `<span class="badge badge-mono">${icon('layers')}${c.versions} versions</span>` : '')}
-        <span class="kv">
-          <span class="mono">${c.campaignId}</span>
-          <span>${c.runningDates}</span>
-        </span>
-      </div>
-
-      <!-- FR-92 — filters apply across all four tabs and persist between them. -->
-      <div class="row wrap" style="gap:8px;margin:16px 0">
+      <!-- FR-92 — filters apply across all four tabs and persist between them.
+           They open the page: identity is the breadcrumb's job on a detail
+           page and state is the stat strip's (§9.2), so nothing sits between
+           that band and the controls the reader came to set. -->
+      <div class="row wrap" style="gap:8px;margin:0 0 16px">
         ${filterDefs.map(([key, label, options]) => html`
           <label class="row" style="gap:6px">
             <span class="t-xs fg-muted">${label}</span>

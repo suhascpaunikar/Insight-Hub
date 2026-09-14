@@ -178,7 +178,7 @@ summary on the final step, and in what the assistant is able to answer.
 
 | FR | Where |
 |---|---|
-| FR-86 Header | Name, ID, status, kind, channel, trigger, audience, dates + Pause/Resume, Stop, Edit, Export |
+| FR-86 Header | Name in the breadcrumb; status, trigger, channel, audience, headline volume and the actions (Pause/Resume, Stop, Edit, Export) in the stat strip. **ID, kind and running dates are no longer shown here** — the meta row above the filters was removed; the ID stays reachable on the campaign row (FR-75) |
 | FR-87 Edit warns about versioning | Names the version it would create |
 | FR-88 Tabs, state in the URL | `?id=…&tab=…`. **Three, and the set is the campaign kind's**: Delivery / Responses / Impact for feedback, Delivery / Engagement / Impact for an announcement. A tab the kind does not have falls back to Delivery |
 | FR-89 Persistent rating legend | Scaled to the campaign's element, on every tab. Absent on an announcement, which has no rating for it to legend |

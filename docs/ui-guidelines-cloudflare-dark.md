@@ -537,9 +537,10 @@ drawn in the chart palette (§6.19). The card grows to 112px when it carries one
 
 - **Card**: `#0f0f0f`, 1px `#333333`, radius 8. Body padding 16px.
 - **Card with header** (08.19.06 "Payment method", 08.19.19 "Suggestions"): header row
-  44px, title 14px 500 `#f5f5f5` (muted `#a1a1a1` for grouping cards like "Payment
-  method"), optional trailing glyph (→, ⌄) `#a1a1a1`; 1px `#262626` rule; body
-  `#0a0a0a`. The header itself is transparent.
+  44px — a minimum, held by 10px of padding, so a head carrying a subtitle or a figure
+  pair grows past it rather than squashing to the rules — title 14px 500 `#f5f5f5` (muted
+  `#a1a1a1` for grouping cards like "Payment method"), optional trailing glyph (→, ⌄)
+  `#a1a1a1`; 1px `#262626` rule; body `#0a0a0a`. The header itself is transparent.
 - **Chart card** (08.18.34): header 36px on `#060606`, title 14px 500 + ⓘ, 1px `#262626`
   rule; body `#0f0f0f` 16px.
 - **List card** (08.23.22): the row (icon tile 24px blue play glyph, title 18px 600, 13px
@@ -831,12 +832,13 @@ came out of the cell with it: the cell is name over ID, and nothing else.
 
 Detail page pattern (08.18.10 → 08.18.34): breadcrumb `Campaigns › <name>`; tab strip
 `Delivery | Responses | Impact`; stat strip: Status (pill), Trigger (mono), Channel,
-Audience, Started, Responses — six is one too many for 1352px, so Started folds into the
-breadcrumb's meta or the strip shows five. The campaign actions (Pause, Stop, Edit,
-Export) sit at the right end of the stat strip as secondary md buttons; Export may be a
-split button. Filters row (Date range, Segment, App, Variant, Version) as filter selects,
-12px gaps, right-aligned range control; the rating-ramp legend stays as a pill. The
-version notice becomes a promo-style card (§6.10) without the 12% amber tint: `#0f0f0f`,
+Audience, Responses — five, because six does not fit 1352px and there is no second meta
+row for the sixth to fold into: identity is the breadcrumb's and state is the strip's,
+and nothing else sits between the band and the page. The campaign actions (Pause, Stop,
+Edit, Export) sit at the right end of the stat strip as secondary md buttons; Export may
+be a split button. The filters row opens the page (Date range, Segment, App, Variant,
+Version) as filter selects, 12px gaps, right-aligned range control; the rating-ramp
+legend stays as a pill. The version notice becomes a promo-style card (§6.10) without the 12% amber tint: `#0f0f0f`,
 `#333333`, an amber icon. Funnel = four stat cards; charts = chart cards two-up. The
 largest-drop-off callout is a message panel with the warning icon.
 
@@ -1007,7 +1009,7 @@ breadcrumbs. Values come from Kumo — see §11 for what that corrected.
 | `.opt` (radio card) | `#1c1c1c`, 10px 12px | transparent, `#3d3d3d`, 24px, selected `#0870ff` | §6.4 |
 | `.unit` / `.unit-suffix` / `.unit-note` | | form style; suffix `#797979`; note 12px | §6.2 |
 | **Containers** `.card` | `#1c1c1c` / `#2e2e2e` | `#0f0f0f` / `#333333` / radius 8 | §6.10 |
-| `.card-head` | 10px 16px, rule `#2e2e2e` | 44px, rule `#262626`, body `#0a0a0a` | §6.10 |
+| `.card-head` | 10px 16px, rule `#2e2e2e` | 10px 16px, min 44px, rule `#262626`, body `#0a0a0a` | §6.10 |
 | `.card-body` / `.card-pad` | 16px | 16px (unchanged) | |
 | `.card-foot` | 8px 16px | `#030303` band, 14px padding, rule `#333333` | §6.10 list card |
 | `.well` | `#121212` | `#000000` / `#262626` | §6.10 |
