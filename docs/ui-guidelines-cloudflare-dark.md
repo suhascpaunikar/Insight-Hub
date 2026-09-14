@@ -796,14 +796,36 @@ in the captures shows motion; nothing here contradicts the existing rules.
 ### 9.1 Campaigns (`index.html`)
 
 Overview page pattern (08.19.19 / 08.23.22) at 1352px: breadcrumb `Campaigns`; page
-header — 30px title, description, actions `Docs` (secondary lg) + `New campaign`
-(primary lg); the two headline figures and the range control become one row: figures as
-14px `#a1a1a1` labels with mono values left, the "Last 30 days" range button right. The
-four metric cards become §6.9 stat cards with sparklines, 16px gaps. Toolbar: search
-(flex) + "Campaign name" filter select + "Columns" and sort selects as secondary md +
-refresh icon button, 12px gaps. The table per §6.11 at 56px two-line rows (name +
-ID/objective), status pill, mono trigger, mono figures, rating in the ramp colour,
-relative time `#a1a1a1`, "Open →" secondary sm and ⋯. Pagination row beneath. Footer.
+header — 30px title, a one-line description, and `New campaign` (primary lg) as the only
+action; the range control ("Last 30 days") sits alone on the row above the cards, right
+aligned. The four metric cards become §6.9 stat cards with sparklines, 16px gaps.
+Toolbar, **above the card rather than inside it**: search (flex) + "Columns" and sort
+selects as secondary md + refresh icon button, 12px gaps. The card then opens with the
+status tab strip — it changes which campaigns the list is *about*, where the toolbar only
+changes how that set is shown — and the table per §6.11 at two-line rows (name + ID),
+status pill, mono trigger, mono figures, rating in the ramp colour, relative time
+`#a1a1a1`, a chevron, and ⋯. Column headers sort, carrying `aria-sort`. Pagination row
+beneath. Footer.
+
+**Four things this screen used to carry, and why it does not.** A `Docs` button beside
+`New campaign`, at the same size, competing with the one action the page exists for — and
+wired to nothing. A two-line description that spelled out all three open routes, where one
+line covers the two a reader needs before pressing. A headline pair, *16,000 Responses
+collected* and *69.1% Completion rate* at page-title size, which was the second and third
+stat cards printed twice from the same rows over the same window. And a "Campaign name"
+select in front of the search, which chose the single field the query matched and so made
+a search for an ID return nothing until the reader found the dropdown; one input matches
+name, ID and trigger together.
+
+**The row is the button.** `Open →` / `Resume →` has gone from the end of the row: the
+whole row opens the campaign, on the `.srow-link` pattern the settings rows already use —
+hover fill, the name brightening, and a chevron that leans two pixels toward its
+destination. With the row itself pressable, a button at the end of it was a second target
+for the same action. The row keeps its `<tr>` semantics rather than taking a `role` — a
+`<tr>` with a role bolted on stops being a row to a screen reader — so the accessible
+target is the campaign name, marked up as a button, labelled "Open …" or "Resume …" to
+match the status, and the only part of the row in the tab order. The objective preview
+came out of the cell with it: the cell is name over ID, and nothing else.
 
 ### 9.2 Insights (`insights.html`)
 

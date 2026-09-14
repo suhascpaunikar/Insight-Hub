@@ -5,7 +5,7 @@
 import {
   html, raw, esc, icon, $, $$, on, count, percent, relativeTime, absoluteTime,
   ratingValue, ratingColor, dropdown, wireDropdowns, toast, dialog, wireOnce, keepScroll,
-  lazySection, skel, countUp, growPlots, swapCharts, navigate, placeChartTip,
+  lazySection, skel, growPlots, swapCharts, navigate, placeChartTip,
   pageSlice, pager, observeOverflow, forgetSection, staggerCards,
 } from './core.js';
 import { store } from './store.js';
@@ -57,7 +57,6 @@ const COLUMN_LABELS = {
 
 const view = {
   query: '',
-  field: 'name',
   status: 'All',
   sort: 'updated',
   dir: 'desc',
@@ -78,28 +77,6 @@ const view = {
    the seeded list two pages, so both the control and its motion are real. */
 const PAGE_SIZE = 5;
 
-const FIELD_LABEL = { name: 'campaign name', id: 'campaign ID', trigger: 'trigger' };
-
-/** How each headline figure renders mid-tween. */
-const FIGURE_FORMAT = {
-  responses: (v) => count(Math.round(v)),
-  completion: (v) => percent(v),
-};
-
-/** The figures as they stand right now, so the next render can tween from them. */
-const readFigures = (host) => Object.fromEntries(
-  $$('[data-figure]', host).map((n) => [n.dataset.figure, Number(n.dataset.value)]));
-
-/** Tween each figure from where it was to where this render put it. */
-function countFigures(host, before) {
-  $$('[data-figure]', host).forEach((node) => {
-    const from = before[node.dataset.figure];
-    const to = Number(node.dataset.value);
-    if (from === undefined || Number.isNaN(from)) return;
-    countUp(node, from, to, FIGURE_FORMAT[node.dataset.figure]);
-  });
-}
-
 /* ---------- Row pieces ---------- */
 
 /** FR-76 — a labelled pill with a state dot, legible without colour. */
@@ -109,13 +86,24 @@ const statusPill = (status) => html`
   </span>`;
 
 function campaignCell(c) {
-  // The min-height is the three-line cell: name, ID, objective. A campaign
-  // without an objective keeps the row the same height as the ones that have
-  // one, so the list does not comb up and down as rows gain the third line.
+  // Two lines, name over ID, and no third. The objective preview used to sit
+  // under them and was the reason this cell carried a min-height: a campaign
+  // without one had to hold the same height as a campaign with one, or the list
+  // combed up and down as rows gained the line. Every cell is now exactly two
+  // lines by construction, so the prop that equalised them has nothing left to
+  // equalise. The objective is still on the campaign; it is read where there is
+  // room to read it rather than clipped to a column.
+  //
+  // The name is a button rather than text because it is what opens the
+  // campaign. The whole row is the pointer target (see `wire`), but a pointer
+  // target is not an accessible one — this is the node that carries the name
+  // into the tab order and tells a screen reader what pressing it does.
+  const verb = c.status === 'Draft' || c.status === 'Scheduled' ? 'Resume' : 'Open';
   return html`
-    <div class="col" style="gap:2px;min-height:54px">
+    <div class="col" style="gap:2px">
       <span class="row" style="gap:6px">
-        <span class="t-h3 truncate row-name">${c.name}</span>
+        <button class="row-open row-name t-h3 truncate" data-act="open" data-id="${c.id}"
+                aria-label="${verb} ${c.name}">${c.name}</button>
         ${raw(isFeedback(c) ? '' :
           `<span class="badge tip" data-tip="Collects no responses — opens on reach, engagement and conversion">
              ${KIND_LABEL[campaignKind(c)]}</span>`)}
@@ -127,13 +115,6 @@ function campaignCell(c) {
       </span>
       <!-- FR-75 — the ID is selectable for support and debugging. -->
       <span class="mono t-xs fg-muted" style="user-select:all">${c.campaignId}</span>
-      <!-- The objective, one line of it. A campaign name says what a campaign is
-           called and the trigger says when it fires; this is the only column that
-           says what it was for. Full text on hover, since it can run to 400
-           characters and the tooltip primitive is a single nowrap line. -->
-      ${raw(c.objective && c.objective.trim() ? html`
-        <span class="t-xs fg-lighter truncate" style="max-width:44ch"
-              title="${c.objective.trim()}">${c.objective.trim()}</span>` : '')}
     </div>`;
 }
 
@@ -196,13 +177,14 @@ function rowMenu(c) {
 
 function rowMarkup(c) {
   const cols = view.columns;
-  const isBuilderRoute = c.status === 'Draft' || c.status === 'Scheduled';
-  /* FR-72 — the whole row opens the campaign, not just the button at the end
-     of it. Pointing at a name and clicking it is what a list of things asks
-     for; making the reader travel to a 60px button on the far right of a
-     1300px table to do the obvious thing is the part that read as broken.
-     The button stays: it names the destination ("Open" or "Resume"), and it
-     is what a keyboard reaches. */
+  /* FR-72 — the whole row opens the campaign, not just a button at the end of
+     it. Pointing at a name and clicking it is what a list of things asks for;
+     making the reader travel to a 60px button on the far right of a 1300px
+     table to do the obvious thing is the part that read as broken.
+     The button at the end has since gone entirely: with the row itself
+     pressable it was a second target for the same action, and the campaign
+     name — a button, and the only part of the row in the tab order — is what
+     a keyboard reaches instead. */
   return html`
     <tr data-id="${c.id}" data-act="open-row">
       <td style="min-width:240px">${raw(campaignCell(c))}</td>
@@ -226,10 +208,16 @@ function rowMarkup(c) {
         <td>
           <span class="t-xs fg-lighter tip" data-tip="${absoluteTime(c.updatedAt)}">${relativeTime(c.updatedAt)}</span>
         </td>` : '')}
-      <td class="ta-r">
-        <button class="btn btn-default btn-sm" data-act="open" data-id="${c.id}">
-          ${isBuilderRoute ? 'Resume' : 'Open'}${raw(icon('right'))}
-        </button>
+      <!-- Where the "Open" / "Resume" button stood. The row is the button now,
+           so a second target inside it would be a button inside a button: press
+           the row anywhere and the same thing happens. What the column keeps is
+           the chevron, which is the row saying it goes somewhere — the same
+           affordance, and the same two-pixel lean on hover, that the settings
+           rows use. The word it dropped is not lost: the status pill two
+           columns left already says Draft, and a draft is the only thing that
+           resumes rather than opens. -->
+      <td class="ta-r" style="width:1%">
+        <span class="row-chev" aria-hidden="true">${raw(icon('chevron'))}</span>
       </td>
       <!-- Clone used to have this column to itself. Everything that is not the
            one action a row is for now lives behind the menu, which is what made
@@ -340,18 +328,15 @@ function activityStrip(campaigns) {
 
   return html`
     <section data-enter style="margin-bottom:20px">
-      <!-- The headline pair: the volume, and the one rate that qualifies it. -->
-      <div class="row-between wrap" style="margin-bottom:10px">
-        <div class="row wrap" style="gap:20px">
-          <span class="row" style="gap:7px">
-            <span class="num t-h1" data-figure="responses" data-value="${completed}">${count(completed)}</span>
-            <span class="t-body fg-lighter">Responses collected</span>
-          </span>
-          <span class="row" style="gap:7px">
-            <span class="num t-h1" data-figure="completion" data-value="${completionRate}">${percent(completionRate)}</span>
-            <span class="t-body fg-lighter">Completion rate</span>
-          </span>
-        </div>
+      <!-- The range control, and what used to sit beside it.
+           A headline pair stood on the left: 16,000 Responses collected and
+           69.1% Completion rate, at page-title size. Both are in the strip
+           directly below — the second and third cards print the same two
+           numbers, from the same rows, over the same window. The headline was
+           not a summary of the cards, it was two of the four cards said twice,
+           and the second telling is the one that goes.
+           What the row is for is the range, so the range is what is left in it. -->
+      <div class="row wrap" style="justify-content:flex-end;margin-bottom:10px">
         ${raw(dropdown({
           triggerClass: 'btn btn-default btn-sm',
           trigger: `${icon('clock')}${esc(RANGES[view.range].label)}${icon('down')}`,
@@ -513,10 +498,7 @@ function stripSkeleton() {
     </div>`;
   return html`
     <section style="margin-bottom:20px">
-      <div class="row-between wrap" style="margin-bottom:10px">
-        <div class="row wrap" style="gap:20px">
-          ${raw(skel('178px', 26))}${raw(skel('158px', 26))}
-        </div>
+      <div class="row wrap" style="justify-content:flex-end;margin-bottom:10px">
         ${raw(skel('120px', 26))}
       </div>
       <div class="metric-grid">${raw(card.repeat(4))}</div>
@@ -530,7 +512,7 @@ function listSkeleton(total) {
   const rows = Array.from({ length: Math.min(total, 8) }, () => html`
     <tr>
       <td style="min-width:240px">
-        <div class="col" style="gap:7px;min-height:54px;justify-content:center">
+        <div class="col" style="gap:7px">
           ${raw(skel('188px', 13))}${raw(skel('112px', 10))}
         </div>
       </td>
@@ -539,24 +521,24 @@ function listSkeleton(total) {
       ${raw(cols.responses ? right('42px') : '')}
       ${raw(cols.rating ? right('32px') : '')}
       ${raw(cols.updated ? `<td>${skel('76px', 11)}</td>` : '')}
-      <td class="ta-r">${raw(skel('58px', 24, 'margin-left:auto'))}</td>
+      <td class="ta-r">${raw(skel('16px', 16, 'margin-left:auto'))}</td>
       <td class="ta-r">${raw(skel('24px', 24, 'margin-left:auto'))}</td>
     </tr>`);
 
   return html`
+    <div class="toolbar">
+      ${raw(skel('100%', 28, 'flex:1;min-width:220px'))}
+      ${raw(skel('96px', 26))}${raw(skel('168px', 26))}
+      <!-- The one control in this toolbar that stays real while the section
+           loads. A refresh that replaced itself with a placeholder would take
+           away the only thing on screen saying the press landed — and it is
+           the button that caused the wait, so it is the button that should
+           report it. Kumo's refresh spins for exactly as long as the wait. -->
+      <button class="btn btn-default btn-sm btn-icon" data-act="refresh"
+              data-spinning="true" aria-label="Refreshing the list" disabled
+              >${raw(icon('refresh'))}</button>
+    </div>
     <section class="card" style="overflow:visible">
-      <div class="toolbar">
-        ${raw(skel('150px', 28))}${raw(skel('100%', 28, 'flex:1;min-width:220px'))}
-        ${raw(skel('96px', 26))}${raw(skel('168px', 26))}
-        <!-- The one control in this toolbar that stays real while the section
-             loads. A refresh that replaced itself with a placeholder would take
-             away the only thing on screen saying the press landed — and it is
-             the button that caused the wait, so it is the button that should
-             report it. Kumo's refresh spins for exactly as long as the wait. -->
-        <button class="btn btn-default btn-sm btn-icon" data-act="refresh"
-                data-spinning="true" aria-label="Refreshing the list" disabled
-                >${raw(icon('refresh'))}</button>
-      </div>
       <div class="table-scroll">
         <table class="table">
           <thead>
@@ -566,7 +548,7 @@ function listSkeleton(total) {
               ${raw(cols.responses ? '<th class="ta-r">Responses</th>' : '')}
               ${raw(cols.rating ? '<th class="ta-r">Avg rating</th>' : '')}
               ${raw(cols.updated ? '<th>Updated</th>' : '')}
-              <th class="ta-r">Open</th>
+              <th class="ta-r"><span class="sr-only">Open</span></th>
               <th class="ta-r"><span class="sr-only">Actions</span></th>
             </tr>
           </thead>
@@ -586,8 +568,11 @@ function searched() {
   const q = view.query.trim().toLowerCase();
   if (!q) return source;
   return source.filter((c) => {
-    const hay = view.field === 'name' ? c.name : view.field === 'id' ? c.campaignId : c.triggerLabel;
-    return hay.toLowerCase().includes(q);
+    // Name, ID and trigger were three settings of a select the reader had to
+    // find before a search for CMP-4971 could return anything. They are three
+    // ways of naming the same campaign, so they are searched together.
+    return [c.name, c.campaignId, c.triggerLabel]
+      .some((field) => String(field || '').toLowerCase().includes(q));
   });
 }
 
@@ -707,16 +692,20 @@ function paintDashboard(host, { pending = false, entering = false } = {}) {
       <header class="page-head" style="margin-bottom:24px">
         <div>
           <h1 class="page-head-title">Campaigns</h1>
-          <!-- FR-73 — what the two campaign states are actually for. -->
+          <!-- FR-73 — what the two campaign states are actually for, in one line.
+               It ran to two and spelled out all three routes; the third (a draft
+               reopening in the builder at the step you left) is a sentence spent
+               on something the reader finds out by pressing the row, and the
+               status pill on that row has already said Draft. -->
           <p class="page-head-desc" style="max-width:74ch">
-            Open a live campaign to watch delivery and responses arrive, or a completed one to read
-            its insights. Drafts and scheduled campaigns reopen in the builder at the step you left.
+            Open a campaign to watch its responses arrive, or read the insights of a finished one.
           </p>
         </div>
         <div class="page-head-actions">
-          <button class="btn btn-default btn-lg" data-act="stub" data-key="Documentation">
-            ${raw(icon('book'))}Documentation
-          </button>
+          <!-- Documentation stood here, at the same weight as New Campaign and
+               reading as the equal of it. It also went nowhere: this screen
+               never wired the stub handler, so pressing it did nothing at all.
+               Help is in the top bar, one row up and on every screen. -->
           <!-- FR-72 — the only route into campaign creation. -->
           <button class="btn btn-primary btn-lg" data-act="new">${raw(icon('plus'))}New Campaign</button>
         </div>
@@ -725,34 +714,44 @@ function paintDashboard(host, { pending = false, entering = false } = {}) {
       ${raw(source.length === 0 ? '' : pending ? stripSkeleton() : activityStrip(source))}
 
       ${raw(source.length === 0 ? emptyState() : pending ? listSkeleton(source.length) : html`
+        <!-- FR-63 / FR-84 — one toolbar pattern across every list screen.
+
+             It sat inside the card, above the table and sharing its border, and
+             read as a header the table owned. It does not belong to the table:
+             every control in it acts on the list *before* the table draws it —
+             the search narrows what rows exist, the sort decides their order,
+             Columns decides which of them are drawn at all, and refresh throws
+             the whole card away and fetches it again. A control that can remove
+             the thing it is standing in is standing in the wrong place.
+
+             The "Campaign name" select went with the move. It chose which one
+             field the search matched, which meant a reader looking for CMP-4971
+             got nothing back until they noticed a dropdown and changed it — the
+             control existed to make the search fail in three different ways.
+             The input below matches name, ID and trigger at once, so all three
+             of its settings are now simply true. -->
+        <div class="toolbar" data-enter>
+          <label class="search-wrap grow" style="min-width:220px">
+            <span class="sr-only">Search campaigns</span>
+            ${raw(icon('search'))}
+            <input class="input input-sm input-search" data-act="search" value="${view.query}"
+                   placeholder="Search by name, ID or trigger" />
+          </label>
+
+          ${raw(dropdown({ trigger: `${icon('columns')}Columns`, label: 'Visible columns', items: columnItems }))}
+          ${raw(dropdown({ trigger: `${icon('sort')}${esc(sortLabel())}`, label: 'Sort by', items: sortItems }))}
+          <!-- §9.1's last toolbar control, and the only one that was never
+               built. It re-fetches the list: the section is forgotten, so the
+               skeleton comes back and the content lands again after the wait
+               the prototype already simulates. The icon spins for exactly as
+               long as that takes, on Kumo's own refresh keyframe. -->
+          <button class="btn btn-default btn-sm btn-icon tip" data-act="refresh"
+                  data-tip="Refresh the list" aria-label="Refresh the list"
+                  >${raw(icon('refresh'))}</button>
+        </div>
+
         <section class="card" data-enter style="overflow:visible">
           ${raw(statusTabs)}
-          <!-- FR-63 / FR-84 — one toolbar pattern across every list screen. -->
-          <div class="toolbar">
-            <select class="select select-sm" data-act="set-field" style="width:150px" aria-label="Search field">
-              <option value="name" ${raw(view.field === 'name' ? 'selected' : '')}>Campaign name</option>
-              <option value="id" ${raw(view.field === 'id' ? 'selected' : '')}>Campaign ID</option>
-              <option value="trigger" ${raw(view.field === 'trigger' ? 'selected' : '')}>Trigger</option>
-            </select>
-
-            <label class="search-wrap grow" style="min-width:220px">
-              <span class="sr-only">Search campaigns</span>
-              ${raw(icon('search'))}
-              <input class="input input-sm input-search" data-act="search" value="${view.query}"
-                     placeholder="Search by ${FIELD_LABEL[view.field]}" />
-            </label>
-
-            ${raw(dropdown({ trigger: `${icon('columns')}Columns`, label: 'Visible columns', items: columnItems }))}
-                    ${raw(dropdown({ trigger: `${icon('sort')}${esc(sortLabel())}`, label: 'Sort by', items: sortItems }))}
-            <!-- §9.1's last toolbar control, and the only one that was never
-                 built. It re-fetches the list: the section is forgotten, so the
-                 skeleton comes back and the content lands again after the wait
-                 the prototype already simulates. The icon spins for exactly as
-                 long as that takes, on Kumo's own refresh keyframe. -->
-            <button class="btn btn-default btn-sm btn-icon tip" data-act="refresh"
-                    data-tip="Refresh the list" aria-label="Refresh the list"
-                    >${raw(icon('refresh'))}</button>
-          </div>
 
           ${raw(matched.length === 0 ? html`
             <div class="zero">
@@ -768,7 +767,7 @@ function paintDashboard(host, { pending = false, entering = false } = {}) {
                     ${raw(cols.responses ? head('responses', 'Responses', true) : '')}
                     ${raw(cols.rating ? head('rating', 'Avg rating', true) : '')}
                     ${raw(cols.updated ? head('updated', 'Updated') : '')}
-                    <th class="ta-r">Open</th>
+                    <th class="ta-r"><span class="sr-only">Open</span></th>
                     <th class="ta-r"><span class="sr-only">Actions</span></th>
                   </tr>
                 </thead>
@@ -781,7 +780,7 @@ function paintDashboard(host, { pending = false, entering = false } = {}) {
           <div class="card-foot row-between">
             <span class="t-xs fg-muted">
               ${raw(view.query
-                ? `Filtered by ${esc(FIELD_LABEL[view.field])} · ${count(matched.length)} of ${count(source.length)} campaigns`
+                ? `${count(matched.length)} of ${count(source.length)} campaigns match “${esc(view.query)}”`
                 : 'Default sort: most recently updated')}
             </span>
           </div>
@@ -904,9 +903,10 @@ function wire(host) {
   };
 
   /* Anything in a row that already does something of its own keeps its click:
-     the Open button, the actions menu, and the campaign ID, which is
-     `user-select: all` so support can copy it. The row takes what is left —
-     the name, the status, the trigger, and the whitespace between them.
+     the campaign name (a button, and the row's accessible target), the actions
+     menu, and the campaign ID, which is `user-select: all` so support can copy
+     it. The row takes what is left — the status, the trigger, the timestamp,
+     and the whitespace between them.
 
      A drag is a selection, not a click. Navigating away the moment someone
      finishes selecting a campaign ID would make the ID uncopyable, so the row
@@ -917,17 +917,7 @@ function wire(host) {
     openCampaign(row.dataset.id);
   });
 
-  on(host, 'click', '[data-act="open"]', (event, btn) => {
-    const campaign = store.state.campaigns.find((c) => c.id === btn.dataset.id);
-    if (!campaign) return;
-    // FR-82 — Draft and Scheduled reopen the builder; everything else opens insights.
-    if (campaign.status === 'Draft' || campaign.status === 'Scheduled') {
-      store.resumeCampaign(campaign.id);
-      navigate('builder.html');
-    } else {
-      navigate(`insights.html?id=${encodeURIComponent(campaign.id)}`);
-    }
-  });
+  on(host, 'click', '[data-act="open"]', (event, btn) => openCampaign(btn.dataset.id));
 
   // FR-81 / OD-21 — clone lands the user in the new draft.
   on(host, 'click', '[data-act="clone"]', async (event, btn) => {
@@ -1121,7 +1111,6 @@ function wire(host) {
     next?.setSelectionRange(caret, caret);
   });
 
-  on(host, 'change', '[data-act="set-field"]', (event) => { view.field = event.target.value; view.page = 1; rerender(); });
   on(host, 'click', '[data-act="clear"]', () => { view.query = ''; view.page = 1; rerender(); });
   on(host, 'click', '[data-act="set-sort"]', (event, btn) => {
     view.sort = btn.dataset.key;
@@ -1160,11 +1149,12 @@ function wire(host) {
   on(host, 'click', '[data-act="set-range"]', (event, btn) => {
     if (view.range === btn.dataset.key) return;
     view.range = btn.dataset.key;
-    // Captured before the repaint replaces the nodes holding them, and spent
-    // between the repaint and the regrow — so the figure counts to its new
-    // window while the series it belongs to grows back underneath it.
-    const figures = readFigures(host);
-    swapCharts(host, rerender, () => countFigures(host, figures));
+    // The swap used to carry a second argument: the two headline figures were
+    // read before the repaint and counted to their new window while the series
+    // beneath them grew back. The figures are gone, and a count-up with nothing
+    // marked `data-figure` to count would have been a no-op kept for its
+    // comment. The cards' own values have always hard-cut here.
+    swapCharts(host, rerender);
   });
   on(host, 'click', '[data-act="toggle-col"]', (event, btn) => {
     view.columns[btn.dataset.key] = !view.columns[btn.dataset.key];

@@ -625,6 +625,29 @@ img { max-width: 100%; }
 .tabgroup-tab[aria-selected="true"] .tabgroup-count { color: var(--foreground-lighter); }
 .table-scroll { overflow-x: auto; }
 
+/* The row's own target and its *accessible* target are not the same node. A
+   `<tr>` with a role bolted onto it stops being a row to a screen reader, and a
+   table that is not a table is a poor trade for a click area, so the row keeps
+   its semantics (and the cursor and hover rules above) while `.row-open` — the
+   campaign name — carries the action into the tab order. A pointer gets the
+   whole row; a keyboard gets a real button with a real name.
+
+   The name is a button but must not read as one: the row is the affordance,
+   and a button's chrome inside it would claim the row's job. It keeps
+   `.row-name` so the hover brightening above still reaches it. */
+.row-open {
+  padding: 0; border: 0; background: none; color: var(--foreground-default);
+  min-width: 0; max-width: 100%;
+  font: inherit; font-size: var(--fs-body); font-weight: var(--fw-label); line-height: 1.4;
+  text-align: left; cursor: pointer;
+}
+.row-chev {
+  display: inline-flex; color: var(--foreground-muted);
+  transition: color var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out);
+}
+.row-chev svg { width: 15px; height: 15px; }
+.table tbody tr[data-act="open-row"]:hover .row-chev { color: var(--foreground-strong); transform: translateX(2px); }
+
 /* ---------- Tabs ---------- */
 .tabs { display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border-muted); }
 .tab {
@@ -2489,6 +2512,7 @@ body[data-asst-pointer="true"] [data-insight][data-insight-armed] {
   .pill[data-status="Live"] .dot::after { animation: none; opacity: 0; }
   .tip:hover::after, .tip:focus-visible::after { transition-delay: 0s; }
   .table tbody tr:hover .btn-default svg { transform: none; }
+  .table tbody tr[data-act="open-row"]:hover .row-chev { transform: none; }
   .skel::after { animation: none; }
   .toast[data-leaving="true"] { transform: none; transition: opacity var(--motion-fast) ease; }
   .chart-plot[data-swap="in"] .chart-col { animation: none; }
