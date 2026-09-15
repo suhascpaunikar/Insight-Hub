@@ -41,7 +41,8 @@ no animation library removes the need for it.
 > `--motion-fast` is 100ms, `--motion-base` 200ms, `--motion-slow` 300ms, and `--ease-out` is
 > Kumo's `cubic-bezier(0, 0, .2, 1)`. Two overshoot curves exist now — see the guideline §12,
 > which supersedes the rules at the foot of this file wherever the two disagree. New motion lives
-> in `assets/css/motion-kumo.css`, which loads third and carries its own reduced-motion block.
+> in `src/styles/product.css` under *Motion the product owns*, which carries its own
+> reduced-motion block. (Was `assets/css/motion-kumo.css` before the Kumo port.)
 
 32 keyframes and 57 transition declarations, carrying 100 references to the three motion tokens.
 Every duration outside the assistant is a token; the two that are not are the 8ms stagger the
@@ -290,7 +291,7 @@ What the pixels show, and what was checked before retracting this:
 - It never escapes vertically on Insights either, and runs into none of the cards that
   follow it.
 
-The historical version of this concern was real — the note on `.lazy-in` in `supabase.css`
+The historical version of this concern was real — the note on `.lazy-in` in the old `supabase.css`
 records the readout being painted over by the next section down, which is why that rule
 must not use a `forwards` fill. That was fixed, and then fixed again from a different
 angle by `fec44d2`. Neither regressed.
@@ -325,7 +326,7 @@ reduced motion.
 **Three traps this set walked into, worth knowing before adding more:**
 
 - **A transform makes a stacking context.** The hover lift needed a `z-index` for the same reason
-  `.lazy-in` cannot use a `forwards` fill — see the comment on it in `supabase.css`.
+  `.lazy-in` cannot use a `forwards` fill — see the comment on it in the old `supabase.css`.
 - **A stagger reusing a keyframe is not covered by that keyframe's reduced-motion entry.** The card
   stagger uses `lazy-in` but reaches it through `.metric-grid[data-stagger] > *`, and was not
   stilled until that selector was named. Verified in the browser, not by reading the block.
@@ -399,14 +400,15 @@ typing in search does not re-trigger a load, and that all four pages stay free o
 
 ## Rules that must not be silently broken
 
-- **No animation library.** Motion, GSAP and anime were evaluated and rejected: this is a
-  zero-build static prototype (`netlify.toml`: *"Static prototype — no build step"*), and its only
-  external resource is loaded non-blocking specifically so a slow CDN cannot delay the page. A
-  bundler-less CDN `import` sits in the module graph and would contradict that. If one is ever
-  adopted, **vendor it** into `assets/vendor/`.
-- **The global `prefers-reduced-motion` block stays last in the stylesheet** so it wins. Three
-  earlier blocks are assistant-scoped; the last one covers the rest of the product. Every new
-  animation goes in it.
+- **No animation library.** Motion, GSAP and anime were evaluated and rejected. The original
+  reason was that this was a zero-build static prototype and a bundler-less CDN `import` would
+  contradict that. The Kumo port removed that reason — there is a bundler now — but not the
+  rule: every gesture in this product is a CSS transition or keyframe, and none of them needed
+  a library. The `motion` dependency is still declared and still unused. Adopt one only where
+  CSS genuinely cannot do the job, and say in the diff which gesture that was.
+- **The `prefers-reduced-motion` block stays last in `product.css`** so it wins. Every new
+  animation the product owns goes in it. Kumo's own components honour the preference
+  themselves, so nothing there needs listing.
 - **Six assistant durations stay hardcoded** (400/500/600ms and the card's own `cubic-bezier`).
   They are ambient, deliberately tuned, and match no token usage. Forcing them onto the three-token
   scale would break motion someone already got right.
@@ -418,3 +420,24 @@ typing in search does not re-trigger a load, and that all four pages stay free o
   **no LICENSE file**, so prefer using it as reference for values over pasting blocks verbatim.
 - **The builder gets no skeleton**, and step travel is wired to `advance()` only.
 - **Settings panels do load** — workspace config is as much a fetch as campaigns are.
+
+
+---
+
+## After the Kumo port
+
+Half of `motion-kumo.css` was Kumo's own keyframes, transcribed by hand because there
+was no package to load them from: `bounce-in`, `toast-bump`, `clipboard-toast-bump`,
+`refresh` and `skeleton`. The real package ships all five in `kumo-binding.css` and
+its components animate themselves, so that half is gone and the transcription can no
+longer drift from the source.
+
+What survives is in `src/styles/product.css` under *Motion the product owns*: the
+card lift, the table row's hover hairline, and the scroll-driven edge fade on an
+overflowing table. The fade no longer needs the `ResizeObserver` that marked a
+scroller as overflowing — `scroll(self x)` simply never advances on a box that does
+not overflow, so `data-overflowing` and `observeOverflow()` are both gone.
+
+The stagger, page-turn and row-leaving animations went with the vanilla renderers
+they were attached to; the components that replaced them (Kumo's `Pagination`,
+`Table` and `Toasty`) bring their own.

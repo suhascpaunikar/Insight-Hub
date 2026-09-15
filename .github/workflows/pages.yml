@@ -1,5 +1,9 @@
-# Publishes the prototype to GitHub Pages. There is nothing to compile — the
-# site is plain HTML, CSS and ES modules — so the job just uploads the repo.
+# Publishes the console to GitHub Pages.
+#
+# There is something to compile now: the console runs on @cloudflare/kumo,
+# which is a React component library, so the site is a Vite build rather than
+# the repo itself. `base` in vite.config.js is the Pages project path, which is
+# what the hashed asset URLs are resolved against.
 name: Deploy to GitHub Pages
 
 on:
@@ -26,6 +30,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
       # Pages must already be enabled with source "GitHub Actions": the
       # workflow's GITHUB_TOKEN cannot create the Pages site itself, so
       # configure-pages only reads the existing configuration here.
@@ -33,7 +49,7 @@ jobs:
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: dist
 
       - id: deployment
         uses: actions/deploy-pages@v4

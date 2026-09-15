@@ -1,27 +1,22 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-mode="dark">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Campaigns · InsightHub</title>
   <meta name="description" content="InsightHub feedback campaign builder — campaign dashboard." />
-  <link rel="stylesheet" href="assets/css/supabase.css" />
-  <link rel="stylesheet" href="assets/css/kumo-tokens.css" />
-  <link rel="stylesheet" href="assets/css/tokens-cloudflare.css" />
-  <link rel="stylesheet" href="assets/css/motion-kumo.css" />
-  <!-- The theme, before the first paint. The modules below settle it too, but
-       they are deferred: a light-mode reader would see the dark canvas for the
-       frames until they run. Reads the same key store.js persists to; kept
-       inline and tiny because a separate file would be one more round trip in
-       front of the paint it exists to protect. -->
+  <!-- The theme, before the first paint: React mounts after this document is
+       parsed, and a light-mode reader would otherwise see the dark canvas for
+       the frames until it does. -->
   <script>
     try {
       var s = JSON.parse(localStorage.getItem('insighthub.prototype.v2') || '{}');
-      if (s && s.theme === 'light') document.documentElement.dataset.theme = 'light';
+      document.documentElement.dataset.mode = s && s.theme === 'light' ? 'light' : 'dark';
     } catch (e) { /* storage refused: the dark default in the tag above stands */ }
   </script>
-  <!-- Webfonts load non-blocking: a slow or unreachable CDN must never delay the
-       page, and the stack below it (system-ui / ui-monospace) stands on its own. -->
+  <!-- Webfonts load non-blocking: a slow or unreachable CDN must never delay
+       the page, and the stack below it (system-ui / ui-monospace) stands on
+       its own. -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" media="print" onload="this.media='all'"
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" />
@@ -29,15 +24,6 @@
 </head>
 <body>
   <div id="app"></div>
-  <script type="module">
-    import { renderShell } from './assets/js/shell.js';
-    import { renderDashboard } from './assets/js/dashboard.js';
-
-    function boot() {
-      renderDashboard(renderShell('campaigns'));
-    }
-    document.addEventListener('shell:rerender', () => renderDashboard(document.getElementById('content')));
-    boot();
-  </script>
+  <script type="module" src="/src/entries/campaigns.jsx"></script>
 </body>
 </html>
