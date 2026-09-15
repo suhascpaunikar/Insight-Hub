@@ -4,6 +4,22 @@
 # which is a React component library, so the site is a Vite build rather than
 # the repo itself. `base` in vite.config.js is the Pages project path, which is
 # what the hashed asset URLs are resolved against.
+#
+# Two jobs, because only one of them is allowed to publish. The `github-pages`
+# environment carries a branch policy admitting `main` and nothing else, and
+# GitHub evaluates that policy when a job referencing the environment *starts* —
+# before checkout, before the first step. A single job holding `environment:`
+# is therefore rejected outright on any other ref, which is what a dispatch from
+# a feature branch used to hit: two seconds, no logs, and "Branch ... is not
+# allowed to deploy to github-pages due to environment protection rules",
+# having never compiled a line.
+#
+# So `build` holds no environment and runs on whatever ref it was given, and
+# `deploy` holds the environment and is gated on `main`. Dispatching from a
+# branch now answers the question worth asking of a branch — does it build? —
+# and the publish is skipped rather than failed. The branch policy itself stays
+# exactly as it is: it is the reason a feature branch cannot overwrite the live
+# site, and that is the behaviour we want, not the bug.
 name: Deploy to GitHub Pages
 
 on:
@@ -16,17 +32,9 @@ permissions:
   pages: write
   id-token: write
 
-# Let a running deploy finish rather than cancelling it mid-publish.
-concurrency:
-  group: pages
-  cancel-in-progress: false
-
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -51,5 +59,27 @@ jobs:
         with:
           path: dist
 
+  deploy:
+    needs: build
+
+    # The environment's branch policy would reject anything else on arrival;
+    # deciding it here turns that rejection into a skipped job rather than a
+    # failed one, and leaves the build above as the branch's real result.
+    if: github.ref == 'refs/heads/main'
+
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    # Let a running deploy finish rather than cancelling it mid-publish. Scoped
+    # to this job now that `build` runs on other refs: a branch build publishes
+    # nothing, so it has no reason to queue behind a deploy or against another
+    # branch's build.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+
+    steps:
       - id: deployment
         uses: actions/deploy-pages@v4
