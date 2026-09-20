@@ -56,11 +56,11 @@ export function TopBar({ crumbs, docked, tabGroup, onOpenAssistant }) {
             }
           />
           <DropdownMenu.Content align="end">
-            <DropdownMenu.Label>Environment</DropdownMenu.Label>
             <DropdownMenu.RadioGroup
               value={env}
               onValueChange={(value) => store.set({ environment: value })}
             >
+              <DropdownMenu.Label>Environment</DropdownMenu.Label>
               {ENVIRONMENTS.map((name) => (
                 <DropdownMenu.RadioItem key={name} value={name}>{name}</DropdownMenu.RadioItem>
               ))}

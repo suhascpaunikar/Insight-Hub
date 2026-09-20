@@ -16,17 +16,24 @@ import { toast } from '../lib/toast.js';
    plainly that the control is there for the shape of the page rather than
    dead-ending on a 404. */
 export function DocsChip({ section }) {
+  /* `render` rather than a wrapped child: Kumo's Tooltip supplies its own
+     button for the trigger, so wrapping one put a <button> inside a <button>
+     — invalid HTML, which React logged on every render of this page. Passing
+     the chip as the trigger makes the two one element. */
   return (
-    <Tooltip content={`${section} documentation`}>
-      <button
-        type="button"
-        className="ih-docs-chip"
-        aria-label={`${section} documentation`}
-        onClick={() => toast(`${section} documentation is not part of the prototype`,
-          'The control is here for the shape of the page.', 'info')}
-      >
-        <Icon name="book" size={12} />
-      </button>
+    <Tooltip
+      content={`${section} documentation`}
+      render={
+        <button
+          type="button"
+          className="ih-docs-chip"
+          aria-label={`${section} documentation`}
+          onClick={() => toast(`${section} documentation is not part of the prototype`,
+            'The control is here for the shape of the page.', 'info')}
+        />
+      }
+    >
+      <Icon name="book" size={12} />
     </Tooltip>
   );
 }

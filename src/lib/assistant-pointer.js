@@ -18,6 +18,9 @@
 import { mountOrb, orbThinking } from './assistant-orb.js';
 
 const DWELL_MS = 600;
+/* The assistant's own surface — the card, the launcher and this companion.
+   None of it is a panel with numbers to read. */
+const CARD = '.ih-asst, .asst-pointer';
 /* Fraction of the remaining distance closed each frame. Low enough that the
    buddy visibly follows rather than sticking to the cursor. */
 const FOLLOW = 0.18;
@@ -107,8 +110,12 @@ function handleMove(event) {
   trackCursor(event);
   if (!active) return;
   const panel = event.target.closest && event.target.closest('[data-insight]');
-  // The card is a surface of its own, never a panel to be read.
-  const inCard = event.target.closest && event.target.closest('.asst');
+  // The card is a surface of its own, never a panel to be read. It is also
+  // what the answer opens into, so it lands under the cursor mid-reading: with
+  // this selector wrong, every crossing of its edge counted as leaving the
+  // panel behind it, and coming back re-armed the dwell and read it again.
+  // That is the three and four copies of one answer.
+  const inCard = event.target.closest && event.target.closest(CARD);
   if (panel && !inCard) enterPanel(panel);
   else leavePanel();
 }
@@ -118,7 +125,7 @@ function handleTap(event) {
   if (!active) return;
   if (window.matchMedia && window.matchMedia('(hover: hover)').matches) return;
   const panel = event.target.closest && event.target.closest('[data-insight]');
-  if (!panel || event.target.closest('.asst')) return;
+  if (!panel || event.target.closest(CARD)) return;
   event.preventDefault();
   event.stopPropagation();
   if (onFire) onFire(panel.dataset.insight);

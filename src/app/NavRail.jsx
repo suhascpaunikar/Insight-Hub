@@ -66,21 +66,21 @@ export function NavRail({ active, onOpenAssistant, onOpenSearch }) {
             }
           />
           <DropdownMenu.Content align="start">
-            <DropdownMenu.Label>Workspace</DropdownMenu.Label>
             <DropdownMenu.RadioGroup
               value={workspace}
               onValueChange={(value) => store.set({ workspace: value })}
             >
+              <DropdownMenu.Label>Workspace</DropdownMenu.Label>
               {WORKSPACES.map((name) => (
                 <DropdownMenu.RadioItem key={name} value={name}>{name}</DropdownMenu.RadioItem>
               ))}
             </DropdownMenu.RadioGroup>
             <DropdownMenu.Separator />
-            <DropdownMenu.Label>App</DropdownMenu.Label>
             <DropdownMenu.RadioGroup
               value={app}
               onValueChange={(value) => store.set({ app: value })}
             >
+              <DropdownMenu.Label>App</DropdownMenu.Label>
               {APPS.map((name) => (
                 <DropdownMenu.RadioItem key={name} value={name}>{name}</DropdownMenu.RadioItem>
               ))}

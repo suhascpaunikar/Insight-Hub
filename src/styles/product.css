@@ -1014,9 +1014,10 @@ body {
 .ih-weight-bar > * { height: 100%; }
 
 /* ==========================================================================
-   The assistant — the companion card (FR-91). §11.4's "(none)", and still is:
-   Kumo ships no companion card. What Kumo does supply is everything inside
-   it — the Badge, the Buttons, the Textarea and the Tooltip.
+   The assistant — the companion card (FR-91). §11.4's "(none)", and nothing
+   inside it is Kumo's either: the port had swapped the field, the send button
+   and the pointer toggle for Kumo's, and each one changed the shape of a card
+   built around its own. These are the card's own controls.
 
    Violet throughout: the design system reserves the AI accent for machine
    claims, so the whole surface reads as inference and never as measurement.
@@ -1047,6 +1048,25 @@ body:has(.ih-builder-foot) .ih-asst { bottom: calc(var(--foot-h) + var(--sp-md))
   border: 1px solid var(--ai-400); border-radius: var(--radius-full);
   background: transparent;         /* the orb paints its own ground */
   box-shadow: var(--shadow-2); cursor: pointer;
+  transition: transform var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out), box-shadow 400ms ease;
+}
+.ih-asst-bubble:hover { border-color: var(--ai-fg); transform: translateY(-1px); }
+/* The CSS half of the thinking state: the orb brightens from the inside and
+   the halo says so past its own edge. Slow on the way out, matching the two
+   seconds the orb takes to settle. `data-orb-state` is written by
+   assistant-orb.js onto the element it paints into, which is this button. */
+.ih-asst-bubble[data-orb-state="thinking"] {
+  border-color: var(--ai-fg);
+  box-shadow: var(--shadow-2), 0 0 18px -2px rgba(167, 139, 250, 0.55);
+}
+
+/* The canvas assistant-orb.js paints into — three of them, one assistant. The
+   class is the module's own, so it is unprefixed like everything else that
+   module writes. */
+.asst-orb {
+  display: block; width: 100%; height: 100%;
+  border-radius: var(--radius-full); pointer-events: none;
 }
 
 .ih-asst-card {
@@ -1055,7 +1075,8 @@ body:has(.ih-builder-foot) .ih-asst { bottom: calc(var(--foot-h) + var(--sp-md))
   border: 1px solid var(--border-default); border-radius: var(--radius-md);
   background: var(--background-100); overflow: hidden;
   transform-origin: bottom right;
-  transition: opacity 180ms ease, transform 180ms cubic-bezier(0.23, 1, 0.32, 1);
+  transition: opacity 180ms ease, transform 180ms cubic-bezier(0.23, 1, 0.32, 1),
+              border-color 600ms ease;
 }
 .ih-asst[data-open="false"] .ih-asst-card {
   opacity: 0; transform: translateY(8px) scale(0.96); visibility: hidden;
@@ -1068,6 +1089,15 @@ body:has(.ih-builder-foot) .ih-asst { bottom: calc(var(--foot-h) + var(--sp-md))
 }
 .ih-asst-head-orb { width: 20px; height: 20px; flex: none; display: block; }
 .ih-asst-head-title { flex: 1; font-size: 12px; font-weight: 500; }
+/* Kumo's `beta` badge is a dashed brand border on nothing; this is the same
+   shape in the violet that means inference. */
+.ih-asst-beta {
+  display: inline-flex; align-items: center; height: 20px; padding: 0 8px;
+  border: 1px dashed var(--ai-400); border-radius: var(--radius-full);
+  background: transparent; color: var(--ai-fg);
+  font-family: var(--font-mono); font-size: var(--fs-xs); font-weight: var(--fw-label);
+  white-space: nowrap;
+}
 .ih-asst-icon-btn {
   display: grid; place-items: center; width: 22px; height: 22px; flex: none;
   border: 0; border-radius: var(--radius-sm);
@@ -1104,6 +1134,13 @@ body:has(.ih-builder-foot) .ih-asst { bottom: calc(var(--foot-h) + var(--sp-md))
   text-transform: uppercase; color: var(--ai-fg);
 }
 .ih-asst-text { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--foreground-default); }
+/* Each word resolves out of a blur as it lands, so the reveal reads as
+   composition rather than as a machine printing characters. */
+.ih-asst-word { display: inline; animation: ih-asst-resolve 260ms ease-out both; }
+@keyframes ih-asst-resolve {
+  from { opacity: 0; filter: blur(4px); }
+  to   { opacity: 1; filter: blur(0); }
+}
 .ih-asst-caret {
   display: inline-block; width: 2px; height: 12px; margin-left: 2px; vertical-align: -2px;
   border-radius: var(--radius-full); background: var(--ai-fg);
@@ -1126,22 +1163,331 @@ body:has(.ih-builder-foot) .ih-asst { bottom: calc(var(--foot-h) + var(--sp-md))
 }
 .ih-asst-follow-btn:hover { background: var(--surface-100); color: var(--foreground-default); }
 .ih-asst-follow-btn svg { flex: none; color: var(--ai-fg); }
-.ih-asst-follow-label { min-width: 0; }
+.ih-asst-follow-label {
+  margin: 0 0 var(--sp-xxs); font-size: 11px; font-weight: 500;
+  color: var(--foreground-lighter);
+}
 
-/* The ask box: a field with a squared-off bar beneath it, and a send button
-   that lights only once there is something to send. */
+/* The ask box — ported from the shadcn `ai-input-with-search` component: the
+   two-tier shape (a field with a squared-off bar beneath it), a field that
+   grows with what you type up to a cap, and a send button that lights only
+   once there is something to send. The bar carries no rule of its own: the
+   shell is one box, and a line across it would cut the box in two. */
 .ih-asst-ask { flex: none; padding: 0 var(--sp-md) var(--sp-md); }
 .ih-asst-ask-shell {
-  border: 1px solid var(--border-muted); border-radius: var(--radius-md);
-  background: var(--well); overflow: hidden;
+  overflow: hidden;
+  border: 1px solid var(--border-default); border-radius: var(--radius-md);
+  background: var(--surface-100);
+  transition: border-color var(--motion-fast) var(--ease-out);
 }
+.ih-asst-ask-shell:focus-within { border-color: var(--ai-400); }
 .ih-asst-ask-field {
-  width: 100%; min-height: 34px; max-height: 90px; border: 0; background: transparent;
-  resize: none; font-size: 12.5px;
+  display: block; width: 100%; min-height: 34px; max-height: 90px;
+  padding: 9px 10px 0; border: 0; background: transparent; resize: none;
+  overflow-y: auto; overscroll-behavior: contain;
+  color: var(--foreground-default); font: inherit; font-size: 12.5px; line-height: 1.35;
 }
+.ih-asst-ask-field:focus { outline: none; }
+.ih-asst-ask-field::placeholder { color: var(--foreground-muted); }
 .ih-asst-ask-bar {
-  display: flex; justify-content: flex-end; padding: 4px;
-  border-top: 1px solid var(--border-muted);
+  display: flex; align-items: center; justify-content: flex-end;
+  height: 30px; padding: 0 5px;
+}
+.ih-asst-ask-send {
+  display: grid; place-items: center; width: 24px; height: 24px;
+  border: 0; border-radius: var(--radius-sm);
+  background: var(--surface-200); color: var(--foreground-muted); cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+}
+.ih-asst-ask-send[data-armed="true"] { background: var(--ai-200); color: var(--ai-fg); }
+.ih-asst-ask-send svg { width: 13px; height: 13px; }
+
+/* A fixed box will cut a line in half whenever the transcript runs past it.
+   Fading only the edge the content actually overflows makes that cut read as
+   "there is more this way" rather than as a clipped render. Both offsets are
+   0 when the log fits, which collapses the mask to fully opaque. */
+.ih-asst-body {
+  --asst-fade-top: 0px;
+  --asst-fade-bottom: 0px;
+  -webkit-mask-image: linear-gradient(to bottom,
+    transparent 0, #000 var(--asst-fade-top),
+    #000 calc(100% - var(--asst-fade-bottom)), transparent 100%);
+  mask-image: linear-gradient(to bottom,
+    transparent 0, #000 var(--asst-fade-top),
+    #000 calc(100% - var(--asst-fade-bottom)), transparent 100%);
+}
+.ih-asst-body[data-fade-top="true"] { --asst-fade-top: 18px; }
+.ih-asst-body[data-fade-bottom="true"] { --asst-fade-bottom: 22px; }
+
+/* Below the console's narrow breakpoint the fixed card would crowd the content
+   it is describing, so it takes the width it can have. */
+@media (max-width: 560px) {
+  .ih-asst-card { width: calc(100vw - var(--sp-xl)); }
+}
+
+/* ==========================================================================
+   The border beam — a travelling comet around the card's edge while it thinks.
+
+   A port of border-beam@1.3.0 at `size="md" colorVariant="colorful"
+   theme="dark"`, in plain CSS. That package is React + Tailwind + TypeScript
+   and this prototype is none of those — it has no package.json, no bundler,
+   and netlify.toml publishes the repo root as-is — but the effect itself never
+   needed a framework. The React component only emits scoped CSS with a
+   generated id; every prop is a variable in the rules below.
+
+   How it works, and it is worth knowing because it is not the obvious build:
+   the colour does NOT travel. Nine radial-gradient blobs are pinned at fixed
+   points around the border — magenta at the top, blue upper-left, green on the
+   left flank, violet along the bottom, orange top-right — and it is the WHITE
+   COMET that sweeps, as a conic-gradient mask spun by --asst-beam-angle. So
+   the beam changes colour as it passes each blob rather than carrying a colour
+   with it, which is why the highlights land in the same places every lap.
+
+   Three composited masks pin it to the edge: the comet, INTERSECTed with the
+   classic border-ring trick (the full box EXCLUDEd against the content box,
+   the ring's thickness being this element's 1px padding).
+
+   Values below are the package's own for this preset — 1.96s a lap, stroke at
+   0.26, inner glow at 0.42, a 12s ±30° hue drift under brightness 1.3 and
+   saturate 1.2.
+
+   FR-91 note: the console reserves violet for machine inference and gives
+   amber and green to the rating ramp, and this beam sweeps through both. It
+   was specified as the rainbow variant deliberately. It reads as chrome on the
+   card's edge rather than as a value in the data, and it only ever runs while
+   the assistant is composing — but it is the one place in the console where
+   ramp colours appear off-ramp, so it is written down here.
+   ========================================================================== */
+@property --asst-beam-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+/* Both layers share the pinned colour field; the inner glow is the same nine
+   blobs at 0.45 alpha, which is how the package derives it.
+
+   ONE DEVIATION, and it is a real bug fix rather than taste. The package sizes
+   its blobs in fixed pixels — 70px, 180px — against its own demo card, which
+   is 348x137. This card is 320x240: nearly twice as tall, so the blobs pinned
+   to the left and right edges covered a much smaller fraction of them and the
+   beam guttered out as it travelled the vertical runs. Each size below is that
+   px value as a percentage of the package's own card, which restores the
+   intent (every blob covers the same share of the edge it sits on) and makes
+   the field scale with whatever it wraps instead of with one card's height. */
+.ih-asst-card::before,
+.ih-asst-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+  clip-path: inset(0 round var(--radius-lg));
+  pointer-events: none;
+  opacity: 0;
+  /* Out over the package's 0.5s; the `in` below overrides to its 0.6s. */
+  transition: opacity 500ms ease;
+}
+
+/* z-index 2 — the beam proper: the comet, over the pinned colours, cut to a
+   1px ring, then softened.
+
+   The blur is what turns that ring into something worth looking at. Masking
+   happens before filtering, so the blur spreads the masked 1px line outward
+   into a soft band instead of being clipped back to it — the ring stays the
+   geometry and the blur becomes the light. */
+.ih-asst-card::after {
+  z-index: 2;
+  padding: 1px;
+  --asst-beam-blur: 4px;
+  background:
+    conic-gradient(
+      from var(--asst-beam-angle),
+      transparent 0%, transparent 54%,
+      rgba(255, 255, 255, 0.1) 57%,
+      rgba(255, 255, 255, 0.3) 60%,
+      rgba(255, 255, 255, 0.6) 63%,
+      rgba(255, 255, 255, 0.75) 66%,
+      rgba(255, 255, 255, 0.6) 69%,
+      rgba(255, 255, 255, 0.3) 72%,
+      rgba(255, 255, 255, 0.1) 75%,
+      transparent 78%, transparent 100%
+    ),
+    radial-gradient(ellipse 20.1% 29.2% at 33% -7.4%, rgb(255, 50, 100), transparent),
+    radial-gradient(ellipse 17.2% 25.5% at 12% -5%, rgb(40, 140, 255), transparent),
+    radial-gradient(ellipse 11.5% 51.1% at 2.1% 68.3%, rgb(50, 200, 80), transparent),
+    radial-gradient(ellipse 5.7% 25.5% at 2.1% 68.3%, rgb(30, 185, 170), transparent),
+    radial-gradient(ellipse 51.7% 23.4% at 74.4% 100%, rgb(100, 70, 255), transparent),
+    radial-gradient(ellipse 24.4% 19.0% at 55% 100%, rgb(40, 140, 255), transparent),
+    radial-gradient(ellipse 21.3% 23.4% at 93.9% 0%, rgb(255, 120, 40), transparent),
+    radial-gradient(ellipse 7.5% 30.7% at 100% 27.1%, rgb(240, 50, 180), transparent),
+    radial-gradient(ellipse 14.9% 35.0% at 100% 27.1%, rgb(180, 40, 240), transparent);
+  -webkit-mask:
+    conic-gradient(
+      from var(--asst-beam-angle),
+      transparent 0%, transparent 30%,
+      rgba(255, 255, 255, 0.1) 36%, rgba(255, 255, 255, 0.35) 44%,
+      white 52%, white 80%,
+      rgba(255, 255, 255, 0.35) 86%, rgba(255, 255, 255, 0.1) 92%,
+      transparent 95%, transparent 100%
+    ),
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: source-in, xor;
+  mask:
+    conic-gradient(
+      from var(--asst-beam-angle),
+      transparent 0%, transparent 30%,
+      rgba(255, 255, 255, 0.1) 36%, rgba(255, 255, 255, 0.35) 44%,
+      white 52%, white 80%,
+      rgba(255, 255, 255, 0.35) 86%, rgba(255, 255, 255, 0.1) 92%,
+      transparent 95%, transparent 100%
+    ),
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: intersect, exclude;
+}
+
+/* z-index 1 — the inner glow the beam sits on, so the edge has depth rather
+   than being one hard hairline. Not masked to the ring: it bleeds inward, and
+   blurs more than twice as wide as the stroke so the two read as one light
+   falling off rather than as two concentric rings. */
+.ih-asst-card::before {
+  z-index: 1;
+  --asst-beam-blur: 9px;
+  box-shadow: inset 0 0 5px 1px rgba(255, 255, 255, 0.18);
+  background:
+    radial-gradient(ellipse 20.1% 29.2% at 33% -7.4%, rgba(255, 50, 100, 0.45), transparent),
+    radial-gradient(ellipse 17.2% 25.5% at 12% -5%, rgba(40, 140, 255, 0.45), transparent),
+    radial-gradient(ellipse 11.5% 51.1% at 2.1% 68.3%, rgba(50, 200, 80, 0.45), transparent),
+    radial-gradient(ellipse 5.7% 25.5% at 2.1% 68.3%, rgba(30, 185, 170, 0.45), transparent),
+    radial-gradient(ellipse 51.7% 23.4% at 74.4% 100%, rgba(100, 70, 255, 0.45), transparent),
+    radial-gradient(ellipse 24.4% 19.0% at 55% 100%, rgba(40, 140, 255, 0.45), transparent),
+    radial-gradient(ellipse 21.3% 23.4% at 93.9% 0%, rgba(255, 120, 40, 0.45), transparent),
+    radial-gradient(ellipse 7.5% 30.7% at 100% 27.1%, rgba(240, 50, 180, 0.45), transparent),
+    radial-gradient(ellipse 14.9% 35.0% at 100% 27.1%, rgba(180, 40, 240, 0.45), transparent);
+  -webkit-mask:
+    conic-gradient(
+      from var(--asst-beam-angle),
+      transparent 0%, transparent 30%,
+      rgba(255, 255, 255, 0.1) 36%, rgba(255, 255, 255, 0.35) 44%,
+      white 52%, white 80%,
+      rgba(255, 255, 255, 0.35) 86%, rgba(255, 255, 255, 0.1) 92%,
+      transparent 95%, transparent 100%
+    );
+  mask:
+    conic-gradient(
+      from var(--asst-beam-angle),
+      transparent 0%, transparent 30%,
+      rgba(255, 255, 255, 0.1) 36%, rgba(255, 255, 255, 0.35) 44%,
+      white 52%, white 80%,
+      rgba(255, 255, 255, 0.35) 86%, rgba(255, 255, 255, 0.1) 92%,
+      transparent 95%, transparent 100%
+    );
+}
+
+/* Lit. The card's own violet hairline steps aside so the beam owns the edge
+   rather than running as a second ring just inside it. */
+body[data-asst-thinking="true"] .ih-asst-card,
+body[data-asst-thinking="fading"] .ih-asst-card { border-color: transparent; }
+
+body[data-asst-thinking="true"] .ih-asst-card::after,
+body[data-asst-thinking="fading"] .ih-asst-card::after,
+body[data-asst-thinking="true"] .ih-asst-card::before,
+body[data-asst-thinking="fading"] .ih-asst-card::before {
+  animation:
+    asst-beam-spin 3.4s linear infinite,
+    asst-beam-hue 12s ease-in-out infinite;
+}
+/* Opacity is paired with the blur above rather than chosen on its own: blur
+   spreads the same light over more pixels, so a blurred beam reads brighter
+   per unit of opacity than a hard one and has to come down to stay quiet. The
+   package's own 0.26 / 0.42 are for an unblurred 1px hairline on near-black at
+   full width; these are for a soft band on a 320px card over the console's
+   --background-200. The inner glow deliberately stays well under the stroke,
+   so the edge still reads as an edge and not as a coloured wash. */
+body[data-asst-thinking="true"] .ih-asst-card::after  { opacity: 0.58; transition: opacity 600ms ease; }
+body[data-asst-thinking="true"] .ih-asst-card::before { opacity: 0.36; transition: opacity 600ms ease; }
+
+@keyframes asst-beam-spin { to { --asst-beam-angle: 360deg; } }
+
+/* The blur has to be repeated in every keyframe, not set once on the element:
+   `filter` is one property, so the hue drift animating it would otherwise
+   animate the blur away on the first frame. Each layer supplies its own radius
+   through --asst-beam-blur, which is why one set of keyframes serves both.
+
+   Brightness comes down from the package's 1.30 with the same reasoning as the
+   opacities — blur concentrates nothing and spreads everything, so the gain
+   that suited a hairline overdrives a band. */
+@keyframes asst-beam-hue {
+  0%   { filter: blur(var(--asst-beam-blur, 0)) hue-rotate(-30deg) brightness(1.20) saturate(1.20); }
+  50%  { filter: blur(var(--asst-beam-blur, 0)) hue-rotate(30deg)  brightness(1.20) saturate(1.20); }
+  100% { filter: blur(var(--asst-beam-blur, 0)) hue-rotate(-30deg) brightness(1.20) saturate(1.20); }
+}
+
+/* A beam whose whole content is motion has nothing to show when motion is
+   off, so it does not run at all — the orb still carries the state. */
+@media (prefers-reduced-motion: reduce) {
+  .ih-asst-card::before, .ih-asst-card::after { display: none; }
+}
+
+/* ---------- Pointer mode ----------
+   The companion trails the real cursor; resting on a panel for a beat asks it
+   what its numbers say. Panels outline faintly while the pointer is armed so
+   what can be read is visible before you reach it, and the armed panel lifts
+   as the dwell ring closes. Violet throughout — a reading is a claim. */
+.asst-pointer {
+  position: fixed; top: 0; left: 0; z-index: 79;   /* under the card, over the page */
+  width: 40px; height: 40px; margin: -20px 0 0 -20px;
+  pointer-events: none;
+  display: grid; place-items: center;
+  opacity: 0; transition: opacity 160ms ease;
+}
+.asst-pointer[data-visible="true"] { opacity: 1; }
+
+.asst-pointer-mark {
+  position: relative;
+  display: grid; place-items: center;
+  width: 22px; height: 22px; overflow: hidden;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--ai-400);
+  background: transparent;
+  box-shadow: var(--shadow-2);
+}
+
+/* The ring closes over the dwell, so the wait reads as deliberate. */
+.asst-pointer-ring {
+  position: absolute; inset: 0;
+  width: 40px; height: 40px;
+  transform: rotate(-90deg);
+  fill: none;
+  opacity: 0;
+  transition: opacity var(--motion-fast) var(--ease-out);
+}
+.asst-pointer[data-dwelling="true"] .asst-pointer-ring { opacity: 1; }
+.asst-pointer-track { stroke: var(--ai-400); stroke-width: 2.5; }
+.asst-pointer-progress {
+  stroke: var(--ai-fg); stroke-width: 2.5; stroke-linecap: round;
+  stroke-dasharray: 107; stroke-dashoffset: 107;   /* 2πr, r = 17 */
+}
+.asst-pointer[data-dwelling="true"] .asst-pointer-progress {
+  animation: asst-dwell 600ms linear forwards;
+}
+@keyframes asst-dwell { to { stroke-dashoffset: 0; } }
+
+body[data-asst-pointer="true"] [data-insight] {
+  outline: 1px dashed var(--ai-400);
+  outline-offset: 2px;
+  border-radius: var(--radius-lg);
+  transition: outline-color var(--motion-fast) var(--ease-out), background var(--motion-fast) var(--ease-out);
+}
+body[data-asst-pointer="true"] [data-insight][data-insight-armed] {
+  outline: 2px solid var(--ai-fg);
+  background: var(--ai-200);
+  position: relative; z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .asst-pointer-progress { animation: none; stroke-dashoffset: 0; }
 }
 
 /* ==========================================================================
@@ -1217,6 +1563,9 @@ body:has(.ih-builder-foot) .ih-asst { bottom: calc(var(--foot-h) + var(--sp-md))
   .ih-metric, .ih-opt, .ih-goal, .ih-tpl-card { transition: none; }
   .ih-metric:hover, .ih-opt:hover, .ih-goal:hover, .ih-tpl-card:hover { transform: none; }
   .ih-asst-caret { animation: none; }
+  /* The word reveal is motion with nothing else to say, so it does not run —
+     the words simply land. */
+  .ih-asst-word,
   .ih-asst-turn[data-from="you"] .ih-asst-text,
   .ih-asst-follow-btn { animation: none; }
   .ih-asst-card { transition: none; }

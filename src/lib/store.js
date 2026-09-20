@@ -341,6 +341,10 @@ const DEFAULT_STATE = {
      a state word under each label — at the cost of a band of its own. Both
      are wired; Settings → Prototype state switches them. */
   builderChrome: 'stepper',
+  /* Set once `repair()` has cleared a `builderChrome` saved by the build that
+     defaulted to the strip. Without it that repair would run on every load and
+     would undo a deliberate choice of the strip. */
+  chromeDefaultRestored: false,
   /* Dark or light. Dark is the default and the theme the console was designed
      on; light is the alternate, from Appendix B of the guideline. Switched
      from Settings → General → Appearance. Read at boot by the inline script
@@ -351,9 +355,29 @@ const DEFAULT_STATE = {
   settings: { ...DEFAULT_SETTINGS },
 };
 
+/**
+ * One-time repairs to a state saved by an older build.
+ *
+ * A stored value outlives a changed default forever, which is a problem the
+ * moment a default was wrong. `builderChrome` was `strip` for four commits
+ * (9e355e7 → cedfba8) and anyone who opened the builder in that window has
+ * `strip` saved under this key — so the wizard kept opening on the tab strip
+ * long after the stepper became the default again, with nothing in the code
+ * to say why.
+ *
+ * Dropping the key lets the default apply. The repair is recorded rather than
+ * repeated, so Settings → Prototype state can still put the strip back and
+ * have it stick: a deliberate choice is saved alongside the marker.
+ */
+function repair(stored) {
+  if (stored.chromeDefaultRestored) return stored;
+  const { builderChrome, ...rest } = stored;
+  return { ...rest, chromeDefaultRestored: true };
+}
+
 export const store = {
   state: (() => {
-    const stored = loadState() || {};
+    const stored = repair(loadState() || {});
     // A state saved before a setting existed must still get that setting's
     // default rather than `undefined`, so the merge is per-group, not shallow.
     return { ...DEFAULT_STATE, ...stored, settings: { ...DEFAULT_SETTINGS, ...(stored.settings || {}) } };

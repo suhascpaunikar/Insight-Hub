@@ -266,21 +266,23 @@ export function ContentStep({ draft, issues, showIssues, update }) {
                   </Button>
                 } />
                 <DropdownMenu.Content align="end">
-                  <DropdownMenu.Label>Copy from</DropdownMenu.Label>
-                  {draft.variants.filter((v) => v.id !== variant.id).map((v) => (
-                    <DropdownMenu.Item
-                      key={v.id}
-                      icon={<Icon name="copy" size={14} />}
-                      onClick={() => patch({ trigger: { ...v.trigger } })}
-                    >
-                      <span className="ih-col">
-                        <span>{v.name}</span>
-                        <Text size="xs" variant="mono-secondary">
-                          {v.trigger.event} + {v.trigger.delayValue} {v.trigger.delayUnit}
-                        </Text>
-                      </span>
-                    </DropdownMenu.Item>
-                  ))}
+                  <DropdownMenu.Group>
+                    <DropdownMenu.Label>Copy from</DropdownMenu.Label>
+                    {draft.variants.filter((v) => v.id !== variant.id).map((v) => (
+                      <DropdownMenu.Item
+                        key={v.id}
+                        icon={<Icon name="copy" size={14} />}
+                        onClick={() => patch({ trigger: { ...v.trigger } })}
+                      >
+                        <span className="ih-col">
+                          <span>{v.name}</span>
+                          <Text size="xs" variant="mono-secondary">
+                            {v.trigger.event} + {v.trigger.delayValue} {v.trigger.delayUnit}
+                          </Text>
+                        </span>
+                      </DropdownMenu.Item>
+                    ))}
+                  </DropdownMenu.Group>
                 </DropdownMenu.Content>
               </DropdownMenu>
             )}

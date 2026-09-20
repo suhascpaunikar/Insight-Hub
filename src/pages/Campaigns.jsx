@@ -2,7 +2,7 @@
    Campaigns.jsx — the campaign list, the product's landing screen
    (FR-71 … FR-85, list conventions per FR-63).
    ========================================================================== */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Table, Button, Badge, Input, DropdownMenu, Pagination, Empty,
   LayerCard, Text, Tooltip, RefreshButton,
@@ -214,16 +214,18 @@ export function Campaigns() {
                 <Button size="sm" variant="secondary"><Icon name="columns" size={14} />Columns</Button>
               } />
               <DropdownMenu.Content align="end">
-                <DropdownMenu.Label>Visible columns</DropdownMenu.Label>
-                {Object.entries(COLUMN_LABELS).map(([key, label]) => (
-                  <DropdownMenu.CheckboxItem
-                    key={key}
-                    checked={columns[key]}
-                    onCheckedChange={(on) => setColumns((c) => ({ ...c, [key]: on }))}
-                  >
-                    {label}
-                  </DropdownMenu.CheckboxItem>
-                ))}
+                <DropdownMenu.Group>
+                  <DropdownMenu.Label>Visible columns</DropdownMenu.Label>
+                  {Object.entries(COLUMN_LABELS).map(([key, label]) => (
+                    <DropdownMenu.CheckboxItem
+                      key={key}
+                      checked={columns[key]}
+                      onCheckedChange={(on) => setColumns((c) => ({ ...c, [key]: on }))}
+                    >
+                      {label}
+                    </DropdownMenu.CheckboxItem>
+                  ))}
+                </DropdownMenu.Group>
               </DropdownMenu.Content>
             </DropdownMenu>
             <DropdownMenu>
@@ -231,16 +233,18 @@ export function Campaigns() {
                 <Button size="sm" variant="secondary"><Icon name="sort" size={14} />{sortLabel()}</Button>
               } />
               <DropdownMenu.Content align="end">
-                <DropdownMenu.Label>Sort by</DropdownMenu.Label>
-                {Object.values(SORTS).map((preset) => (
-                  <DropdownMenu.Item
-                    key={preset.key + preset.dir}
-                    selected={sort === preset.key && dir === preset.dir}
-                    onClick={() => { setSort(preset.key); setDir(preset.dir); setPage(1); }}
-                  >
-                    {preset.label}
-                  </DropdownMenu.Item>
-                ))}
+                <DropdownMenu.Group>
+                  <DropdownMenu.Label>Sort by</DropdownMenu.Label>
+                  {Object.values(SORTS).map((preset) => (
+                    <DropdownMenu.Item
+                      key={preset.key + preset.dir}
+                      selected={sort === preset.key && dir === preset.dir}
+                      onClick={() => { setSort(preset.key); setDir(preset.dir); setPage(1); }}
+                    >
+                      {preset.label}
+                    </DropdownMenu.Item>
+                  ))}
+                </DropdownMenu.Group>
               </DropdownMenu.Content>
             </DropdownMenu>
             {/* §9.1's last toolbar control. Kumo ships RefreshButton with the
@@ -341,7 +345,10 @@ export function Campaigns() {
         </>
       )}
 
-      <p className="ih-proto-note">
+      {/* A <div>, not a <p>: Kumo's Text renders its own <p>, and a paragraph
+          inside a paragraph is one the browser closes early — React says so
+          on every render of this page. */}
+      <div className="ih-proto-note">
         <Text size="xs" variant="secondary">Prototype data. </Text>
         <Button
           variant="ghost" size="xs"
@@ -353,7 +360,7 @@ export function Campaigns() {
         <Button variant="ghost" size="xs" onClick={() => setDialog({ kind: 'reset' })}>
           Reset all prototype state
         </Button>
-      </p>
+      </div>
 
       <CampaignDialogs
         dialog={dialog}
@@ -500,35 +507,39 @@ function RowMenu({ campaign: c, running, onAction }) {
         </Button>
       } />
       <DropdownMenu.Content align="end">
-        <DropdownMenu.Label>{c.name}</DropdownMenu.Label>
-        <DropdownMenu.Item icon={<Icon name="pencil" size={14} />} onClick={() => onAction('rename')}>Rename…</DropdownMenu.Item>
-        <DropdownMenu.Item icon={<Icon name="clone" size={14} />} onClick={() => onAction('clone')}>Clone…</DropdownMenu.Item>
-        <DropdownMenu.Item icon={<Icon name="copy" size={14} />} onClick={() => onAction('copy-id')}>Copy campaign ID</DropdownMenu.Item>
-        {hasData(c) && (
-          <DropdownMenu.Item icon={<Icon name="download" size={14} />} onClick={() => onAction('export')}>Export…</DropdownMenu.Item>
-        )}
-        {/* FR-79 — the run controls, on the row rather than one screen inside it. */}
-        {running && <DropdownMenu.Separator />}
-        {c.status === 'Live' && (
-          <DropdownMenu.Item icon={<Icon name="pause" size={14} />} onClick={() => onAction('pause')}>Pause</DropdownMenu.Item>
-        )}
-        {c.status === 'Paused' && (
-          <DropdownMenu.Item icon={<Icon name="play" size={14} />} onClick={() => onAction('resume')}>Resume</DropdownMenu.Item>
-        )}
-        {running && (
-          <DropdownMenu.Item icon={<Icon name="stop" size={14} />} onClick={() => onAction('stop')}>Stop…</DropdownMenu.Item>
-        )}
-        <DropdownMenu.Separator />
-        <DropdownMenu.Item
-          variant="danger"
-          icon={<Icon name="trash" size={14} />}
-          disabled={!canDelete(c)}
-          title={canDelete(c) ? undefined
-            : `A ${c.status.toLowerCase()} campaign is still enrolling users. Stop it first.`}
-          onClick={() => onAction('delete')}
-        >
-          Delete…
-        </DropdownMenu.Item>
+        {/* The campaign's name heads every action under it, so the whole menu
+            is the group it labels. */}
+        <DropdownMenu.Group>
+          <DropdownMenu.Label>{c.name}</DropdownMenu.Label>
+          <DropdownMenu.Item icon={<Icon name="pencil" size={14} />} onClick={() => onAction('rename')}>Rename…</DropdownMenu.Item>
+          <DropdownMenu.Item icon={<Icon name="clone" size={14} />} onClick={() => onAction('clone')}>Clone…</DropdownMenu.Item>
+          <DropdownMenu.Item icon={<Icon name="copy" size={14} />} onClick={() => onAction('copy-id')}>Copy campaign ID</DropdownMenu.Item>
+          {hasData(c) && (
+            <DropdownMenu.Item icon={<Icon name="download" size={14} />} onClick={() => onAction('export')}>Export…</DropdownMenu.Item>
+          )}
+          {/* FR-79 — the run controls, on the row rather than one screen inside it. */}
+          {running && <DropdownMenu.Separator />}
+          {c.status === 'Live' && (
+            <DropdownMenu.Item icon={<Icon name="pause" size={14} />} onClick={() => onAction('pause')}>Pause</DropdownMenu.Item>
+          )}
+          {c.status === 'Paused' && (
+            <DropdownMenu.Item icon={<Icon name="play" size={14} />} onClick={() => onAction('resume')}>Resume</DropdownMenu.Item>
+          )}
+          {running && (
+            <DropdownMenu.Item icon={<Icon name="stop" size={14} />} onClick={() => onAction('stop')}>Stop…</DropdownMenu.Item>
+          )}
+          <DropdownMenu.Separator />
+          <DropdownMenu.Item
+            variant="danger"
+            icon={<Icon name="trash" size={14} />}
+            disabled={!canDelete(c)}
+            title={canDelete(c) ? undefined
+              : `A ${c.status.toLowerCase()} campaign is still enrolling users. Stop it first.`}
+            onClick={() => onAction('delete')}
+          >
+            Delete…
+          </DropdownMenu.Item>
+        </DropdownMenu.Group>
       </DropdownMenu.Content>
     </DropdownMenu>
   );
@@ -570,8 +581,8 @@ function ActivityStrip({ campaigns, range, onRange }) {
             </Button>
           } />
           <DropdownMenu.Content align="end">
-            <DropdownMenu.Label>Range</DropdownMenu.Label>
             <DropdownMenu.RadioGroup value={range} onValueChange={onRange}>
+              <DropdownMenu.Label>Range</DropdownMenu.Label>
               {Object.entries(RANGES).map(([key, r]) => (
                 <DropdownMenu.RadioItem key={key} value={key}>{r.label}</DropdownMenu.RadioItem>
               ))}
@@ -635,6 +646,28 @@ function ActivityStrip({ campaigns, range, onRange }) {
 
 /* ---------- The row menu's dialogs ---------- */
 
+/**
+ * An action with nothing to confirm: it fires and the dialog state closes
+ * behind it.
+ *
+ * In an effect rather than in render, which is where it used to be. `toast()`
+ * updates the toast list and `onClose()` updates the page, and a component
+ * that updates another while it is rendering is a bug React logs on sight —
+ * this one fired on every Export, Pause, Resume and Copy ID chosen from a row.
+ * The ref keeps it to once per choice, since an effect can run twice for one
+ * mount and two toasts for one click is the other half of the same bug.
+ */
+function ImmediateAction({ run, onClose }) {
+  const fired = useRef(false);
+  useEffect(() => {
+    if (fired.current) return;
+    fired.current = true;
+    run();
+    onClose();
+  }, [run, onClose]);
+  return null;
+}
+
 function CampaignDialogs({ dialog, store, onClose }) {
   const c = dialog?.campaign;
 
@@ -696,7 +729,7 @@ function CampaignDialogs({ dialog, store, onClose }) {
     },
   }[dialog?.kind];
 
-  /* The three that need no confirmation run on the spot and close. */
+  /* The ones that need no confirmation run on the spot and close. */
   if (dialog && !act) {
     const immediate = {
       'copy-id': async () => {
@@ -720,7 +753,7 @@ function CampaignDialogs({ dialog, store, onClose }) {
         toast('Campaign resumed', 'Enrolment has started again.');
       },
     }[dialog.kind];
-    if (immediate) { immediate(); onClose(); }
+    if (immediate) return <ImmediateAction run={immediate} onClose={onClose} />;
     return null;
   }
 
