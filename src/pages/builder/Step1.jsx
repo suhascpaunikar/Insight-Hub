@@ -102,6 +102,10 @@ export function Step1({ draft, issues, showIssues, update, onSuggestName }) {
           <div className="ih-row-stretch">
             <Input
               className="ih-grow"
+              // The panel's heading names the section, not the control: a
+              // screen reader on this field would otherwise have only the
+              // placeholder, which disappears the moment anything is typed.
+              aria-label="Campaign name"
               value={draft.name}
               placeholder="e.g. Post-delivery feedback · Bandra"
               aria-invalid={Boolean(showIssues && issue('name'))}
@@ -203,6 +207,7 @@ function ObjectiveSection({ draft, update, onSuggestName }) {
         <Field>
           <Textarea
             rows={4}
+            aria-label="Campaign objective"
             maxLength={OBJECTIVE_MAX}
             className="ih-objective"
             placeholder="e.g. Repeat orders in Bandra dropped 8% after the March update. Find out if it is the new tracking screen or the delivery time."

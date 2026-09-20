@@ -65,8 +65,13 @@ export function OptionCard({
       render={<label />}
       className={`ih-opt${checked ? ' ih-opt-on' : ''}`}
     >
+      {/* Named for the card's title rather than by the <label> around it:
+          that label holds the note and the badge too, and a control announced
+          as its own three-line description is worse than one announced as
+          what it is. */}
       <Control
         name={name}
+        aria-label={typeof title === 'string' ? title : undefined}
         checked={checked}
         onCheckedChange={(next) => onChange(as === 'radio' ? true : next)}
       />
