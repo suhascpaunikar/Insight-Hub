@@ -465,12 +465,18 @@ body {
 .ih-chart-plot[data-reading] .ih-chart-col { transition: opacity var(--motion-fast) var(--ease-out); }
 .ih-chart-plot[data-reading] .ih-chart-col:not([data-on]) { opacity: .38; }
 
-/* The readout. Lifted out of the plot: a 40px band cannot hold it, and a card
-   that overlaps its neighbour for the moment it is being read costs less than
-   one that hides the column being asked about. */
+/* The readout. Lifted out of the plot: a 40px band cannot hold it, so it opens
+   over the card's own figures, which are printed and stay printed.
+
+   `left` belongs to ChartTip, which measures the hovered column and this box
+   and centres the tip on the one inside the other. Hence no translate here,
+   and hence the clamp there: `.ih-scroll` hides horizontal overflow, so a
+   readout centred on the plot's first or last column — where half of it falls
+   outside the card — is a readout with its labels sliced off. `max-width` is
+   the same promise for a card too narrow to hold it at any position. */
 .ih-chart-tip {
-  position: absolute; bottom: 46px; transform: translateX(-50%); z-index: 20;
-  min-width: 168px; padding: 8px 10px;
+  position: absolute; left: 0; bottom: 46px; z-index: 20;
+  min-width: 168px; max-width: 100%; padding: 8px 10px;
   background: var(--frame); border: 1px solid var(--border-overlay); border-radius: var(--radius-sm);
   box-shadow: var(--shadow-3); pointer-events: none;
 }
@@ -921,6 +927,7 @@ body {
   position: absolute; left: -2px; top: 0; bottom: 0; width: 0;
   border-left: 1px dashed var(--ai); pointer-events: none;
 }
+/* The tall plot has the height to hold the readout beside its bars. */
 .ih-chart-tip-inline { bottom: auto; top: 0; }
 .ih-chart-axis { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: var(--sp-sm); }
 .ih-ta-c { text-align: center; }

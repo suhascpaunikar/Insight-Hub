@@ -10,8 +10,9 @@
    The bar rows *are* Kumo's, though: a labelled value inside a known range is
    exactly `Meter`, which is what §11.4 says `.bar-track` / `.bar-fill` is.
    ========================================================================== */
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Text } from '@cloudflare/kumo';
+import { ChartTip } from './ChartTip.jsx';
 import { count } from '../lib/format.js';
 import { CHART_H } from '../lib/insights-lib.js';
 
@@ -44,10 +45,14 @@ function Gridlines({ top }) {
  * tip settles once per column instead of sliding under a pointer that is still
  * crossing the same bar. This chart is 150px tall against a readout of about
  * ninety, so unlike the campaign cards it has the room to hold the tip beside
- * its bars rather than lift it out of the plot.
+ * its bars rather than lift it out of the plot. ChartTip keeps it inside them:
+ * this plot is inset by the gridline gutter, and at either end a tip centred
+ * on the chart's own edge would hang outside the card and be cut off.
  */
 export function InsightChart({ top, points }) {
   const [reading, setReading] = useState(null);
+  // The column under the pointer, for the readout to measure itself against.
+  const colRef = useRef(null);
   const open = reading != null ? points[reading] : null;
 
   return (
@@ -64,6 +69,7 @@ export function InsightChart({ top, points }) {
             {p.boundary && <span className="ih-chart-boundary" title="Version boundary" />}
             <span
               className="ih-chart-col"
+              ref={reading === i ? colRef : null}
               data-on={reading === i ? '' : undefined}
               onMouseEnter={() => setReading(i)}
             >
@@ -78,21 +84,7 @@ export function InsightChart({ top, points }) {
           </span>
         ))}
       </div>
-      {open && (
-        <div
-          className="ih-chart-tip ih-chart-tip-inline"
-          data-open="true"
-          style={{ left: `${(open === points[0] ? 0 : reading / Math.max(1, points.length - 1)) * 100}%` }}
-        >
-          {open.readout.map((r) => (
-            <div className="ih-chart-tip-row" key={r.label}>
-              <i style={{ background: r.fill, opacity: r.opacity }} />
-              <span>{r.label}</span><b>{r.value}</b>
-            </div>
-          ))}
-          <div className="ih-chart-tip-foot">{open.label}</div>
-        </div>
-      )}
+      {open && <ChartTip inline anchorRef={colRef} readout={open.readout} label={open.label} />}
     </div>
   );
 }

@@ -598,7 +598,9 @@ is stated, never hidden.
 **Chart** (`.chart`) — dashed rules at rounded values behind the marks, with their labels in a
 left gutter rather than on top of the first bar, and a floating readout (`.chart-tip`) opened by
 hovering a column: a dot per series, the series name with its share, the value, and the point's
-date under a rule. Bars alone leave the reader estimating heights against nothing.
+date under a rule. Bars alone leave the reader estimating heights against nothing. It centres on
+the column it reads and then stops at the card's edges — at the first and last column a centred
+readout hangs half outside the card, and the scroll region clips what hangs out.
 
 ## Motion
 

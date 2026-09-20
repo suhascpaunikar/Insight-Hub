@@ -11,6 +11,7 @@
    ========================================================================== */
 import { useState, useRef } from 'react';
 import { LayerCard } from '@cloudflare/kumo';
+import { ChartTip } from './ChartTip.jsx';
 import { count } from '../lib/format.js';
 
 /**
@@ -21,7 +22,8 @@ import { count } from '../lib/format.js';
  */
 export function MetricCard({ name, legend = [], value, subs = [], rows, series, axis, band }) {
   const [reading, setReading] = useState(null);
-  const plotRef = useRef(null);
+  // The column under the pointer, for the readout to measure itself against.
+  const colRef = useRef(null);
 
   const total = (row) => series.reduce((t, s) => t + s.of(row), 0);
   const values = rows.map(total);
@@ -69,7 +71,7 @@ export function MetricCard({ name, legend = [], value, subs = [], rows, series, 
         </span>
         <span className="ih-metric-sub">{subs.map((s) => <b key={s}>{s}</b>)}</span>
       </div>
-      <div className="ih-metric-plot" ref={plotRef}>
+      <div className="ih-metric-plot">
         {/* mouseleave on the plot rather than mouseenter per column: the
             columns are 3px apart, and entering each one separately makes the
             readout flicker as the pointer crosses the gaps. */}
@@ -83,6 +85,7 @@ export function MetricCard({ name, legend = [], value, subs = [], rows, series, 
             <span
               className="ih-chart-col"
               key={col.i}
+              ref={reading === col.i ? colRef : null}
               data-on={reading === col.i ? '' : undefined}
               onMouseEnter={() => setReading(col.i)}
             >
@@ -101,18 +104,10 @@ export function MetricCard({ name, legend = [], value, subs = [], rows, series, 
             band of bars is 40px and the readout is nearer a hundred, so no
             placement within the card leaves the series whole. It sits over the
             card's own figures instead — those are printed and stay printed,
-            while the bars are what the reader opened the readout to look at. */}
-        {open && (
-          <div className="ih-chart-tip" data-open="true" style={{ left: `${(open.i / (columns.length - 1)) * 100}%` }}>
-            {open.readout.map((r) => (
-              <div className="ih-chart-tip-row" key={r.label}>
-                <i style={{ background: r.fill, opacity: r.opacity }} />
-                <span>{r.label}</span><b>{r.value}</b>
-              </div>
-            ))}
-            <div className="ih-chart-tip-foot">{open.label}</div>
-          </div>
-        )}
+            while the bars are what the reader opened the readout to look at.
+            Sideways it is the card that bounds it, and ChartTip holds it
+            there: hanging past the edge only gets it cut off. */}
+        {open && <ChartTip anchorRef={colRef} readout={open.readout} label={open.label} />}
       </div>
     </LayerCard>
   );
