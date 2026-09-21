@@ -10,9 +10,11 @@
    Six steps became four: see STEPS for which two pairs merged and why.
    ========================================================================== */
 import { useEffect, useState } from 'react';
-import { Button, Banner } from '@cloudflare/kumo';
+import { Button, Banner, Text } from '@cloudflare/kumo';
 import { Icon } from '../lib/icons.jsx';
 import { WizardShell } from '../app/WizardShell.jsx';
+import { HoverCard } from '../app/HoverCard.jsx';
+import { focusPanel } from '../app/wizard-kit.jsx';
 import { ConfirmDialog } from '../app/dialogs.jsx';
 import { Step1 } from './builder/Step1.jsx';
 import { Step2 } from './builder/Step2.jsx';
@@ -23,7 +25,7 @@ import { useStore } from '../lib/useStore.js';
 import { toast } from '../lib/toast.js';
 import {
   validateStep, furthestReachableStep, audienceReach, reconcileVariants, createVariant,
-  suggestNameFromObjective, STEP_COUNT,
+  suggestNameFromObjective, stepReadiness, issueTarget, STEP_COUNT,
 } from '../lib/store.js';
 
 /**
@@ -47,6 +49,9 @@ export function Builder() {
   const [publishing, setPublishing] = useState(false);
   const [segmentOpen, setSegmentOpen] = useState(false);
   const [pendingGuard, setPendingGuard] = useState(null);
+  /* A jump taken from the readiness card: which panel to land on, and on which
+     variant when the failing field is one of step 3's per-variant ones. */
+  const [jump, setJump] = useState(null);
 
   // Opened directly without a draft — seed one so the screen is explorable.
   useEffect(() => {
@@ -55,6 +60,22 @@ export function Builder() {
       store.updateDraft({ name: 'Post-delivery feedback · Bandra' });
     }
   }, [store]);
+
+  /* The panel a readiness jump sent us to. The step body has already rendered
+     by the time an effect runs, so the panel exists to be found; the frame is
+     for the variant tab, which ContentStep switches in an effect of its own
+     that runs before this one.
+
+     Up here with the seeding effect rather than beside the handler that sets
+     it, because the early return below is on the first render of this screen:
+     a hook declared after it does not run on the render with no draft and does
+     on the next, which is React's "more hooks than during the previous
+     render". */
+  useEffect(() => {
+    if (!jump) return undefined;
+    const frame = requestAnimationFrame(() => focusPanel(jump.panel));
+    return () => cancelAnimationFrame(frame);
+  }, [jump]);
 
   const draft = store.state.draft;
   if (!draft) return null;
@@ -98,6 +119,12 @@ export function Builder() {
   }
 
   function advance(target) {
+    /* A locked stop is `aria-disabled` rather than `disabled` now — it has to
+       be hoverable to explain its own lock — so refusing the move is this
+       function's job rather than the DOM's. The check below only catches a
+       forward move the *current* step blocks, which is not the same thing: a
+       valid step 1 would have let a click on a locked step 4 straight through. */
+    if (target > furthestReachableStep(draft) && !draft.completedSteps.includes(target)) return;
     if (target > step && validateStep(draft, step).length > 0) {
       setShowIssues(true);
       setAttention((set) => new Set(set).add(step));
@@ -109,6 +136,21 @@ export function Builder() {
     // it would read as the wizard having lost your place.
     if (target === step) return;
     store.setStep(target);
+  }
+
+
+  /**
+   * Take one line of the readiness card: travel to the step the failing field
+   * is on, then land on the panel that owns it.
+   *
+   * The card only offers this for a step the draft can actually reach, so the
+   * move is never one `advance` would refuse — a locked step's card names what
+   * is holding it up instead, and offers the jump to *that*.
+   */
+  function jumpToIssue(targetStep, field) {
+    const { panel, variantId } = issueTarget(field);
+    advance(targetStep);
+    if (panel) setJump({ panel, variantId, at: Date.now() });
   }
 
   function publish() {
@@ -139,6 +181,9 @@ export function Builder() {
      reachability, its completion and the mark it carries are decided once and
      cannot drift between them. */
   const reachable = furthestReachableStep(draft);
+  /* What every step still needs, not just the one on screen. The validator
+     could always answer this; the wizard simply never asked. */
+  const readiness = stepReadiness(draft);
   const model = STEPS.map((s) => {
     const isCurrent = s.n === step;
     const isComplete = draft.completedSteps.includes(s.n) && !isCurrent;
@@ -149,14 +194,22 @@ export function Builder() {
     const glyph = needsAttention ? <Icon name="alert" size={11} />
       : isComplete ? <Icon name="check" size={11} />
       : isLocked ? <Icon name="lock" size={11} /> : String(s.n);
-    return { ...s, state, glyph, isCurrent, isLocked };
+    const ready = readiness[s.n - 1];
+    return { ...s, ...ready, state, glyph, isCurrent, isLocked };
   });
 
   const useStrip = store.state.builderChrome !== 'stepper';
   const tabs = useStrip ? {
     label: 'Campaign creation steps',
+    /* The strip cannot carry a hovercard — a tab's label lives inside the
+       strip's own overflow — so it carries the count instead. Same fact, in
+       the shape this chrome has room for. */
     items: model.map((s) => ({
-      key: String(s.n), label: s.label, glyph: s.glyph, disabled: s.isLocked,
+      key: String(s.n),
+      label: s.label,
+      glyph: s.glyph,
+      badge: s.issues.length > 0 && !s.isCurrent ? String(s.issues.length) : undefined,
+      disabled: s.isLocked,
     })),
     active: String(step),
     onSelect: (key) => advance(Number(key)),
@@ -166,7 +219,9 @@ export function Builder() {
     <WizardShell
       draft={draft}
       tabs={tabs}
-      stepper={useStrip ? null : <Stepper model={model} onGoto={advance} />}
+      stepper={useStrip ? null : (
+        <Stepper model={model} onGoto={advance} onJump={jumpToIssue} />
+      )}
       onExit={() => setLeaving(true)}
       footer={
         <>
@@ -223,6 +278,7 @@ export function Builder() {
         <ContentStep
           draft={draft} issues={issues} showIssues={showIssues}
           update={applyUpdate}
+          jump={jump}
         />
       )}
       {step === 4 && (
@@ -300,26 +356,146 @@ export function Builder() {
  * them. The line after a completed step is filled, so how far through the
  * wizard you are is one continuous read across the row rather than something
  * to infer from which tab happens to be highlighted.
+ *
+ * Each stop now answers for itself. The glyphs have always said *that* a step
+ * is locked or wants attention; resting on one says what it is waiting for,
+ * and every line in the card is the way to it. What the four marks were
+ * summarising was already computable for all four steps at once — the reader
+ * just had to fail an advance, one step at a time, to be told any of it.
  */
-function Stepper({ model, onGoto }) {
+function Stepper({ model, onGoto, onJump }) {
   return (
     <ol className="ih-stepper" aria-label="Campaign creation steps">
       {model.map((s, i) => (
         <li className="ih-stepstop" data-state={s.state} key={s.n}>
-          <button
-            type="button"
-            className="ih-step"
-            data-state={s.state}
-            disabled={s.isLocked}
-            aria-current={s.isCurrent ? 'step' : undefined}
-            onClick={() => onGoto(s.n)}
+          <HoverCard
+            label={`${s.label} — what this step still needs`}
+            side="bottom"
+            align="start"
+            className="ih-readiness"
+            trigger={
+              <button
+                type="button"
+                className="ih-step"
+                data-state={s.state}
+                /* `aria-disabled`, not `disabled`. FR-69 wants a locked step
+                   present and inert, and both spellings are inert — but a
+                   disabled button receives no pointer events, so the one stop
+                   whose card matters most ("why can't I reach step 4?") was
+                   the one stop that could not open it. This keeps the step
+                   hoverable and focusable, and `advance` does the refusing. */
+                aria-disabled={s.isLocked || undefined}
+                aria-current={s.isCurrent ? 'step' : undefined}
+                /* The count rides in the accessible name rather than only in
+                   the card: a fact that exists solely on hover is a fact a
+                   screen reader and a touch device never get. */
+                aria-label={stepStopName(s)}
+                onClick={() => onGoto(s.n)}
+              >
+                <span className="ih-step-num">{s.glyph}</span>
+                <span className="ih-step-label truncate">{s.label}</span>
+                {s.issues.length > 0 && !s.isCurrent && (
+                  <span className="ih-step-count" aria-hidden="true">{s.issues.length}</span>
+                )}
+              </button>
+            }
           >
-            <span className="ih-step-num">{s.glyph}</span>
-            <span className="ih-step-label truncate">{s.label}</span>
-          </button>
+            {(close) => (
+              <StepNeeds
+                step={s}
+                onGoto={(n) => { close(); onGoto(n); }}
+                onJump={(n, field) => { close(); onJump(n, field); }}
+              />
+            )}
+          </HoverCard>
           {i < model.length - 1 && <span className="ih-step-line" aria-hidden="true" />}
         </li>
       ))}
     </ol>
+  );
+}
+
+/** What the step button announces: its name, its state, and what it is owed. */
+function stepStopName(s) {
+  const outstanding = s.issues.length === 0 ? ''
+    : `, ${s.issues.length} ${s.issues.length === 1 ? 'thing' : 'things'} still needed`;
+  if (s.isCurrent) return `${s.label}, current step${outstanding}`;
+  if (s.isLocked) return `${s.label}, locked until step ${s.blockedBy} is complete${outstanding}`;
+  if (s.state === 'complete') return `${s.label}, complete`;
+  return `Go to ${s.label}${outstanding}`;
+}
+
+/**
+ * One step's outstanding work, as the way to fix it.
+ *
+ * A locked step is the one case where its own issues are not the useful
+ * answer: you cannot go and fix them, and listing them would read as an
+ * invitation the wizard is about to refuse. So it names the step that is
+ * holding it up and offers that instead — which is the first thing the lock
+ * glyph has ever said out loud.
+ */
+function StepNeeds({ step, onGoto, onJump }) {
+  const { issues } = step;
+
+  if (step.isLocked) {
+    return (
+      <>
+        <p className="ih-hovercard-title">
+          <Icon name="lock" size={12} />{step.label}
+        </p>
+        <Text size="xs" variant="secondary" className="ih-block">
+          Locked until step {step.blockedBy} is complete. Nothing here is skipped — the
+          steps before it decide what this one can offer.
+        </Text>
+        <button type="button" className="ih-readiness-line" onClick={() => onGoto(step.blockedBy)}>
+          <Icon name="right" size={12} />
+          <span>Go to step {step.blockedBy}</span>
+        </button>
+      </>
+    );
+  }
+
+  if (issues.length === 0) {
+    return (
+      <>
+        <p className="ih-hovercard-title">
+          <Icon name="check" size={12} />{step.label}
+        </p>
+        <Text size="xs" variant="secondary" className="ih-block">
+          {step.isCurrent
+            ? 'Nothing outstanding on this step.'
+            : step.n === STEP_COUNT
+              ? 'Ready to publish. Everything this step requires is set.'
+              : 'Complete. Open it to change anything you set here.'}
+        </Text>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <p className="ih-hovercard-title">
+        <Icon name="alert" size={12} />
+        {issues.length} {issues.length === 1 ? 'thing' : 'things'} still needed
+      </p>
+      <ul className="ih-readiness-list">
+        {issues.map((issue) => (
+          <li key={issue.field}>
+            <button
+              type="button"
+              className="ih-readiness-line"
+              onClick={() => onJump(step.n, issue.field)}
+            >
+              <Icon name="right" size={12} />
+              <span>{issue.message}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <Text size="xs" variant="secondary" className="ih-block ih-mt-6">
+        {step.isCurrent ? 'Each one lands on the field that sets it.'
+          : `Each one opens ${step.label.toLowerCase()} at the field that sets it.`}
+      </Text>
+    </>
   );
 }

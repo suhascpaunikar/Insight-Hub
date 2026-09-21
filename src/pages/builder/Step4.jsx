@@ -8,9 +8,9 @@
    decision is actually made — when it runs, what it is, prove it, send it —
    with the phone preview alongside the whole of it.
    ========================================================================== */
-import { Button, Input, Select, Radio, Badge, Banner, Text, Field } from '@cloudflare/kumo';
+import { Button, Input, Select, Badge, Banner, Text, Field } from '@cloudflare/kumo';
 import { Icon } from '../../lib/icons.jsx';
-import { StepPanel, StepHead } from '../../app/wizard-kit.jsx';
+import { StepPanel, StepHead, RadioRows } from '../../app/wizard-kit.jsx';
 import { PhonePreview } from '../../app/PhonePreview.jsx';
 import { DateField } from '../../app/DateField.jsx';
 import { GOALS, TEST_ACCOUNTS } from '../../lib/data.js';
@@ -37,29 +37,22 @@ export function Step4({
         <div className="ih-stack-lg">
           <StepPanel
             title="Start"
+            field="start"
             required
             desc="When people start being enrolled."
             error={showIssues && issue('start') ? issue('start').message : ''}
           >
             {/* FR-46 — Now or Later; the date and time inputs are inert under Now. */}
             <div className="ih-stack-sm">
-              <label className="ih-radio-row">
-                <Radio
-                  name="start"
-                  checked={s.startMode === 'now'}
-                  onCheckedChange={() => patchSchedule({ startMode: 'now' })}
-                />
-                <span className="ih-radio-label">Now</span>
-                <Text size="sm" variant="secondary">Enrolment opens the moment you publish.</Text>
-              </label>
-              <label className="ih-radio-row">
-                <Radio
-                  name="start"
-                  checked={s.startMode === 'later'}
-                  onCheckedChange={() => patchSchedule({ startMode: 'later' })}
-                />
-                <span className="ih-radio-label">Later</span>
-              </label>
+              <RadioRows
+                legend="When enrolment starts"
+                value={s.startMode}
+                onValueChange={(startMode) => patchSchedule({ startMode })}
+                rows={[
+                  { value: 'now', label: 'Now', note: 'Enrolment opens the moment you publish.' },
+                  { value: 'later', label: 'Later' },
+                ]}
+              />
               <div className="ih-when-row">
                 {/* §11.4 had no entry for the raw <input type="date"> here.
                     Kumo's DatePicker is the calendar, not the field, so
@@ -86,6 +79,7 @@ export function Step4({
 
           <StepPanel
             title="End"
+            field="end"
             required
             desc="Whether enrolment closes on its own. Any end date must be after the start."
             // FR-48 — a Never campaign keeps enrolling until an explicit manual stop.
@@ -99,23 +93,15 @@ export function Step4({
           >
             {/* FR-47 — Never or End on; End must be after Start. */}
             <div className="ih-stack-sm">
-              <label className="ih-radio-row">
-                <Radio
-                  name="end"
-                  checked={s.endMode === 'never'}
-                  onCheckedChange={() => patchSchedule({ endMode: 'never' })}
-                />
-                <span className="ih-radio-label">Never</span>
-                <Text size="sm" variant="secondary">Runs until you stop it manually.</Text>
-              </label>
-              <label className="ih-radio-row">
-                <Radio
-                  name="end"
-                  checked={s.endMode === 'end-on'}
-                  onCheckedChange={() => patchSchedule({ endMode: 'end-on' })}
-                />
-                <span className="ih-radio-label">End on</span>
-              </label>
+              <RadioRows
+                legend="When enrolment ends"
+                value={s.endMode}
+                onValueChange={(endMode) => patchSchedule({ endMode })}
+                rows={[
+                  { value: 'never', label: 'Never', note: 'Runs until you stop it manually.' },
+                  { value: 'end-on', label: 'End on' },
+                ]}
+              />
               <div className="ih-when-row">
                 <DateField
                   label="End date"
@@ -142,24 +128,15 @@ export function Step4({
               ? 'With re-entry on, one person can be counted more than once — so response figures on the insights page will read higher than unique users.'
               : ''}
           >
-            <label className="ih-radio-row">
-              <Radio
-                name="reentry"
-                checked={!s.allowReentry}
-                onCheckedChange={() => patchSchedule({ allowReentry: false })}
-              />
-              <span className="ih-radio-label">Once per user</span>
-              <Text size="sm" variant="secondary">A user who responded is never asked again.</Text>
-            </label>
-            <label className="ih-radio-row">
-              <Radio
-                name="reentry"
-                checked={Boolean(s.allowReentry)}
-                onCheckedChange={() => patchSchedule({ allowReentry: true })}
-              />
-              <span className="ih-radio-label">Allow re-entry</span>
-              <Text size="sm" variant="secondary">They qualify again on the next trigger.</Text>
-            </label>
+            <RadioRows
+              legend="Whether someone can qualify again"
+              value={s.allowReentry ? 'allow' : 'once'}
+              onValueChange={(mode) => patchSchedule({ allowReentry: mode === 'allow' })}
+              rows={[
+                { value: 'once', label: 'Once per user', note: 'A user who responded is never asked again.' },
+                { value: 'allow', label: 'Allow re-entry', note: 'They qualify again on the next trigger.' },
+              ]}
+            />
           </StepPanel>
 
           <StepPanel

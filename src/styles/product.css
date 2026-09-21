@@ -122,7 +122,17 @@ body {
    numbers line up with the same values wherever else they are printed. */
 .ih-statstrip-value.ih-mono { font-family: var(--font-mono, ui-monospace, monospace); font-weight: var(--fw-label); }
 .ih-statstrip-acts { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; flex: none; }
-.ih-hint-mark { display: inline-flex; color: var(--foreground-muted); }
+/* Used twice: as the stat strip's tooltip trigger, and as the reach figure's
+   hover-card trigger on the Audience step. A real button in both — the card it
+   opens has to be reachable without a pointer — so it carries the resets a
+   bare span never needed. */
+.ih-hint-mark {
+  display: inline-flex; padding: 0; background: none; border: 0;
+  color: var(--foreground-muted); cursor: help;
+  transition: color var(--motion-fast) var(--ease-out);
+}
+.ih-hint-mark:hover { color: var(--foreground-default); }
+.ih-hint-mark:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-xs); }
 
 /* Below the point where five columns and four buttons stop fitting, the
    actions drop under the columns rather than the columns shrinking — a
@@ -560,7 +570,10 @@ body {
   background: none; border: 0; text-align: left; cursor: pointer;
   transition: background-color var(--motion-fast) var(--ease-out);
 }
-.ih-step:hover:not(:disabled) { background: var(--surface-100); }
+/* `:not([aria-disabled])` rather than `:not(:disabled)`: a locked stop is
+   hoverable on purpose now, so that it can say what is holding it up, but it
+   must not light up as though pressing it would go there. */
+.ih-step:hover:not([aria-disabled="true"]) { background: var(--surface-100); }
 .ih-step-num {
   display: grid; place-items: center; flex: none; width: 22px; height: 22px;
   border: 1px solid var(--border-strong); border-radius: var(--radius-full);
@@ -703,6 +716,37 @@ body {
 .ih-w-320 { width: 320px; }
 .ih-flip { transform: scaleY(-1); }
 
+/* ---------- Choice groups, on Kumo's Radio.Group ----------
+
+   `className` lands on the fieldset Kumo renders; the items sit in a flex
+   column inside it, and there is no prop for that box. So the layout rules
+   reach it as the group's last child — the legend is the only other one, and
+   it is visually hidden. Commented because it is a reach into Kumo's own
+   markup: if the group ever renders a third child, this is where it shows. */
+.ih-optgroup, .ih-radio-rows { border: 0; margin: 0; padding: 0; min-width: 0; }
+.ih-optgroup > :last-child { display: grid; gap: var(--sp-md); }
+.ih-optgroup-3 > :last-child { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 760px) { .ih-optgroup-3 > :last-child { grid-template-columns: minmax(0, 1fr); } }
+/* No `columns`: the campaign type is a stack, at the gap `ih-stack-sm` used. */
+.ih-optgroup:not([class*="ih-optgroup-"]) > :last-child { gap: var(--sp-sm); }
+.ih-radio-rows > :last-child { display: flex; flex-direction: column; gap: var(--sp-sm); }
+
+/* A checkbox card gets its frame from `Surface`; a radio card is Kumo's own
+   item label and cannot be wrapped in one without nesting a label in a label.
+   So the frame is the product's here, and it is Surface's own recipe rather
+   than a second look: `bg-kumo-base` with a `ring` of `kumo-line`, which is
+   `--background-100` and `--border-default` through the token bridge. A ring
+   rather than a border, so the two kinds of card measure the same. */
+.ih-optgroup .ih-opt {
+  background: var(--background-100);
+  box-shadow: 0 0 0 1px var(--border-default);
+  transition: background-color var(--motion-fast) var(--ease-out),
+              box-shadow var(--motion-fast) var(--ease-out);
+}
+.ih-optgroup .ih-opt-on { box-shadow: 0 0 0 1px var(--border-strong); }
+
+/* Kumo's Radio.Item is `items-start` with its own gap; the row wants its word
+   and its note on one baseline, which is what the hand-written label did. */
 .ih-radio-row { display: flex; align-items: center; gap: var(--sp-sm); cursor: pointer; }
 .ih-radio-inline { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: var(--fs-sm); }
 .ih-radio-label { font-size: var(--fs-sm); font-weight: var(--fw-label); }
@@ -1489,6 +1533,101 @@ body[data-asst-pointer="true"] [data-insight][data-insight-armed] {
 @media (prefers-reduced-motion: reduce) {
   .asst-pointer-progress { animation: none; stroke-dashoffset: 0; }
 }
+
+/* ==========================================================================
+   Hover cards (HoverCard.jsx).
+
+   A third hover readout, beside the Tooltip and the chart tip, and the one
+   with controls in it. Kumo's Popover positions and portals it, so nothing
+   here measures anything — what this block owns is the card's inside, which
+   Kumo has no opinion about.
+
+   It borrows the chart tip's frame deliberately: `--frame` on
+   `--border-overlay` at `--shadow-3` is what every floating surface in the
+   product is already made of, and a fourth recipe for a fifth kind of
+   overlay is how a console stops looking like one thing.
+   ========================================================================== */
+.ih-hovercard {
+  width: 290px; max-width: min(290px, calc(100vw - 32px)); padding: 10px 12px;
+  background: var(--frame); border: 1px solid var(--border-overlay);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow-3);
+  font-size: var(--fs-xs); color: var(--foreground-light);
+}
+.ih-hovercard-title {
+  display: flex; align-items: center; gap: 6px; margin: 0 0 6px;
+  font-size: var(--fs-xs); font-weight: var(--fw-label); color: var(--foreground-default);
+}
+.ih-hovercard-foot {
+  margin-top: 7px; padding-top: 6px; border-top: 1px solid var(--border-muted);
+  font-family: var(--font-mono); font-size: 10px; color: var(--foreground-muted);
+}
+
+/* ---------- A card that is arithmetic ---------- */
+
+/* Term, amount, and a ruled total. A definition list because that is what it
+   is — each row names a selection and gives what it contributes — and the
+   amounts are monospaced and tabular so the column reads as a sum rather than
+   as a list that happens to end in a number. */
+.ih-sum { margin: 0; }
+.ih-sum-row { display: flex; align-items: baseline; gap: 10px; padding: 2px 0; }
+.ih-sum-row dt { min-width: 0; flex: 1 1 auto; color: var(--foreground-light); }
+.ih-sum-row dd {
+  margin: 0; flex: none;
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  color: var(--foreground-default);
+}
+.ih-sum-row[data-negative] dd { color: var(--destructive-fg); }
+.ih-sum-row[data-total] {
+  margin-top: 5px; padding-top: 6px; border-top: 1px solid var(--border-muted);
+}
+.ih-sum-row[data-total] dt { color: var(--foreground-default); font-weight: var(--fw-label); }
+.ih-sum-row[data-total] dd { color: var(--brand-default); font-weight: 600; }
+
+/* ---------- The stepper's readiness card ---------- */
+
+/* Each outstanding item is the way to it, so each one is a button. Full width
+   and left-aligned: these are sentences, and a row of centred sentences reads
+   as a menu of labels rather than as a list of work. */
+.ih-readiness-list { margin: 0; padding: 0; list-style: none; }
+.ih-readiness-line {
+  display: flex; align-items: flex-start; gap: 6px; width: 100%;
+  padding: 5px 6px; margin: 1px 0 1px -6px;
+  background: none; border: 0; border-radius: var(--radius-xs);
+  font: inherit; color: var(--foreground-light); text-align: left; cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out);
+}
+.ih-readiness-line:hover { background: var(--surface-100); color: var(--foreground-default); }
+.ih-readiness-line:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+/* The chevron sits on the first line of a message that wraps to two. */
+.ih-readiness-line svg { flex: none; margin-top: 2px; color: var(--foreground-muted); }
+.ih-readiness-line:hover svg { color: var(--brand-default); }
+
+/* The count on a step stop. Not a Kumo Badge: it rides inside the step button,
+   and Badge brings its own padding and line height, which pushed the 22px
+   marker off its own baseline. */
+.ih-step-count {
+  display: grid; place-items: center; flex: none;
+  min-width: 15px; height: 15px; padding: 0 4px; border-radius: var(--radius-full);
+  background: var(--destructive-200); color: var(--destructive-fg);
+  font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
+}
+.ih-stepstop[data-state="locked"] .ih-step-count {
+  /* A locked step's count is not work you can take yet, so it does not shout. */
+  background: var(--surface-300); color: var(--foreground-muted);
+}
+
+/* Where a readiness jump landed. The control inside the panel takes focus, but
+   on a panel of eight checkboxes the focus ring alone does not say which
+   *section* answered — so the section says so, briefly, and then stops.
+   Removed by a timeout rather than an animation end, so a reader with reduced
+   motion still gets the mark. */
+.ih-ssection[data-jumped] {
+  outline: 2px solid var(--brand-default); outline-offset: 4px;
+  border-radius: var(--radius-md);
+}
+.ih-ssection { transition: outline-color var(--motion-base) var(--ease-out); }
+.ih-ssection:focus { outline: none; }
 
 /* ==========================================================================
    Motion the product owns (§12).

@@ -218,7 +218,7 @@ export const SEED_CAMPAIGNS = [
     responses: 0, avgRating: 0, ratingElement: 'nps', ratingScaleMax: 10,
     updatedAt: minutesAgo(95), versions: 1, type: 'regular',
     reach: 0,
-    audienceLabel: 'New · Repeat', runningDates: 'Starts 04 Sep 2026', resumeStep: 5,
+    audienceLabel: 'New · Repeat', runningDates: 'Starts 04 Sep 2026', resumeStep: 4,
     objective: 'Announce the monsoon offer to users who already order in the rain, and learn which framing moves them without discounting the whole menu.',
   },
   {
@@ -227,7 +227,7 @@ export const SEED_CAMPAIGNS = [
     status: 'Draft', triggerLabel: 'order_delivered + 45 min', divergentTriggers: false,
     responses: 0, avgRating: 0, ratingElement: 'nps', ratingScaleMax: 10,
     updatedAt: minutesAgo(46), versions: 1, type: 'regular',
-    audienceLabel: 'Repeat', runningDates: 'Not scheduled', resumeStep: 4,
+    audienceLabel: 'Repeat', runningDates: 'Not scheduled', resumeStep: 3,
     objective: '',
   },
   {
