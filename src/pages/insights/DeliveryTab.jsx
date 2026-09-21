@@ -10,7 +10,7 @@ import { Icon } from '../../lib/icons.jsx';
 import { InsightChart, DistRow } from '../../app/InsightChart.jsx';
 import { count, percent } from '../../lib/format.js';
 import {
-  CHART_H, RANGE_LABEL, chartTop, share, sliceRange,
+  CHART_H, chartTop, isBrush, rangeLabel, share, sliceRange,
 } from '../../lib/insights-lib.js';
 import { isFeedback } from '../../lib/data.js';
 import {
@@ -18,7 +18,7 @@ import {
   ANNOUNCE_FUNNEL, ANNOUNCE_SERIES, ANNOUNCE_STEP_DAYS, ANNOUNCE_FAILURE_REASONS,
 } from '../../lib/data.js';
 
-export function DeliveryTab({ campaign: c, filters }) {
+export function DeliveryTab({ campaign: c, filters, onBrush, keyboard = true }) {
   const feedback = isFeedback(c);
   const wholeFunnel = feedback ? DELIVERY_FUNNEL : ANNOUNCE_FUNNEL;
   const wholeFailures = feedback ? FAILURE_REASONS : ANNOUNCE_FAILURE_REASONS;
@@ -87,7 +87,7 @@ export function DeliveryTab({ campaign: c, filters }) {
           <Text size="xs" variant="secondary">
             {wholeRun
               ? 'Absolute counts with step-to-step conversion'
-              : `${RANGE_LABEL[filters.range]} · conversion is the whole run`}
+              : `${rangeLabel(filters.range)} · conversion is the whole run`}
           </Text>
         </div>
         <div className="ih-card-body ih-stack">
@@ -134,18 +134,53 @@ export function DeliveryTab({ campaign: c, filters }) {
           </span>
         </div>
         <div className="ih-card-body">
-          <InsightChart top={plotTop} points={points} />
+          <InsightChart
+            top={plotTop}
+            points={points}
+            onBrush={onBrush}
+            keyboard={keyboard}
+            label="Delivery over time"
+          />
           {/* The window between its own bounds. A range control the reader
-              cannot see the effect of is one they stop trusting. */}
+              cannot see the effect of is one they stop trusting.
+
+              A preset the run is shorter than needs saying so — "7 days" and
+              "30 days" drawing the same columns is otherwise unexplained. A
+              brush never does: it was drawn on these columns, so covering all
+              of them is what the reader just asked for and not a shortfall. */}
           <div className="ih-chart-axis">
             <Text size="xs" variant="mono-secondary">{series[0].date}</Text>
             <Text size="xs" variant="secondary" className="ih-ta-c">
-              {wholeRun && filters.range !== 'all'
-                ? `Whole run — shorter than ${RANGE_LABEL[filters.range]}`
-                : `${RANGE_LABEL[filters.range]} · ${count(series.length)} points`}
+              {wholeRun && !isBrush(filters.range) && filters.range !== 'all'
+                ? `Whole run — shorter than ${rangeLabel(filters.range)}`
+                : `${rangeLabel(filters.range)} · ${count(series.length)} points`}
             </Text>
             <Text size="xs" variant="mono-secondary">{series[series.length - 1].date}</Text>
           </div>
+          {/* Said once, under the chart it applies to. Neither route announces
+              itself on screen, and the keys are worth printing rather than
+              leaving to be discovered — they are also how the columns get read
+              at all without a pointer. */}
+          {onBrush && (
+            <Text size="xs" variant="secondary" className="ih-chart-hint">
+              <Icon name="columns" size={12} />
+              {/* One span, so the sentence wraps as a sentence. The keys are
+                  only named while they answer: a hint for a route that is
+                  switched off in Settings is worse than no hint at all. */}
+              <span>
+                Drag across the chart to read a window of it
+                {keyboard && (
+                  <>
+                    {' '}— or tab to it and use <kbd className="ih-kbd">←</kbd>
+                    <kbd className="ih-kbd">→</kbd> to read each column,{' '}
+                    <kbd className="ih-kbd">⇧</kbd> to select,{' '}
+                    <kbd className="ih-kbd">↵</kbd> to apply
+                  </>
+                )}
+                . Date range above returns to a preset.
+              </span>
+            </Text>
+          )}
           {/* FR-93 — the notice that explains the rule only prints where the
               rule is on screen. */}
           {c.versions > 1 && boundaryShown && (

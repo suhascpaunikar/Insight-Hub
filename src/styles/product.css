@@ -18,6 +18,16 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Read aloud, never drawn — for the running commentary a visual affordance
+   owes a reader who cannot see it. `clip-path` and a 1px box rather than
+   `display: none` or a zero size, because both of those take the element out
+   of the accessibility tree along with the layout, and then it announces
+   nothing. */
+.ih-sr {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap; border: 0; padding: 0; margin: -1px;
+}
+
 /* ==========================================================================
    The shell frame (§5).
 
@@ -909,9 +919,89 @@ body {
 .ih-kv { display: inline-flex; align-items: center; gap: var(--sp-sm); font-size: var(--fs-xs); color: var(--foreground-lighter); }
 .ih-kv > * + *::before { content: "·"; margin-right: var(--sp-sm); color: var(--foreground-muted); }
 
-.ih-filters { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-sm); margin: var(--sp-lg) 0; }
-.ih-filter { display: inline-flex; align-items: center; gap: 6px; }
+.ih-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: var(--sp-lg) 0; }
+.ih-filter { display: inline-flex; align-items: center; gap: 7px; }
+
+/* The filter controls, as boxes rather than as chips.
+
+   Kumo's `sm` select is 26px tall with 8px of padding, which is the right
+   size for a control sitting inside a dense table row and the wrong one for
+   the six that carry this whole screen's state. These are the first thing
+   read on the page and the thing returned to after every panel, so they get
+   the height and the air to look like the controls they are.
+
+   Squarer with it: a 6px corner on a 32px box reads as a box. The 8px Kumo
+   ships is most of the way to a pill at 26px, and a row of pills reads as
+   tags — things the page is labelled with — rather than as controls the page
+   answers to. Overriding by attribute rather than by class because Kumo's own
+   classes are Tailwind utilities generated per size, and the pair Kumo sets
+   on every part it ships is the stable handle. */
+.ih-filters [data-kumo-component="Select"][data-kumo-part="trigger"] {
+  height: 32px;
+  padding-inline: 11px;
+  gap: 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-xs);
+}
+/* The panel it opens is not styled here and cannot be: it is rendered into a
+   portal at the end of the body, so no selector rooted in this row reaches
+   it. It takes the corner Kumo gives it, and the morph above starts that
+   corner at `--radius-control` so the growing box begins square-ish and
+   relaxes — which is the trigger's own shape either way. */
 .ih-insights-body { margin-top: var(--sp-sm); }
+
+/* Cross-filtering: a value anywhere on the page is the filter for that value.
+
+   Two shapes, one idea. `ih-xf` is the value in place — a segment name on a
+   response, a driver in the Impact table — which has to stay legible as text
+   first and reveal that it is pressable on approach, or every reading of the
+   page turns into a wall of controls. `ih-xf-chip` is the same filter once it
+   is on, gathered above the tabs, where the point is the opposite: it must be
+   countable at a glance and it must say how to take it off. */
+.ih-xf {
+  display: inline-flex; align-items: center; gap: 3px;
+  margin: -1px -4px; padding: 1px 4px;
+  background: none; border: 0; border-radius: var(--radius-xs);
+  color: inherit; font: inherit; cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out);
+}
+.ih-xf:hover { background: var(--surface-200); color: var(--foreground-default); }
+.ih-xf[data-on] { background: var(--surface-200); color: var(--foreground-default); }
+.ih-xf:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+/* The row under these passes its clicks through to the "open" target beneath
+   it; a chip is what takes them back. */
+.ih-response-meta .ih-xf { pointer-events: auto; }
+
+.ih-xf-bar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+  margin: calc(var(--sp-md) * -1) 0 var(--sp-md);
+}
+/* Filled at rest, for the same reason the band is: these sit on the page
+   canvas in one theme and inside a white card's neighbourhood in the other,
+   and a chip that is only a hairline is a chip that gets skimmed past. */
+.ih-xf-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 6px 3px 9px; border-radius: var(--radius-full);
+  background: var(--surface-200); border: 1px solid var(--border-muted);
+  color: var(--foreground-light); font: inherit; font-size: var(--fs-xs);
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out);
+}
+.ih-xf-chip:hover { background: var(--surface-300); border-color: var(--border-default); }
+.ih-xf-chip:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.ih-xf-chip b { font-weight: 500; color: var(--foreground-default); }
+.ih-xf-chip svg { color: var(--foreground-muted); }
+.ih-xf-chip:hover svg { color: var(--foreground-default); }
+.ih-xf-clear {
+  background: none; border: 0; padding: 3px 4px; cursor: pointer;
+  color: var(--foreground-lighter); font: inherit; font-size: var(--fs-xs);
+  text-decoration: underline; text-underline-offset: 2px;
+  transition: color var(--motion-fast) var(--ease-out);
+}
+.ih-xf-clear:hover { color: var(--foreground-default); }
+.ih-xf-clear:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 
 /* FR-89 — the ramp, with the scale it is normalised to stated beside it. */
 .ih-legend { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
@@ -976,6 +1066,69 @@ body {
 .ih-chart-axis { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: var(--sp-sm); }
 .ih-ta-c { text-align: center; }
 
+/* The brush — drag across the plot to set the window.
+
+   `touch-action: none` is what makes it work under a finger at all: without
+   it the browser claims a horizontal drag for scrolling and the gesture never
+   reaches the handler. It is scoped to the brushable plot, so the charts that
+   are only read keep the page's own scrolling.
+
+   The band is drawn under the bars, not over them. A translucent sheet across
+   the marks would tint the two series differently — the 38% sends against the
+   solid completions — and the one rule these charts hold to is that a colour
+   means the same thing everywhere. Behind them it changes the ground instead. */
+.ih-chart-plot[data-brushable] { touch-action: none; cursor: crosshair; }
+/* `--surface-200` and not the `--surface-100` every hover in this product
+   uses: on a light card the two are the same white, so a band drawn in it
+   would be invisible in one of the two themes. 200 is the step the token file
+   reserves for "pressed, selected row", which is what a selection is, and it
+   separates from the card both ways — lighter on the dark card, darker on the
+   light one. */
+.ih-chart-brush {
+  position: absolute; top: 0; bottom: 0; z-index: 0;
+  background: var(--surface-200);
+  border-left: 1px solid var(--border-default);
+  border-right: 1px solid var(--border-default);
+  border-radius: 2px;
+  pointer-events: none;
+}
+/* Too short to commit, so it says so rather than releasing into nothing. */
+.ih-chart-brush[data-short] { border-color: transparent; opacity: .55; }
+.ih-chart-plot[data-brushing] .ih-chart-col { transition: opacity var(--motion-fast) var(--ease-out); }
+.ih-chart-plot[data-brushing] .ih-chart-col:not([data-in]) { opacity: .38; }
+/* The hover tint would otherwise track the pointer across a selection that is
+   already stating which columns are covered. */
+.ih-chart-plot[data-brushing] .ih-chart-col:hover::before { background: none; }
+
+/* The keyboard cursor. Marked apart from the readout's own `data-on`, because
+   the two answer different questions — the tip says what this column holds,
+   the cursor says which one the arrow keys will move from. That distinction
+   only becomes visible during a selection, where every covered column is lit
+   and exactly one of them is the end that moves.
+
+   A hairline around the column, offset off the ink. A rule beneath it was the
+   first attempt and it landed under the plot's own bottom edge, where the
+   focus ring already sits — two lines in the same 3px arguing about which one
+   means what. */
+.ih-chart-col[data-cursor] {
+  outline: 1.5px solid var(--foreground-default);
+  outline-offset: 1px; border-radius: 2px;
+}
+/* The ring belongs on the plot, which is what actually takes focus. */
+.ih-chart-plot:focus-visible {
+  outline: 2px solid var(--focus-ring); outline-offset: 3px; border-radius: 2px;
+}
+/* The icon is a flex item; the sentence is not. Left as loose text in a flex
+   row, every run between two <kbd> marks became its own item and wrapped on
+   its own, which broke one line into a scatter of phrases with gaps in it. */
+.ih-chart-hint {
+  display: flex; align-items: baseline; gap: 6px;
+  margin-top: 10px; padding-left: 46px; /* clears the gridline gutter */
+  color: var(--foreground-muted);
+}
+.ih-chart-hint svg { flex: none; position: relative; top: 2px; }
+.ih-chart-hint .ih-kbd { margin: 0 1px; }
+
 /* The distribution row: a label, the bar, and the count with its share.
    §11.4 maps this onto Kumo's Meter, and it is the same idea — but Meter
    prints its own label above its own track and takes no per-row colour, and
@@ -983,6 +1136,19 @@ body {
    rows that means something. */
 .ih-dist { display: flex; flex-direction: column; gap: 10px; }
 .ih-dist-row { display: grid; grid-template-columns: 1fr 120px; align-items: center; gap: 12px; }
+/* A row that is also the filter it describes. The press target is padded out
+   past the row's own box so the bar keeps its measured width — the grid is
+   what makes these rows comparable, and inset padding would shorten every
+   track by the same amount but move the baseline the eye reads them against. */
+.ih-dist-row-press {
+  margin: -4px -8px; padding: 4px 8px; width: calc(100% + 16px);
+  background: none; border: 0; border-radius: var(--radius-sm); color: inherit;
+  font: inherit; text-align: left; cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out);
+}
+.ih-dist-row-press:hover { background: var(--surface-100); }
+.ih-dist-row-press[data-on] { background: var(--surface-200); }
+.ih-dist-row-press[data-on] .ih-dist-label { color: var(--foreground-default); }
 .ih-dist-label { font-size: var(--fs-sm); color: var(--foreground-light); min-width: 0; }
 .ih-dist-figures { display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-sm); }
 .ih-bar-track {
@@ -1024,14 +1190,29 @@ body {
 
 /* The open-text list. */
 .ih-response-list { margin: 0; padding: 0; list-style: none; }
-.ih-response-list > li { border-bottom: 1px solid var(--border-muted); }
+.ih-response-list > li { border-bottom: 1px solid var(--border-muted); position: relative; }
 .ih-response-row {
   display: flex; align-items: flex-start; gap: var(--sp-md); width: 100%;
   padding: 12px 16px; text-align: left; background: none; border: 0; color: inherit;
-  font: inherit; cursor: pointer;
+  font: inherit;
+  /* The row is drawn above the press target that fills the li, so clicks have
+     to fall through it. The chips take theirs back — they are the exception
+     the pass-through exists for. */
+  position: relative; pointer-events: none;
+}
+/* Opening the response is a button the size of its row, laid under it, rather
+   than a button wrapped around it. The row now carries chips that filter the
+   list instead of opening anything, and a button inside a button is neither
+   valid nor reachable — the outer one swallows the inner one's press. Laying
+   the two side by side keeps the whole row clickable and the chips their own
+   controls. */
+.ih-response-open {
+  position: absolute; inset: 0; width: 100%; padding: 0;
+  background: none; border: 0; cursor: pointer;
   transition: background-color var(--motion-fast) var(--ease-out);
 }
-.ih-response-row:hover { background: var(--surface-100); }
+.ih-response-open:hover { background: var(--surface-100); }
+.ih-response-open:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 .ih-response-score { display: flex; flex-direction: column; align-items: center; width: 44px; flex: none; }
 .ih-answer-list { margin: 0; padding: 0; list-style: none; }
 .ih-answer { padding: 10px 12px; }
@@ -1757,9 +1938,135 @@ body[data-asst-pointer="true"] [data-insight][data-insight-armed] {
   }
 }
 
+/* ==========================================================================
+   The morph — a panel that grows out of the control that opened it.
+
+   Every menu in this console is anchored to the thing that opens it, and the
+   honest reading of that is one shape: the control becomes the panel and goes
+   back to being the control. So the panel does not fade in beside its trigger;
+   it starts as the trigger's own box — the same width, the same height, the
+   same corner — and grows from there.
+
+   None of the numbers are guessed. Base UI puts `--anchor-width`,
+   `--anchor-height` and `--transform-origin` on the positioner that places
+   each panel, and a custom property inherits, so the panel can be written in
+   terms of the control it belongs to without either one knowing the other
+   exists. That is also why this is one rule rather than one per component:
+   the select, the sort menu, the row menus and the hover cards are all Base
+   UI popups under Kumo, all anchored, and all reached by the same selector.
+
+   `interpolate-size` is what makes it a morph rather than a scale. Growing a
+   box with `transform: scale()` squashes everything inside it and has to be
+   covered up; interpolating the real `height` from the trigger's to `auto`
+   moves the box itself, so the panel is never distorted and the content can
+   simply arrive once there is room for it. Where it is unsupported the panel
+   snaps to size and only the fade runs — no worse than it was before.
+   ========================================================================== */
+@supports (interpolate-size: allow-keywords) {
+  :root { interpolate-size: allow-keywords; }
+}
+
+/* What morphs, and what deliberately does not.
+
+   The rule is what opened it. A menu is opened by a press — a deliberate act
+   on a specific control — and the morph is the answer to "where did this come
+   from". A tooltip and a hover card are opened by resting a pointer, arrive
+   after a dwell the reader is already waiting through, and are read and
+   dismissed in about the time this animation takes. Putting 300ms of travel
+   after 400ms of dwell would make resting on something feel broken.
+
+   Base UI marks that split for us without meaning to. Every anchored popup
+   carries `data-side` and `data-align`, and the role on the popup says which
+   kind it is: a select is `presentation`, a menu is `menu`, a hover card is
+   `dialog`, and a tooltip has no role at all because its text is announced
+   through the trigger instead. Naming the two that morph is safer than
+   excluding the two that must not — a popup Kumo adds later stays still until
+   somebody decides it should move.
+
+   The command palette is out for a different reason: it is centred on the
+   viewport and has no `data-side`, because there is no trigger it came out of
+   for a morph to be a claim about. */
+[data-base-ui-focusable][data-side][data-align][role="presentation"],
+[data-base-ui-focusable][data-side][data-align][role="menu"],
+[data-base-ui-focusable][data-side][data-align][role="listbox"] {
+  transform-origin: var(--transform-origin);
+  /* The box is the animation, so nothing may spill out of it while it is
+     still small. Safe to clip permanently: Kumo scrolls the list on the
+     child inside this, not here. */
+  overflow: clip;
+  /* Width settles well before height, and before the contents arrive at all.
+     A panel narrower than its own text reflows it — "Last 30 days" breaks
+     over two lines and snaps back as the box widens — and a morph that
+     rewrites its contents while it travels is a resize with a fade on it.
+     Finishing the width first means the text is only ever laid out once, at
+     the size it will keep; the height carries the growth, and the clip above
+     is what uncovers the list. */
+  transition:
+    width 160ms var(--ease-morph),
+    height var(--motion-slow) var(--ease-morph),
+    border-radius var(--motion-slow) var(--ease-morph),
+    opacity 90ms linear;
+}
+[data-base-ui-focusable][data-side][data-align][role="presentation"][data-starting-style],
+[data-base-ui-focusable][data-side][data-align][role="menu"][data-starting-style],
+[data-base-ui-focusable][data-side][data-align][role="listbox"][data-starting-style],
+[data-base-ui-focusable][data-side][data-align][role="presentation"][data-ending-style],
+[data-base-ui-focusable][data-side][data-align][role="menu"][data-ending-style],
+[data-base-ui-focusable][data-side][data-align][role="listbox"][data-ending-style] {
+  width: var(--anchor-width);
+  height: var(--anchor-height);
+  border-radius: var(--radius-control);
+  /* Short enough to read as the box having been there all along, long enough
+     that it does not flash against the trigger still under it. */
+  opacity: 0;
+}
+
+/* The contents wait for the room. Fading them in with the box would put text
+   inside a shape too small to hold it, which is the one thing that gives a
+   morph away as a resize. */
+[data-base-ui-focusable][data-side][data-align][role="presentation"] > *,
+[data-base-ui-focusable][data-side][data-align][role="menu"] > *,
+[data-base-ui-focusable][data-side][data-align][role="listbox"] > * {
+  transition: opacity var(--motion-base) var(--ease-out) 170ms;
+}
+[data-base-ui-focusable][data-side][data-align][role="presentation"][data-starting-style] > *,
+[data-base-ui-focusable][data-side][data-align][role="menu"][data-starting-style] > *,
+[data-base-ui-focusable][data-side][data-align][role="listbox"][data-starting-style] > *,
+[data-base-ui-focusable][data-side][data-align][role="presentation"][data-ending-style] > *,
+[data-base-ui-focusable][data-side][data-align][role="menu"][data-ending-style] > *,
+[data-base-ui-focusable][data-side][data-align][role="listbox"][data-ending-style] > * {
+  opacity: 0;
+  /* Closing is not opening run backwards: the panel is leaving, so its
+     contents go at once rather than on the delay they arrived with. */
+  transition-duration: 60ms;
+  transition-delay: 0ms;
+}
+
 /* Everything above is stilled for a reader who asked for that. Kumo's own
    components honour the preference themselves. */
 @media (prefers-reduced-motion: reduce) {
+  /* The panel still has to appear and disappear, and it still must not show
+     its contents at the wrong size — it simply stops travelling to do it. */
+  [data-base-ui-focusable][data-side][data-align][role="presentation"],
+  [data-base-ui-focusable][data-side][data-align][role="menu"],
+  [data-base-ui-focusable][data-side][data-align][role="listbox"],
+  [data-base-ui-focusable][data-side][data-align][role="presentation"] > *,
+  [data-base-ui-focusable][data-side][data-align][role="menu"] > *,
+  [data-base-ui-focusable][data-side][data-align][role="listbox"] > * {
+    transition-property: opacity;
+    transition-duration: var(--motion-fast);
+    transition-delay: 0ms;
+  }
+  [data-base-ui-focusable][data-side][data-align][role="presentation"][data-starting-style],
+  [data-base-ui-focusable][data-side][data-align][role="menu"][data-starting-style],
+  [data-base-ui-focusable][data-side][data-align][role="listbox"][data-starting-style],
+  [data-base-ui-focusable][data-side][data-align][role="presentation"][data-ending-style],
+  [data-base-ui-focusable][data-side][data-align][role="menu"][data-ending-style],
+  [data-base-ui-focusable][data-side][data-align][role="listbox"][data-ending-style] {
+    width: auto;
+    height: auto;
+    border-radius: inherit;
+  }
   .ih-metric, .ih-opt, .ih-goal, .ih-tpl-card { transition: none; }
   .ih-metric:hover, .ih-opt:hover, .ih-goal:hover, .ih-tpl-card:hover { transform: none; }
   .ih-asst-caret { animation: none; }

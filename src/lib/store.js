@@ -449,6 +449,27 @@ const DEFAULT_STATE = {
      in each document's <head>, which is what keeps a light-mode reader from
      seeing a dark flash before the modules run. */
   theme: 'dark',
+  /* Whether the delivery chart takes focus and answers to the arrow keys.
+     On by default, and beside `theme` rather than in `settings` for the same
+     reason: it is this browser's choice about how the console is driven, not
+     a workspace value a campaign inherits.
+
+     It exists because the chart is a tab stop the moment it is navigable, and
+     on a page of controls that is a stop some readers would rather tab past.
+     Turning it off is not free — the readout behind each column is then only
+     reachable by hovering — so the row that sets it says so, and nothing in
+     the product turns it off on a reader's behalf. */
+  chartKeys: true,
+  /* Whether a value printed inside a panel is also the filter for that value —
+     a rating bar, a band, a segment on a response, a score driver. On by
+     default, and beside `chartKeys` for the same reason it is: a choice about
+     how this browser drives the console.
+
+     It exists because cross-filtering makes a great deal of the page pressable,
+     and a reader who only ever wants to read it has to pass over all of it.
+     Switching it off costs no route — every filter it sets is one of the
+     controls above the tabs, which keep working — only the shortcut to it. */
+  crossFilter: true,
   emptyDashboard: false,
   settings: { ...DEFAULT_SETTINGS },
 };

@@ -19,9 +19,20 @@ import {
   ENGAGEMENT,
 } from '../../lib/data.js';
 
-export function ImpactTab({ campaign: c }) {
-  return isFeedback(c) ? <FeedbackImpact campaign={c} /> : <AnnouncementImpact campaign={c} />;
+export function ImpactTab({ campaign: c, onDrillTheme, crossFilter = true }) {
+  return isFeedback(c)
+    ? <FeedbackImpact campaign={c} onDrillTheme={onDrillTheme} crossFilter={crossFilter} />
+    : <AnnouncementImpact campaign={c} />;
 }
+
+/* The driver's name and its inference mark, which stay exactly the same
+   whether or not they are also the way into the responses behind them. */
+const driverName = (d) => (
+  <>
+    <span className="ih-driver-mark" style={{ background: AI_ACCENT }} />
+    <span className="ih-t-h3">{d.name}</span>
+  </>
+);
 
 /** FR-90 — one decimal, monospaced, coloured on the shared ramp. */
 const RatingValue = ({ value, max }) => (
@@ -34,7 +45,7 @@ const RatingValue = ({ value, max }) => (
 
 /* FR-106 — score driver breakdown. Attribution keys off theme, and each row is
    ranked by how far it pulls the overall score down. */
-function FeedbackImpact({ campaign: c }) {
+function FeedbackImpact({ campaign: c, onDrillTheme, crossFilter }) {
   const max = scaleMax(c);
   const [owners, setOwners] = useState({});
   const drivers = [...SCORE_DRIVERS].sort((a, b) => b.drag - a.drag);
@@ -75,10 +86,30 @@ function FeedbackImpact({ campaign: c }) {
                 return (
                   <Table.Row key={d.themeId}>
                     <Table.Cell className="ih-cell-driver">
-                      <span className="ih-row-gap">
-                        <span className="ih-driver-mark" style={{ background: AI_ACCENT }} />
-                        <span className="ih-t-h3">{d.name}</span>
-                      </span>
+                      {/* The theme is a machine-found cluster of open text, so
+                          the text it was found in is the evidence for every
+                          other figure on the row. Pressing the name filters
+                          the open-text list to it and opens Responses, which
+                          is the only join in the seed that runs between two
+                          tabs — themeId is on the driver and on each response.
+
+                          Inference stays violet (FR-91): the mark beside the
+                          name is the claim, and the filter it opens is a route
+                          to the measurements the claim was drawn from. */}
+                      {crossFilter ? (
+                        <button
+                          type="button"
+                          className="ih-row-gap ih-xf"
+                          aria-label={`Show the ${count(d.volume)} open responses behind ${d.name}`}
+                          onClick={() => onDrillTheme(d.themeId)}
+                        >
+                          {driverName(d)}
+                          {/* The arrow is the affordance, so it goes with it. */}
+                          <Icon name="right" size={12} />
+                        </button>
+                      ) : (
+                        <span className="ih-row-gap">{driverName(d)}</span>
+                      )}
                     </Table.Cell>
                     <Table.Cell className="ih-ta-r"><span className="ih-num">{count(d.volume)}</span></Table.Cell>
                     <Table.Cell className="ih-ta-r">

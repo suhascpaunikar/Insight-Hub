@@ -294,6 +294,76 @@ function GeneralTab({ store, val, edit, dirty, onSave, onCancel, onReset }) {
         />
       </SettingsPanel>
 
+      <SectionHead title="Interaction" docs="Interaction">
+        What the console does beyond showing you the numbers. Like the theme, these are this
+        browser’s choices and apply the moment they change. They are not equivalent — one of
+        them costs a route and the other only costs a shortcut — so each row says what
+        turning it off gives up.
+      </SectionHead>
+      <SettingsPanel>
+        <SettingsRow
+          top
+          label="Chart keyboard navigation"
+          badge={<StatusPill on={store.state.chartKeys !== false} />}
+          desc={
+            <>
+              Lets the delivery chart take focus, so <kbd className="ih-kbd">←</kbd>
+              <kbd className="ih-kbd">→</kbd> read each column and{' '}
+              <kbd className="ih-kbd">⇧</kbd> with an arrow selects a window to apply with{' '}
+              <kbd className="ih-kbd">↵</kbd>. Turning it off takes the chart out of the tab
+              order — useful if you tab past it often, at the cost of the per-column figures,
+              which are then only readable by hovering. The Date range control still picks every
+              preset either way.
+            </>
+          }
+          control={
+            <Switch
+              aria-label="Chart keyboard navigation"
+              checked={store.state.chartKeys !== false}
+              onCheckedChange={(checked) => {
+                // On the spot rather than through a panel Save, the way the
+                // theme is: a preference for driving this browser, not a value
+                // a campaign carries.
+                store.set({ chartKeys: checked });
+                toast(checked ? 'Chart keyboard navigation on' : 'Chart keyboard navigation off',
+                  checked
+                    ? 'The delivery chart takes focus, and the arrow keys read it.'
+                    : 'The chart is no longer a tab stop. Its per-column figures are now on hover only.',
+                  checked ? 'success' : 'info');
+              }}
+            />
+          }
+        />
+        <SettingsRow
+          top
+          label="Cross-filter clicks"
+          badge={<StatusPill on={store.state.crossFilter !== false} />}
+          desc={
+            <>
+              Makes a value printed inside a panel the filter for that value — a rating bar
+              filters the open text to that score, a segment on a response filters to that
+              segment, a score driver opens the responses behind it. Turning it off leaves
+              those as plain figures to read. Every filter they set is still on the controls
+              above the tabs, so nothing becomes unreachable.
+            </>
+          }
+          control={
+            <Switch
+              aria-label="Cross-filter clicks"
+              checked={store.state.crossFilter !== false}
+              onCheckedChange={(checked) => {
+                store.set({ crossFilter: checked });
+                toast(checked ? 'Cross-filter clicks on' : 'Cross-filter clicks off',
+                  checked
+                    ? 'Values inside a panel are the filter for that value again.'
+                    : 'Panels are read-only. The filter controls above each screen still set everything.',
+                  checked ? 'success' : 'info');
+              }}
+            />
+          }
+        />
+      </SettingsPanel>
+
       <SectionHead title="Prototype state">
         This build keeps its state in the browser. Nothing here leaves the machine.
       </SectionHead>
