@@ -71,47 +71,73 @@ function columnAt(plot, clientX, n) {
  * what it was, because the failure-reason charts and the announcement series
  * have no window for a brush to set.
  *
- * The brush is pointer-only, and deliberately a *second* route rather than the
- * route: the Date range control above the tab is the one every reader has, it
- * states whatever the brush selected, and picking a preset from it is the way
- * back out. That is the same bargain `HoverCard` documents — an affordance
- * that needs a pointer may be faster, never sole.
+ * The brush answers to a pointer and to the keyboard, and neither is the only
+ * route: the Date range control above the tab states whatever was selected and
+ * picking a preset from it is always a way back out.
+ *
+ * **Keyboard.** The plot takes focus. Arrow keys walk a cursor along the
+ * columns and open each one's readout — which is the part that matters most,
+ * because until now every number in this chart was behind a hover. Shift with
+ * an arrow extends a selection from where the cursor was, Enter or Space
+ * applies it, Escape abandons it. Home and End go to the ends of the series.
+ *
+ * `label` names the chart for a reader who arrives at it by tab and has no
+ * heading in view; the chart itself has no idea which series it is drawing.
  */
-export function InsightChart({ top, points, onBrush }) {
+export function InsightChart({ top, points, onBrush, label }) {
   const [reading, setReading] = useState(null);
-  // The two ends of a brush in progress, as column indices, while the pointer
-  // is still down. Null whenever the chart is merely being read.
+  /* The two ends of a selection in progress. `via` is which input is drawing
+     it, because the two want opposite things from the readout: a pointer is
+     physically over the plot and the tip would sit under the hand drawing the
+     band, while the keyboard has no such occlusion and the readout is the only
+     feedback a key press gets. */
   const [drag, setDrag] = useState(null);
-  // The column under the pointer, for the readout to measure itself against.
+  // Where the keyboard is, and whether it is driving at all.
+  const [cursor, setCursor] = useState(null);
+  const [focused, setFocused] = useState(false);
+  // The column the readout measures itself against.
   const colRef = useRef(null);
-  const open = reading != null && !drag ? points[reading] : null;
 
-  /* Escape abandons a brush in progress. On the window rather than the plot:
-     the plot is not focusable — the Date range control is this chart's
-     keyboard surface — so a key handler on it would never be reached. Bound
-     only while a drag is live, so the chart adds no listener to a page that is
-     merely being read. */
+  const n = points.length;
+  /* A commit re-slices the series under this component, so an index taken
+     before it can outlive the column it named. Clamped on the way out rather
+     than chased on every change. */
+  const clamp = (i) => (i == null ? null : Math.max(0, Math.min(n - 1, i)));
+  const cur = clamp(cursor);
+  const at = focused && cur != null ? cur : clamp(reading);
+  const open = at != null && drag?.via !== 'pointer' ? points[at] : null;
+
+  /* Escape abandons a selection a pointer is still drawing. It stays on the
+     window because that drag can be in progress while focus is somewhere else
+     entirely — the keyboard's own Escape is handled on the plot, where it can
+     stop the key before the page acts on it too. Bound only while a drag is
+     live, so a chart merely being read adds no listener. */
   useEffect(() => {
-    if (!drag) return undefined;
+    if (drag?.via !== 'pointer') return undefined;
     const abandon = (e) => { if (e.key === 'Escape') setDrag(null); };
     window.addEventListener('keydown', abandon);
     return () => window.removeEventListener('keydown', abandon);
-  }, [Boolean(drag)]);
+  }, [drag?.via === 'pointer']);
 
-  const brushable = Boolean(onBrush) && points.length >= MIN_BRUSH;
+  const brushable = Boolean(onBrush) && n >= MIN_BRUSH;
   const lo = drag ? Math.min(drag.from, drag.to) : 0;
   const hi = drag ? Math.max(drag.from, drag.to) : 0;
   const span = drag ? hi - lo + 1 : 0;
 
-  /* A press that never travels far enough is not a selection. Discarding it
-     rather than committing a one-column window is what lets a click keep
-     meaning "read this column" on a plot that is also a range control. */
+  /* A selection that never travels far enough is not a selection. Discarding
+     it rather than committing a one-column window is what lets a click keep
+     meaning "read this column", and Enter on a lone cursor mean nothing. */
   const settle = () => {
-    if (drag && span >= MIN_BRUSH) onBrush({ from: points[lo].key, to: points[hi].key });
+    if (drag && span >= MIN_BRUSH) {
+      onBrush({ from: points[lo].key, to: points[hi].key });
+      // The series about to arrive is the selection, so the cursor belongs at
+      // its start rather than at an index measured against the old one.
+      setCursor(0);
+    }
     setDrag(null);
   };
 
-  const brushHandlers = brushable ? {
+  const pointerHandlers = brushable ? {
     onPointerDown: (e) => {
       // Primary button only: a right-click is a context menu, and a middle
       // click is a scroll, neither of which is a drag across a chart.
@@ -120,13 +146,13 @@ export function InsightChart({ top, points, onBrush }) {
       // Capture, so a drag that leaves the plot — and one that ends outside it
       // — is still this element's to finish.
       e.currentTarget.setPointerCapture?.(e.pointerId);
-      const i = columnAt(e.currentTarget, e.clientX, points.length);
+      const i = columnAt(e.currentTarget, e.clientX, n);
       setReading(null);
-      setDrag({ from: i, to: i });
+      setDrag({ from: i, to: i, via: 'pointer' });
     },
     onPointerMove: (e) => {
-      if (!drag) return;
-      const i = columnAt(e.currentTarget, e.clientX, points.length);
+      if (drag?.via !== 'pointer') return;
+      const i = columnAt(e.currentTarget, e.clientX, n);
       // Only on a real change: a pointer moving within one column would
       // otherwise set state on every frame it reports.
       if (i !== drag.to) setDrag((d) => (d ? { ...d, to: i } : d));
@@ -140,6 +166,57 @@ export function InsightChart({ top, points, onBrush }) {
     onPointerCancel: () => setDrag(null),
   } : {};
 
+  /* Move the cursor. A plain move drops any selection; a shifted one extends
+     from wherever the selection was anchored, or opens one at the cursor it is
+     leaving — which is what makes the first Shift+Arrow select two columns
+     rather than one. */
+  const goTo = (next, extend) => {
+    const i = Math.max(0, Math.min(n - 1, next));
+    setCursor(i);
+    if (!extend || !brushable) { setDrag(null); return; }
+    setDrag((d) => ({ from: d?.via === 'key' ? d.from : (cur ?? i), to: i, via: 'key' }));
+  };
+
+  const onKeyDown = (e) => {
+    const here = cur ?? 0;
+    const shift = e.shiftKey;
+    switch (e.key) {
+      case 'ArrowRight': goTo(here + 1, shift); break;
+      case 'ArrowLeft': goTo(here - 1, shift); break;
+      case 'Home': goTo(0, shift); break;
+      case 'End': goTo(n - 1, shift); break;
+      case 'Enter': case ' ':
+        if (!drag) return;
+        settle();
+        break;
+      case 'Escape':
+        if (!drag) return;
+        setDrag(null);
+        /* This Escape has been spent. Insights listens on the window for an
+           Escape that drops an applied window back to its preset, and letting
+           this one reach it would undo the window the reader is standing in as
+           well as the selection they were drawing over it. */
+        e.stopPropagation();
+        break;
+      default: return;
+    }
+    // Only for keys actually handled: arrows scroll the page, Space scrolls it
+    // a screenful, and both would take the chart out from under the reader.
+    e.preventDefault();
+  };
+
+  /* What a screen reader is told, since everything above is a visual change to
+     a set of bars. One line, recomposed as the cursor moves, so the readout a
+     sighted reader gets from the tip arrives here as text. */
+  const announcement = !focused || cur == null ? '' : (() => {
+    const p = points[cur];
+    const values = p.readout.map((r) => `${r.label} ${r.value}`).join(', ');
+    const where = `${p.label}. ${values}. Column ${cur + 1} of ${n}`;
+    if (!drag) return where;
+    return `${where}. Selecting ${points[lo].label} to ${points[hi].label}, ${span} columns`
+      + (span >= MIN_BRUSH ? '. Press Enter to apply' : '');
+  })();
+
   return (
     <div className="ih-chart" style={{ height: `${CHART_H}px` }}>
       <Gridlines top={top} />
@@ -148,8 +225,23 @@ export function InsightChart({ top, points, onBrush }) {
         data-reading={open ? 'true' : undefined}
         data-brushable={brushable ? '' : undefined}
         data-brushing={drag ? '' : undefined}
+        /* A group rather than an image: its contents are the point, and a
+           reader moves between them. The label carries the keys because there
+           is nowhere else a reader arriving by tab would find them. */
+        role="group"
+        tabIndex={0}
+        aria-label={`${label || 'Chart'}, ${n} columns. Arrow keys read each column`
+          + `${brushable ? ', shift and arrow keys select a window, Enter applies it' : ''}.`}
+        onFocus={() => { setFocused(true); if (cursor == null) setCursor(0); }}
+        onBlur={() => {
+          setFocused(false);
+          // A selection being drawn by key belongs to the focus that was
+          // drawing it; a pointer's own drag is not focus's to cancel.
+          setDrag((d) => (d?.via === 'key' ? null : d));
+        }}
+        onKeyDown={onKeyDown}
         onMouseLeave={() => setReading(null)}
-        {...brushHandlers}
+        {...pointerHandlers}
       >
         {/* The window being drawn, over the columns it covers. Rendered from
             the same uniform division `columnAt` reads by, so the band lands on
@@ -171,10 +263,21 @@ export function InsightChart({ top, points, onBrush }) {
             {p.boundary && <span className="ih-chart-boundary" title="Version boundary" />}
             <span
               className="ih-chart-col"
-              ref={reading === i ? colRef : null}
-              data-on={reading === i ? '' : undefined}
+              ref={at === i ? colRef : null}
+              data-on={at === i ? '' : undefined}
+              // The keyboard's position, marked separately from the readout:
+              // the tip says what the column holds, this says where you are.
+              data-cursor={focused && cur === i ? '' : undefined}
               data-in={drag && i >= lo && i <= hi ? '' : undefined}
-              onMouseEnter={() => { if (!drag) setReading(i); }}
+              onMouseEnter={() => {
+                // A selection being drawn owns the columns until it is done.
+                if (drag) return;
+                setReading(i);
+                // One cursor between the two inputs, so a reader who tabs in
+                // and then reaches for the mouse does not leave a second
+                // marker behind on the column they started from.
+                if (focused) setCursor(i);
+              }}
             >
               {p.segs.map((seg, j) => (
                 <span
@@ -188,6 +291,9 @@ export function InsightChart({ top, points, onBrush }) {
         ))}
       </div>
       {open && <ChartTip inline anchorRef={colRef} readout={open.readout} label={open.label} />}
+      {/* Off-screen and polite: the cursor moves on a key press the reader
+          made, so it interrupts nothing they did not ask for. */}
+      <span className="ih-sr" role="status" aria-live="polite">{announcement}</span>
     </div>
   );
 }

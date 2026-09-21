@@ -134,7 +134,7 @@ export function DeliveryTab({ campaign: c, filters, onBrush }) {
           </span>
         </div>
         <div className="ih-card-body">
-          <InsightChart top={plotTop} points={points} onBrush={onBrush} />
+          <InsightChart top={plotTop} points={points} onBrush={onBrush} label="Delivery over time" />
           {/* The window between its own bounds. A range control the reader
               cannot see the effect of is one they stop trusting.
 
@@ -151,14 +151,20 @@ export function DeliveryTab({ campaign: c, filters, onBrush }) {
             </Text>
             <Text size="xs" variant="mono-secondary">{series[series.length - 1].date}</Text>
           </div>
-          {/* Said once, under the chart it applies to. The brush is a pointer
-              gesture with nothing on screen to announce it, and a reader who
-              never discovers it loses nothing — the control above still picks
-              every window it picks. */}
+          {/* Said once, under the chart it applies to. Neither route announces
+              itself on screen, and the keys are worth printing rather than
+              leaving to be discovered — they are also how the columns get read
+              at all without a pointer. */}
           {onBrush && (
             <Text size="xs" variant="secondary" className="ih-chart-hint">
               <Icon name="columns" size={12} />
-              Drag across the chart to read a window of it. Date range above returns to a preset.
+              {/* One span, so the sentence wraps as a sentence. */}
+              <span>
+                Drag across the chart to read a window of it — or tab to it and use{' '}
+                <kbd className="ih-kbd">←</kbd><kbd className="ih-kbd">→</kbd> to read each
+                column, <kbd className="ih-kbd">⇧</kbd> to select,{' '}
+                <kbd className="ih-kbd">↵</kbd> to apply. Date range above returns to a preset.
+              </span>
             </Text>
           )}
           {/* FR-93 — the notice that explains the rule only prints where the
