@@ -165,11 +165,11 @@ summary on the final step, and in what the assistant is able to answer.
 | FR-47 Never / End on | End must be after start |
 | FR-48 Never runs until stopped | Manual Stop on the insights page |
 | FR-49 Re-entry | Toggle, off by default, reconciled against FR-18 |
-| FR-50 Mobile preview | Real configured questions, not placeholders |
+| FR-50 Mobile preview | Real configured questions, not placeholders; on Content and on Schedule & publish |
 | FR-51 Test send | Saved-account dropdown **or** a directly entered user ID |
 | FR-52 Test sends excluded | Stated on the step |
 | FR-53 Publish is terminal | Final step only |
-| FR-54 Branch simulation | Tap a rating to walk that band's path |
+| FR-54 Branch simulation | Tap a rating to walk that band's path, on both steps that carry the preview |
 | FR-55 Live campaigns editable | Edit from the insights header |
 | FR-56 Any edit versions | Publish on a live campaign increments and warns |
 | FR-57 Versions flagged | Version filter, chart boundary, per-response `v` label |
@@ -217,7 +217,7 @@ prototype choice, not a PRD ruling — overrule any of them.
 | OD-2 **(MP)** | Re-entry toggle on Schedule, **off** by default; re-entry keeps the original variant lock | Adds responses without re-bucketing, so FR-18 still holds. Flagged inline as unresolved |
 | OD-3 | Versioning on publish, post-publish only | Pre-publish edits and tests do not version, so a draft cannot generate noise |
 | OD-4 | A weightage change **is** an edit and versions | It shifts Impact attribution; rename stays exempt per FR-23 |
-| OD-5 **(MP)** | Test is **not** a hard gate; the preview simulates branches | Stated on the Schedule & publish step; branch tap-through is live |
+| OD-5 **(MP)** | Test is **not** a hard gate; the preview simulates branches | Stated on the Schedule & publish step; branch tap-through is live. **Extended:** the Content step's preview is interactive too — the follow-up and the open text only render once a rating has been picked, so a static preview there showed the rating question and stopped, on the one step that writes all three. A pick is scoped to the variant and scale it was made against, since that step has variant tabs and the other does not |
 | OD-6 | AI weights visible, not overridable | Shown on Content and on Impact with history |
 | OD-7 | Version boundaries respected on Delivery and Responses; Impact carries the banner | Impact drives routing, so it must not silently blend versions |
 | OD-8 | Segment thresholds are platform-wide | Rules are shown read-only at selection; no per-campaign override |
