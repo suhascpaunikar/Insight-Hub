@@ -149,6 +149,11 @@ export function Builder() {
    */
   function jumpToIssue(targetStep, field) {
     const { panel, variantId } = issueTarget(field);
+    jumpToPanel(targetStep, panel, variantId);
+  }
+
+  /** Travel to a step and land on one of its panels. */
+  function jumpToPanel(targetStep, panel, variantId = null) {
     advance(targetStep);
     if (panel) setJump({ panel, variantId, at: Date.now() });
   }
@@ -288,6 +293,10 @@ export function Builder() {
           previewPick={previewPick}
           onPreviewPick={setPreviewPick}
           onGoto={advance}
+          /* The last screen before a campaign leaves the builder is where a
+             wrong word is noticed, and the wording is two steps back. The
+             preview is already showing it, so it is also the way to it. */
+          onEditContent={(panel) => jumpToPanel(3, panel)}
           onSendTest={() => {
             store.updateDraft({ test: { ...draft.test, hasRun: true } });
             toast('Test sent', 'Check the device signed in to that account.');

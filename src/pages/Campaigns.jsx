@@ -8,6 +8,7 @@ import {
   LayerCard, Text, Tooltip, RefreshButton,
 } from '@cloudflare/kumo';
 import { Icon } from '../lib/icons.jsx';
+import { HoverCard } from '../app/HoverCard.jsx';
 import { useStore, usePalette } from '../lib/useStore.js';
 import { toast } from '../lib/toast.js';
 import { useCrumbs } from '../app/ShellContext.jsx';
@@ -17,6 +18,7 @@ import { RenameDialog } from '../app/RenameDialog.jsx';
 import { count, percent, relativeTime, absoluteTime, ratingText } from '../lib/format.js';
 import { ratingColor } from '../lib/palette.js';
 import { resetState } from '../lib/persist.js';
+import { resumeStepOf, STEP_COUNT } from '../lib/store.js';
 import {
   WORKSPACE_SERIES, RANGES, isFeedback, KIND_LABEL, campaignKind,
 } from '../lib/data.js';
@@ -410,7 +412,8 @@ function CampaignRow({ campaign: c, columns, onOpen, onAction }) {
      it. The name is still a button, because a pointer target is not an
      accessible one: it is the node that carries the name into the tab order
      and tells a screen reader what pressing it does. */
-  const verb = c.status === 'Draft' || c.status === 'Scheduled' ? 'Resume' : 'Open';
+  const unfinished = c.status === 'Draft' || c.status === 'Scheduled';
+  const verb = unfinished ? 'Resume' : 'Open';
   const running = c.status === 'Live' || c.status === 'Paused';
 
   return (
@@ -418,14 +421,31 @@ function CampaignRow({ campaign: c, columns, onOpen, onAction }) {
       <Table.Cell className="ih-cell-campaign">
         <div className="ih-campaign-cell">
           <span className="ih-campaign-line">
-            <button
-              type="button"
-              className="ih-row-name truncate"
-              aria-label={`${verb} ${c.name}`}
-              onClick={(e) => { e.stopPropagation(); onOpen(); }}
+            {/* Resting on the name says what the row would open, which the
+                row itself cannot: the columns are the four facts that fit,
+                and the trigger, the audience and the objective are not among
+                them. A draft says which step it stopped on, so Resume stops
+                being a door with nothing written on it. */}
+            <HoverCard
+              label={`${c.name} — summary`}
+              side="bottom"
+              align="start"
+              className="ih-peek"
+              trigger={
+                <button
+                  type="button"
+                  className="ih-row-name truncate"
+                  aria-label={unfinished
+                    ? `${verb} ${c.name}, at step ${resumeStepOf(c)} of ${STEP_COUNT}`
+                    : `${verb} ${c.name}`}
+                  onClick={(e) => { e.stopPropagation(); onOpen(); }}
+                >
+                  {c.name}
+                </button>
+              }
             >
-              {c.name}
-            </button>
+              <CampaignPeek campaign={c} unfinished={unfinished} onOpen={onOpen} />
+            </HoverCard>
             {!isFeedback(c) && (
               <Tooltip content="Collects no responses — opens on reach, engagement and conversion">
                 <Badge variant="outline" size="sm">{KIND_LABEL[campaignKind(c)]}</Badge>
@@ -486,6 +506,85 @@ function CampaignRow({ campaign: c, columns, onOpen, onAction }) {
         <RowMenu campaign={c} running={running} onAction={onAction} />
       </Table.Cell>
     </Table.Row>
+  );
+}
+
+/**
+ * What the row would open, before you open it.
+ *
+ * The three facts here are the ones the table has never had room for. Trigger
+ * is a column the Columns menu can switch off, audience has never been one,
+ * and the objective — the only line that says why the campaign exists — lives
+ * two screens away on the builder's first step.
+ *
+ * The action is the same one the row already performs. Its whole value is the
+ * sentence on it: Resume has always been a door with nothing written on it,
+ * and `resumeStepOf` is what the builder will actually do, not a second guess
+ * at it.
+ */
+function CampaignPeek({ campaign: c, unfinished, onOpen }) {
+  const feedback = isFeedback(c);
+  const step = resumeStepOf(c);
+
+  return (
+    <>
+      <p className="ih-hovercard-title">
+        <StatusPill status={c.status} />
+        <span className="ih-mono ih-peek-id">{c.campaignId}</span>
+      </p>
+
+      <dl className="ih-sum">
+        <div className="ih-sum-row">
+          <dt>Trigger</dt>
+          <dd>{c.triggerLabel}</dd>
+        </div>
+        <div className="ih-sum-row">
+          <dt>Audience</dt>
+          <dd data-prose="true">{c.audienceLabel}</dd>
+        </div>
+        <div className="ih-sum-row">
+          <dt>Dates</dt>
+          <dd data-prose="true">{c.runningDates}</dd>
+        </div>
+        {/* A campaign that has run has results worth naming; one that has not
+            has nothing to report, and a row of zeroes is not a summary. */}
+        {hasData(c) && feedback && (
+          <div className="ih-sum-row">
+            <dt>Collected</dt>
+            <dd>{count(c.responses)}{c.avgRating ? ` · ${ratingText(c.avgRating)}/${c.ratingScaleMax || 5}` : ''}</dd>
+          </div>
+        )}
+        {hasData(c) && !feedback && (
+          <div className="ih-sum-row">
+            <dt>Reached</dt>
+            <dd>{count(c.reach || 0)}</dd>
+          </div>
+        )}
+      </dl>
+
+      {c.objective?.trim() ? (
+        <p className="ih-peek-objective">{c.objective.trim()}</p>
+      ) : (
+        <p className="ih-peek-objective" data-empty="true">
+          No objective recorded — nothing here says why this campaign exists.
+        </p>
+      )}
+
+      <div className="ih-hovercard-foot">
+        Updated {absoluteTime(c.updatedAt)}
+      </div>
+
+      {unfinished && (
+        <button
+          type="button"
+          className="ih-readiness-line ih-peek-action"
+          onClick={onOpen}
+        >
+          <Icon name="right" size={12} />
+          <span>Resume at step {step} of {STEP_COUNT}</span>
+        </button>
+      )}
+    </>
   );
 }
 

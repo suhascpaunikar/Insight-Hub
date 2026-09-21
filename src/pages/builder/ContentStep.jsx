@@ -11,7 +11,7 @@ import {
   DropdownMenu, LayerCard, Empty, Surface,
 } from '@cloudflare/kumo';
 import { Icon } from '../../lib/icons.jsx';
-import { StepPanel, StepHead, OptionCard } from '../../app/wizard-kit.jsx';
+import { StepPanel, StepHead, OptionCard, focusPanel } from '../../app/wizard-kit.jsx';
 import { PhonePreview } from '../../app/PhonePreview.jsx';
 import { ConfirmDialog } from '../../app/dialogs.jsx';
 import { AddContentDialog } from './AddContentDialog.jsx';
@@ -207,6 +207,7 @@ export function ContentStep({ draft, issues, showIssues, update, jump = null }) 
           {template && (
             <StepPanel
               title="Content elements"
+              field="elements"
               desc="What goes inside the template. You edit the content, not the layout."
               // FR-35 — the add-content modal lists the elements this component allows.
               actions={
@@ -347,7 +348,12 @@ export function ContentStep({ draft, issues, showIssues, update, jump = null }) 
 
         <aside className="ih-preview-rail">
           <h3 className="ih-t-h2 ih-mb-10">Preview</h3>
-          <PhonePreview variant={variant} />
+          {/* Every field the preview can point at is on this step, so pressing
+              a part is a scroll and a focus rather than a journey. */}
+          <PhonePreview variant={variant} onEdit={focusPanel} />
+          <Text size="xs" variant="secondary" className="ih-block ih-mt-8">
+            Press anything in the preview to edit what wrote it.
+          </Text>
         </aside>
       </div>
 
@@ -627,12 +633,14 @@ function QuestionLogic({ variant, template, patch }) {
         </Field>
       </div>
 
-      <Field label="Q1 · Question text">
-        <Input
-          value={variant.ratingQuestion}
-          onChange={(e) => patch({ ratingQuestion: e.target.value })}
-        />
-      </Field>
+      <div data-field="q1-text" tabIndex={-1}>
+        <Field label="Q1 · Question text">
+          <Input
+            value={variant.ratingQuestion}
+            onChange={(e) => patch({ ratingQuestion: e.target.value })}
+          />
+        </Field>
+      </div>
 
       <div className="ih-well">
         <div className="ih-row-between">
@@ -674,12 +682,14 @@ function QuestionLogic({ variant, template, patch }) {
       )}
 
       {/* FR-43 — Q3 is always present regardless of branch. */}
-      <Field label="Q3 · Open text — always asked" description="Shown to everyone, whatever they answered.">
-        <Input
-          value={variant.openTextQuestion}
-          onChange={(e) => patch({ openTextQuestion: e.target.value })}
-        />
-      </Field>
+      <div data-field="q3-text" tabIndex={-1}>
+        <Field label="Q3 · Open text — always asked" description="Shown to everyone, whatever they answered.">
+          <Input
+            value={variant.openTextQuestion}
+            onChange={(e) => patch({ openTextQuestion: e.target.value })}
+          />
+        </Field>
+      </div>
     </div>
   );
 }
@@ -695,7 +705,10 @@ function BranchEditor({ band, max, branch, onPatch }) {
   };
 
   return (
-    <div className="ih-well">
+    /* The preview's follow-up points here, at the band it is showing rather
+       than at the Questions panel as a whole — three bands share that panel
+       and only one of them wrote the words on screen. */
+    <div className="ih-well" data-field={`q2-${band}`} tabIndex={-1}>
       <div className="ih-row-between ih-mb-8">
         <span className="ih-row-gap">
           <span className="ih-t-h3">{BAND_LABEL[band]}</span>

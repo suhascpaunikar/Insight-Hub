@@ -20,6 +20,7 @@ import { APP_OPTIONS, TYPE_OPTIONS } from './Step1.jsx';
 
 export function Step4({
   draft, issues, showIssues, update, previewPick, onPreviewPick, onSendTest, onGoto,
+  onEditContent,
 }) {
   const s = draft.schedule;
   const variant = draft.variants[0];
@@ -236,16 +237,20 @@ export function Step4({
               <Button variant="ghost" size="xs" onClick={() => onPreviewPick(null)}>Reset</Button>
             )}
           </div>
-          {/* FR-50 / FR-54 — the actual configured questions, tappable through the branch. */}
+          {/* FR-50 / FR-54 — the actual configured questions, tappable through
+              the branch. The rating row is the tap-through and is never a link;
+              the words around it are, and they go back to the Content step
+              that wrote them. */}
           <PhonePreview
             variant={variant}
             interactive
             picked={previewPick}
             onRate={onPreviewPick}
+            onEdit={onEditContent}
           />
           <Text size="sm" variant="secondary" className="ih-block ih-mt-8 ih-w-292">
             Showing {templateOf(variant)?.name || 'no template'} on {variant.channel}, with the
-            questions from the Content step.
+            questions from the Content step. Press any wording to go back and edit it.
           </Text>
         </aside>
       </div>
