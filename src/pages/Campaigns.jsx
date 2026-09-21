@@ -155,7 +155,7 @@ export function Campaigns() {
   };
 
   return (
-    <div className="ih-page ih-page-list">
+    <div className="ih-page ih-page-list ih-reveal">
       <header className="ih-page-head">
         <div>
           <h1 className="ih-page-head-title">Campaigns</h1>

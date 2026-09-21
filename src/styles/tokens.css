@@ -268,6 +268,22 @@
      bounce rather than as a shape arriving where it was going. */
   --ease-morph: cubic-bezier(0.32, 0.72, 0, 1);
 
+  /* The page reveal (`.ih-reveal`). transitions.dev's text-reveal tuning,
+     kept under its own names so the scale stays recognisable: a 12px rise
+     through a 3px blur over 500ms on an expo-out curve, which lands without
+     overshooting and so holds §12's first rule. One value is not theirs —
+     the stagger is that scale's *large* step rather than its 40ms default,
+     because these are page blocks and not two lines of copy: at 40ms six of
+     them span 200ms and read as one block fading rather than as a cascade.
+     Longer than anything in the motion scale above, deliberately: this is
+     the console arriving, not a control answering a click, and it is the
+     one moment in the product with no previous state to be quick about. */
+  --stagger-dur: 500ms;
+  --stagger-distance: 12px;
+  --stagger-blur: 3px;
+  --stagger-stagger: 80ms;
+  --stagger-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
   /* Kumo runs its skeleton shimmer at 1.5s and its chart shimmer at 1.8s —
      the chart's is slower because the wave behind it is static. */
   --shimmer-duration: 1.5s;
