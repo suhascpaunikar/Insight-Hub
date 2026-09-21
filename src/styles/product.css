@@ -184,6 +184,62 @@ body {
 .ih-page { max-width: var(--content-settings); margin: 0 auto; }
 .ih-page-body { margin-top: var(--sp-xl); }
 
+/* The page's arrival (`.ih-reveal`, FR-71's landing screen).
+
+   Until now a page was a hard cut: the document parses, React mounts, and
+   every block of console appears on one frame with nothing to say the screen
+   had loaded. This gives the arrival a shape — each direct child of the page
+   rises out of `--stagger-distance` through `--stagger-blur`, one
+   `--stagger-stagger` behind the last, so the eye lands on the title, then
+   the activity strip, then the list, in the order they are meant to be read.
+
+   Opted into per page rather than applied to every `.ih-page`, because a
+   cascade is an arrival and only one of the four screens is one. The other
+   three are places you go *from* here with a decision already made, and a
+   wizard step that re-reveals itself on every load reads as lag.
+
+   Three things the shape depends on:
+
+   An animation rather than a transition, because there is no state change to
+   key it off. The blocks mount already arrived — there is no frame at which
+   something flips them from hidden to shown — so the entrance has to be
+   something the element does on being inserted, which is what an animation
+   is. It also means no class to add on a timer and no reflow to force: it
+   starts when React commits, which is the moment there is something to show.
+
+   `backwards` rather than `both`, which is load-bearing rather than a detail.
+   Both hold the blocks at the `from` state through their delay, but `both`
+   also leaves the `to` state resident afterwards — and the `to` state carries
+   a filter. A filter is a containing block and a stacking context, so six of
+   them left on the page for the life of the document would quietly re-parent
+   every sticky table header and popover under them. `backwards` drops the
+   whole declaration the moment the animation ends.
+
+   And the index is capped. Past the fourth block the reader is already
+   reading; a pager or a footnote landing half a second after the rows it
+   belongs to stops reading as a cascade and starts reading as a repaint.
+   The tail arrives with the list. */
+.ih-reveal > * {
+  animation: ih-reveal var(--stagger-dur) var(--stagger-ease) backwards;
+  animation-delay: calc(var(--stagger-stagger) * var(--reveal-i, 0));
+}
+.ih-reveal > *:nth-child(2) { --reveal-i: 1; }
+.ih-reveal > *:nth-child(3) { --reveal-i: 2; }
+.ih-reveal > *:nth-child(4) { --reveal-i: 3; }
+.ih-reveal > *:nth-child(n + 5) { --reveal-i: 4; }
+
+/* No `to`: the resting state is whatever the block already computes to, and
+   naming it here would mean restating a transform and a filter that these
+   blocks do not otherwise have. `blur()` interpolating against `none` is the
+   identity case, so it resolves to `blur(0)`. */
+@keyframes ih-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(var(--stagger-distance));
+    filter: blur(var(--stagger-blur));
+  }
+}
+
 /* Title, a one-line description, and the actions that belong to the whole
    page. The description is the screen's only prose: it says what the screen
    is for, not what each control does. */
@@ -2076,4 +2132,8 @@ body[data-asst-pointer="true"] [data-insight][data-insight-armed] {
   .ih-asst-turn[data-from="you"] .ih-asst-text,
   .ih-asst-follow-btn { animation: none; }
   .ih-asst-card { transition: none; }
+  /* The page arriving is motion decorating a load that has already happened:
+     there is no state change underneath it to read, so it does not run and
+     the blocks simply land. */
+  .ih-reveal > * { animation: none; }
 }
