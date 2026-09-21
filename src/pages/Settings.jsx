@@ -294,14 +294,16 @@ function GeneralTab({ store, val, edit, dirty, onSave, onCancel, onReset }) {
         />
       </SettingsPanel>
 
-      <SectionHead title="Keyboard" docs="Keyboard">
-        How the console is driven without a pointer. Like the theme, the choice is this
-        browser’s and applies the moment it changes.
+      <SectionHead title="Interaction" docs="Interaction">
+        What the console does beyond showing you the numbers. Like the theme, these are this
+        browser’s choices and apply the moment they change. They are not equivalent — one of
+        them costs a route and the other only costs a shortcut — so each row says what
+        turning it off gives up.
       </SectionHead>
       <SettingsPanel>
         <SettingsRow
           top
-          label="Chart navigation"
+          label="Chart keyboard navigation"
           badge={<StatusPill on={store.state.chartKeys !== false} />}
           desc={
             <>
@@ -327,6 +329,34 @@ function GeneralTab({ store, val, edit, dirty, onSave, onCancel, onReset }) {
                   checked
                     ? 'The delivery chart takes focus, and the arrow keys read it.'
                     : 'The chart is no longer a tab stop. Its per-column figures are now on hover only.',
+                  checked ? 'success' : 'info');
+              }}
+            />
+          }
+        />
+        <SettingsRow
+          top
+          label="Cross-filter clicks"
+          badge={<StatusPill on={store.state.crossFilter !== false} />}
+          desc={
+            <>
+              Makes a value printed inside a panel the filter for that value — a rating bar
+              filters the open text to that score, a segment on a response filters to that
+              segment, a score driver opens the responses behind it. Turning it off leaves
+              those as plain figures to read. Every filter they set is still on the controls
+              above the tabs, so nothing becomes unreachable.
+            </>
+          }
+          control={
+            <Switch
+              aria-label="Cross-filter clicks"
+              checked={store.state.crossFilter !== false}
+              onCheckedChange={(checked) => {
+                store.set({ crossFilter: checked });
+                toast(checked ? 'Cross-filter clicks on' : 'Cross-filter clicks off',
+                  checked
+                    ? 'Values inside a panel are the filter for that value again.'
+                    : 'Panels are read-only. The filter controls above each screen still set everything.',
                   checked ? 'success' : 'info');
               }}
             />

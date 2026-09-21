@@ -460,6 +460,16 @@ const DEFAULT_STATE = {
      reachable by hovering — so the row that sets it says so, and nothing in
      the product turns it off on a reader's behalf. */
   chartKeys: true,
+  /* Whether a value printed inside a panel is also the filter for that value —
+     a rating bar, a band, a segment on a response, a score driver. On by
+     default, and beside `chartKeys` for the same reason it is: a choice about
+     how this browser drives the console.
+
+     It exists because cross-filtering makes a great deal of the page pressable,
+     and a reader who only ever wants to read it has to pass over all of it.
+     Switching it off costs no route — every filter it sets is one of the
+     controls above the tabs, which keep working — only the shortcut to it. */
+  crossFilter: true,
   emptyDashboard: false,
   settings: { ...DEFAULT_SETTINGS },
 };

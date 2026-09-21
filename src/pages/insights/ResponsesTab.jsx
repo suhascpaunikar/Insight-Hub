@@ -19,6 +19,16 @@ import { RATING_BLOCK, BRANCH_BLOCKS, OPEN_RESPONSES, SEGMENTS, SCORE_DRIVERS } 
 const segmentName = (id) => SEGMENTS.find((s) => s.id === id)?.name;
 const segmentId = (name) => SEGMENTS.find((s) => s.name === name)?.id;
 
+/* The band card's heading, which is the same three marks whether or not it is
+   also the control that filters by them. */
+const bandHead = (b, bandScore, max) => (
+  <>
+    <span className="ih-band-dot" style={{ background: ratingColor(bandScore, 5) }} />
+    <span className="ih-t-h3">{BAND_LABEL[b.band]}</span>
+    <Badge variant="outline" size="sm">{bandRange(b.band, max)}</Badge>
+  </>
+);
+
 /**
  * One fact on a response, as the filter for that fact.
  *
@@ -43,7 +53,7 @@ function MetaFilter({ label, on, onToggle, noun, mono }) {
   );
 }
 
-export function ResponsesTab({ campaign: c, filters, onFilter }) {
+export function ResponsesTab({ campaign: c, filters, onFilter, crossFilter = true }) {
   const max = scaleMax(c);
   const block = RATING_BLOCK;
   const distMax = Math.max(...block.distribution.map((d) => d.count));
@@ -118,7 +128,10 @@ export function ResponsesTab({ campaign: c, filters, onFilter }) {
               fill={ratingColor(d.score, max)}
               pct={(d.count / distMax) * 100}
               columns="56px 1fr 120px"
-              onSelect={() => toggleScore(d.score)}
+              /* `DistRow` already falls back to a plain row without this,
+                 because a failure reason has nothing to filter either — the
+                 shape the data needed is the shape the setting needs. */
+              onSelect={crossFilter ? () => toggleScore(d.score) : undefined}
               selected={scoreFilter === d.score}
               selectLabel={scoreFilter === d.score
                 ? `Stop filtering the open text to ${d.score} out of ${max}`
@@ -146,21 +159,24 @@ export function ResponsesTab({ campaign: c, filters, onFilter }) {
                   <span className="ih-col">
                     {/* The band name is the band filter. A path already
                         reported on its own here is the natural way to ask what
-                        the people on it wrote. */}
-                    <button
-                      type="button"
-                      className="ih-row-gap ih-xf"
-                      data-on={bandFilter === b.band ? '' : undefined}
-                      aria-pressed={bandFilter === b.band}
-                      aria-label={bandFilter === b.band
-                        ? `Stop filtering the open text to ${BAND_LABEL[b.band]}`
-                        : `Filter the open text to ${BAND_LABEL[b.band]} responses`}
-                      onClick={() => toggleBand(b.band)}
-                    >
-                      <span className="ih-band-dot" style={{ background: ratingColor(bandScore, 5) }} />
-                      <span className="ih-t-h3">{BAND_LABEL[b.band]}</span>
-                      <Badge variant="outline" size="sm">{bandRange(b.band, max)}</Badge>
-                    </button>
+                        the people on it wrote — and with cross-filtering off it
+                        goes back to being the heading it also is. */}
+                    {crossFilter ? (
+                      <button
+                        type="button"
+                        className="ih-row-gap ih-xf"
+                        data-on={bandFilter === b.band ? '' : undefined}
+                        aria-pressed={bandFilter === b.band}
+                        aria-label={bandFilter === b.band
+                          ? `Stop filtering the open text to ${BAND_LABEL[b.band]}`
+                          : `Filter the open text to ${BAND_LABEL[b.band]} responses`}
+                        onClick={() => toggleBand(b.band)}
+                      >
+                        {bandHead(b, bandScore, max)}
+                      </button>
+                    ) : (
+                      <span className="ih-row-gap">{bandHead(b, bandScore, max)}</span>
+                    )}
                     <Text size="xs" variant="secondary">{b.question}</Text>
                   </span>
                 </div>
@@ -283,10 +299,14 @@ export function ResponsesTab({ campaign: c, filters, onFilter }) {
                         always means the same thing. */}
                     <span className="ih-kv ih-response-meta">
                       <span className="ih-mono">{r.at}</span>
+                      {/* `MetaFilter` prints plain text for a null toggle,
+                          which is already how it handles a segment name with
+                          no segment behind it. Cross-filtering off is the same
+                          answer for every one of them at once. */}
                       <MetaFilter
                         label={r.segment}
                         on={segmentName(filters.segment) === r.segment}
-                        onToggle={segmentId(r.segment)
+                        onToggle={crossFilter && segmentId(r.segment)
                           ? (on) => onFilter('segment', on ? 'all' : segmentId(r.segment))
                           : null}
                         noun="segment"
@@ -294,14 +314,18 @@ export function ResponsesTab({ campaign: c, filters, onFilter }) {
                       <MetaFilter
                         label={r.variant}
                         on={filters.variant === r.variant}
-                        onToggle={(on) => onFilter('variant', on ? 'all' : r.variant)}
+                        onToggle={crossFilter
+                          ? (on) => onFilter('variant', on ? 'all' : r.variant)
+                          : null}
                         noun="variant"
                       />
                       <MetaFilter
                         label={`v${r.version}`}
                         mono
                         on={filters.version === String(r.version)}
-                        onToggle={(on) => onFilter('version', on ? 'all' : String(r.version))}
+                        onToggle={crossFilter
+                          ? (on) => onFilter('version', on ? 'all' : String(r.version))
+                          : null}
                         noun="version"
                       />
                       <span>{BAND_LABEL[r.band]}</span>

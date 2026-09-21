@@ -351,7 +351,15 @@ export function Insights() {
           />
         )}
         {active === 'responses' && (
-          <ResponsesTab campaign={c} filters={filters} onFilter={setFilter} />
+          <ResponsesTab
+            campaign={c}
+            filters={filters}
+            onFilter={setFilter}
+            /* Settings → General → Interaction. Same shape as `keyboard`, and
+               `undefined` from an older saved state reads as on for the same
+               reason — the setting arrived after the behaviour it governs. */
+            crossFilter={store.state.crossFilter !== false}
+          />
         )}
         {active === 'engagement' && <EngagementTab campaign={c} filters={filters} />}
         {active === 'impact' && (
@@ -362,6 +370,7 @@ export function Insights() {
                narrows one list and that list is on the other tab. Setting it
                and leaving the reader here would look like nothing happened. */
             onDrillTheme={(themeId) => { setFilter('theme', themeId); goTab('responses'); }}
+            crossFilter={store.state.crossFilter !== false}
           />
         )}
       </div>
