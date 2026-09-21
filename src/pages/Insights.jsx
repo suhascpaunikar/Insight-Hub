@@ -18,22 +18,32 @@ import { ImpactTab } from './insights/ImpactTab.jsx';
 import { count } from '../lib/format.js';
 import { RAMP, LOW_SAMPLE } from '../lib/palette.js';
 import {
-  CHANNEL_LABEL, elementLabel, scaleMax, tabsFor, variantsOf, volumeLabel, volumeOf,
+  CHANNEL_LABEL, elementLabel, isBrush, rangeLabel, scaleMax, tabsFor, variantsOf,
+  volumeLabel, volumeOf,
 } from '../lib/insights-lib.js';
-import { SEGMENTS, KIND_LABEL, campaignKind, isFeedback } from '../lib/data.js';
+import { SEGMENTS, SCORE_DRIVERS, KIND_LABEL, campaignKind, isFeedback } from '../lib/data.js';
 import { publishFilters } from '../lib/assistant-context.js';
 
 const params = () => new URLSearchParams(window.location.search);
+
+/* What every filter reads as when it is not filtering, so "is anything on"
+   is one comparison rather than five special cases. */
+const NO_FILTERS = {
+  range: '30d', segment: 'all', app: 'all', variant: 'all', version: 'all', theme: 'all',
+};
 
 export function Insights() {
   const store = useStore();
   usePalette();
   const [tab, setTab] = useState(() => params().get('tab'));
   /* FR-92 — filters apply across all tabs and persist when switching. */
-  const [filters, setFilters] = useState({
-    range: '30d', segment: 'all', app: 'all', variant: 'all', version: 'all',
-  });
+  const [filters, setFilters] = useState(NO_FILTERS);
   const [confirm, setConfirm] = useState(null);
+
+  /* One writer for every filter, wherever it is set from — the controls, a
+     value pressed inside a panel, a window drawn on the chart. They all mean
+     the same thing, so they all go through the same door. */
+  const setFilter = (key, value) => setFilters((f) => ({ ...f, [key]: value }));
 
   const id = params().get('id');
   const c = store.state.campaigns.find((x) => x.id === id)
@@ -44,16 +54,35 @@ export function Insights() {
      survive a move to a different campaign. A variant name or a version number
      carried over from the campaign you just left would silently filter this
      one down to nothing, so anything the current campaign cannot honour
-     resets to `all`. */
+     resets to `all`.
+
+     A brushed window and a theme are two more of the same kind. The window is
+     a pair of dates drawn on the series this campaign no longer has, and a
+     theme is a cluster found in responses only a feedback campaign collects —
+     both would survive as data and stop meaning anything. */
   useEffect(() => {
     if (!c) return;
     const names = variantsOf(c).map((v) => v.name);
     setFilters((f) => ({
       ...f,
+      range: isBrush(f.range) ? NO_FILTERS.range : f.range,
       variant: f.variant !== 'all' && !names.includes(f.variant) ? 'all' : f.variant,
       version: f.version !== 'all' && Number(f.version) > (c.versions || 1) ? 'all' : f.version,
+      theme: isFeedback(c) ? f.theme : 'all',
     }));
   }, [c?.id]);
+
+  /* Escape drops a brushed window back to the preset it replaced. The plot is
+     not focusable, so this is the one key the gesture answers to — and it is
+     bound only while a brush is on, which is the only time it has anything to
+     undo. `InsightChart` handles the other Escape, the one that abandons a
+     drag before it has committed to anything here. */
+  useEffect(() => {
+    if (!isBrush(filters.range)) return undefined;
+    const clear = (e) => { if (e.key === 'Escape') setFilter('range', NO_FILTERS.range); };
+    window.addEventListener('keydown', clear);
+    return () => window.removeEventListener('keydown', clear);
+  }, [isBrush(filters.range)]);
 
   /* What the assistant is allowed to say this page is filtered to. The
      vanilla build read it back out of the rendered selects; publishing it is
@@ -70,18 +99,23 @@ export function Insights() {
     [c?.id, c?.name],
   );
 
-  /* FR-88 — the tab lives in the URL so a view is shareable. */
+  /* FR-88 — the tab lives in the URL so a view is shareable. Lifted out of the
+     tab strip's own handler because the strip is no longer the only thing that
+     moves between tabs: pressing a score driver opens the responses behind it,
+     and a tab reached that way has to leave the same URL as one clicked. */
+  const goTab = (key) => {
+    const p = params();
+    p.set('tab', key);
+    if (!p.get('id')) p.set('id', c.id);
+    window.history.replaceState(null, '', `?${p}`);
+    setTab(key);
+  };
+
   useTabs(c ? {
     label: 'Insights sections',
     items: tabs.map((t) => ({ key: t, label: t[0].toUpperCase() + t.slice(1) })),
     active,
-    onSelect: (key) => {
-      const p = params();
-      p.set('tab', key);
-      if (!p.get('id')) p.set('id', c.id);
-      window.history.replaceState(null, '', `?${p}`);
-      setTab(key);
-    },
+    onSelect: goTab,
   } : null, [c?.id, active, tabs.join()]);
 
   const isRunning = c?.status === 'Live';
@@ -149,10 +183,25 @@ export function Insights() {
   const max = scaleMax(c);
   const feedback = isFeedback(c);
 
+  /* A window drawn on the chart is still the Date range filter, so the Date
+     range control is where it has to show. It joins the menu as its own
+     option, named by its own bounds — which makes the control state what is
+     on, and makes picking any preset the way back out of a gesture there is
+     otherwise no button to undo. Selecting it while it is already selected is
+     the only inert row in these menus, and it is inert because it is already
+     true. */
+  const brushed = isBrush(filters.range);
+  const rangeItems = {
+    ...(brushed ? { brush: rangeLabel(filters.range) } : {}),
+    '7d': 'Last 7 days',
+    '30d': 'Last 30 days',
+    all: 'All time',
+  };
+
   // FR-92 — the version filter only exists where there is a boundary to filter
   // to, so a single-version campaign does not carry a control with one option.
   const filterDefs = [
-    ['range', 'Date range', { '7d': 'Last 7 days', '30d': 'Last 30 days', all: 'All time' }],
+    ['range', 'Date range', rangeItems],
     ['segment', 'Segment', { all: 'All segments', ...Object.fromEntries(SEGMENTS.map((s) => [s.id, s.name])) }],
     ['app', 'App', { all: 'All apps', android: 'Android', ios: 'iOS', web: 'Web' }],
     ['variant', 'Variant', { all: 'All variants', ...Object.fromEntries(variantsOf(c).map((v) => [v.name, v.name])) }],
@@ -160,7 +209,25 @@ export function Insights() {
       all: 'All versions',
       ...Object.fromEntries(Array.from({ length: c.versions }, (_, i) => [String(i + 1), `Version ${i + 1}`])),
     }]] : []),
+    // FR-106's themes, as a filter. Only a feedback campaign has open text for
+    // a theme to have been found in.
+    ...(feedback ? [['theme', 'Theme', {
+      all: 'All themes',
+      ...Object.fromEntries(SCORE_DRIVERS.map((d) => [d.themeId, d.name])),
+    }]] : []),
   ];
+
+  /* Every filter that is currently narrowing the page, in the order the
+     controls above present them. The controls say what *can* be filtered; this
+     says what *is*, which is the question a reader has after a click somewhere
+     else in the page set one for them. */
+  const activeFilters = filterDefs
+    .filter(([key]) => filters[key] !== NO_FILTERS[key])
+    .map(([key, label, items]) => ({
+      key,
+      label,
+      value: key === 'range' ? rangeLabel(filters.range) : items[filters[key]] || filters[key],
+    }));
 
   return (
     <div className="ih-page ih-page-insights">
@@ -192,14 +259,51 @@ export function Insights() {
             <Select
               size="sm"
               aria-label={label}
-              value={filters[key]}
+              // A brushed window has no preset key to select by, so it answers
+              // to the one the menu carries it under.
+              value={key === 'range' && brushed ? 'brush' : filters[key]}
               items={items}
-              onValueChange={(v) => setFilters((f) => ({ ...f, [key]: v }))}
+              onValueChange={(v) => {
+                // Re-selecting the brush is the menu agreeing with itself.
+                if (key === 'range' && v === 'brush') return;
+                setFilter(key, v);
+              }}
             />
           </label>
         ))}
         {feedback && <RatingLegend max={max} label={elementLabel(c)} />}
       </div>
+
+      {/* What is actually narrowing the page. Cross-filtering makes a filter
+          something you set by pressing a value three panels down, so the set
+          of them has to be visible and removable somewhere that is not the
+          control it came from. */}
+      {activeFilters.length > 0 && (
+        <div className="ih-xf-bar">
+          <Text size="xs" variant="secondary">Filtered by</Text>
+          {activeFilters.map((f) => (
+            <button
+              type="button"
+              className="ih-xf-chip"
+              key={f.key}
+              aria-label={`Remove the ${f.label} filter, ${f.value}`}
+              onClick={() => setFilter(f.key, NO_FILTERS[f.key])}
+            >
+              {f.label} <b>{f.value}</b>
+              <Icon name="x" size={11} />
+            </button>
+          ))}
+          {activeFilters.length > 1 && (
+            <button
+              type="button"
+              className="ih-xf-clear"
+              onClick={() => setFilters(NO_FILTERS)}
+            >
+              Clear all
+            </button>
+          )}
+        </div>
+      )}
 
       {/* FR-93 — an aggregate spanning a question change is labelled as such. */}
       {c.versions > 1 && filters.version === 'all' && (
@@ -234,10 +338,27 @@ export function Insights() {
       )}
 
       <div className="ih-insights-body">
-        {active === 'delivery' && <DeliveryTab campaign={c} filters={filters} />}
-        {active === 'responses' && <ResponsesTab campaign={c} filters={filters} />}
+        {active === 'delivery' && (
+          <DeliveryTab
+            campaign={c}
+            filters={filters}
+            onBrush={(window) => setFilter('range', window)}
+          />
+        )}
+        {active === 'responses' && (
+          <ResponsesTab campaign={c} filters={filters} onFilter={setFilter} />
+        )}
         {active === 'engagement' && <EngagementTab campaign={c} filters={filters} />}
-        {active === 'impact' && <ImpactTab campaign={c} filters={filters} />}
+        {active === 'impact' && (
+          <ImpactTab
+            campaign={c}
+            filters={filters}
+            /* The theme and the tab move together, because the theme filter
+               narrows one list and that list is on the other tab. Setting it
+               and leaving the reader here would look like nothing happened. */
+            onDrillTheme={(themeId) => { setFilter('theme', themeId); goTab('responses'); }}
+          />
+        )}
       </div>
 
       <ConfirmDialog

@@ -913,6 +913,59 @@ body {
 .ih-filter { display: inline-flex; align-items: center; gap: 6px; }
 .ih-insights-body { margin-top: var(--sp-sm); }
 
+/* Cross-filtering: a value anywhere on the page is the filter for that value.
+
+   Two shapes, one idea. `ih-xf` is the value in place — a segment name on a
+   response, a driver in the Impact table — which has to stay legible as text
+   first and reveal that it is pressable on approach, or every reading of the
+   page turns into a wall of controls. `ih-xf-chip` is the same filter once it
+   is on, gathered above the tabs, where the point is the opposite: it must be
+   countable at a glance and it must say how to take it off. */
+.ih-xf {
+  display: inline-flex; align-items: center; gap: 3px;
+  margin: -1px -4px; padding: 1px 4px;
+  background: none; border: 0; border-radius: var(--radius-xs);
+  color: inherit; font: inherit; cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out);
+}
+.ih-xf:hover { background: var(--surface-200); color: var(--foreground); }
+.ih-xf[data-on] { background: var(--surface-200); color: var(--foreground); }
+.ih-xf:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+/* The row under these passes its clicks through to the "open" target beneath
+   it; a chip is what takes them back. */
+.ih-response-meta .ih-xf { pointer-events: auto; }
+
+.ih-xf-bar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+  margin: calc(var(--sp-md) * -1) 0 var(--sp-md);
+}
+/* Filled at rest, for the same reason the band is: these sit on the page
+   canvas in one theme and inside a white card's neighbourhood in the other,
+   and a chip that is only a hairline is a chip that gets skimmed past. */
+.ih-xf-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 6px 3px 9px; border-radius: var(--radius-full);
+  background: var(--surface-200); border: 1px solid var(--border-muted);
+  color: var(--foreground-light); font: inherit; font-size: var(--fs-xs);
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out);
+}
+.ih-xf-chip:hover { background: var(--surface-300); border-color: var(--border-default); }
+.ih-xf-chip:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.ih-xf-chip b { font-weight: 500; color: var(--foreground); }
+.ih-xf-chip svg { color: var(--foreground-muted); }
+.ih-xf-chip:hover svg { color: var(--foreground); }
+.ih-xf-clear {
+  background: none; border: 0; padding: 3px 4px; cursor: pointer;
+  color: var(--foreground-lighter); font: inherit; font-size: var(--fs-xs);
+  text-decoration: underline; text-underline-offset: 2px;
+  transition: color var(--motion-fast) var(--ease-out);
+}
+.ih-xf-clear:hover { color: var(--foreground); }
+.ih-xf-clear:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+
 /* FR-89 — the ramp, with the scale it is normalised to stated beside it. */
 .ih-legend { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
 .ih-legend-scale { display: inline-flex; height: 8px; border-radius: 2px; overflow: hidden; }
@@ -976,6 +1029,45 @@ body {
 .ih-chart-axis { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: var(--sp-sm); }
 .ih-ta-c { text-align: center; }
 
+/* The brush — drag across the plot to set the window.
+
+   `touch-action: none` is what makes it work under a finger at all: without
+   it the browser claims a horizontal drag for scrolling and the gesture never
+   reaches the handler. It is scoped to the brushable plot, so the charts that
+   are only read keep the page's own scrolling.
+
+   The band is drawn under the bars, not over them. A translucent sheet across
+   the marks would tint the two series differently — the 38% sends against the
+   solid completions — and the one rule these charts hold to is that a colour
+   means the same thing everywhere. Behind them it changes the ground instead. */
+.ih-chart-plot[data-brushable] { touch-action: none; cursor: crosshair; }
+/* `--surface-200` and not the `--surface-100` every hover in this product
+   uses: on a light card the two are the same white, so a band drawn in it
+   would be invisible in one of the two themes. 200 is the step the token file
+   reserves for "pressed, selected row", which is what a selection is, and it
+   separates from the card both ways — lighter on the dark card, darker on the
+   light one. */
+.ih-chart-brush {
+  position: absolute; top: 0; bottom: 0; z-index: 0;
+  background: var(--surface-200);
+  border-left: 1px solid var(--border-default);
+  border-right: 1px solid var(--border-default);
+  border-radius: 2px;
+  pointer-events: none;
+}
+/* Too short to commit, so it says so rather than releasing into nothing. */
+.ih-chart-brush[data-short] { border-color: transparent; opacity: .55; }
+.ih-chart-plot[data-brushing] .ih-chart-col { transition: opacity var(--motion-fast) var(--ease-out); }
+.ih-chart-plot[data-brushing] .ih-chart-col:not([data-in]) { opacity: .38; }
+/* The hover tint would otherwise track the pointer across a selection that is
+   already stating which columns are covered. */
+.ih-chart-plot[data-brushing] .ih-chart-col:hover::before { background: none; }
+.ih-chart-hint {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 10px; padding-left: 46px; /* clears the gridline gutter */
+  color: var(--foreground-muted);
+}
+
 /* The distribution row: a label, the bar, and the count with its share.
    §11.4 maps this onto Kumo's Meter, and it is the same idea — but Meter
    prints its own label above its own track and takes no per-row colour, and
@@ -983,6 +1075,19 @@ body {
    rows that means something. */
 .ih-dist { display: flex; flex-direction: column; gap: 10px; }
 .ih-dist-row { display: grid; grid-template-columns: 1fr 120px; align-items: center; gap: 12px; }
+/* A row that is also the filter it describes. The press target is padded out
+   past the row's own box so the bar keeps its measured width — the grid is
+   what makes these rows comparable, and inset padding would shorten every
+   track by the same amount but move the baseline the eye reads them against. */
+.ih-dist-row-press {
+  margin: -4px -8px; padding: 4px 8px; width: calc(100% + 16px);
+  background: none; border: 0; border-radius: var(--radius-sm); color: inherit;
+  font: inherit; text-align: left; cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out);
+}
+.ih-dist-row-press:hover { background: var(--surface-100); }
+.ih-dist-row-press[data-on] { background: var(--surface-200); }
+.ih-dist-row-press[data-on] .ih-dist-label { color: var(--foreground); }
 .ih-dist-label { font-size: var(--fs-sm); color: var(--foreground-light); min-width: 0; }
 .ih-dist-figures { display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-sm); }
 .ih-bar-track {
@@ -1024,14 +1129,29 @@ body {
 
 /* The open-text list. */
 .ih-response-list { margin: 0; padding: 0; list-style: none; }
-.ih-response-list > li { border-bottom: 1px solid var(--border-muted); }
+.ih-response-list > li { border-bottom: 1px solid var(--border-muted); position: relative; }
 .ih-response-row {
   display: flex; align-items: flex-start; gap: var(--sp-md); width: 100%;
   padding: 12px 16px; text-align: left; background: none; border: 0; color: inherit;
-  font: inherit; cursor: pointer;
+  font: inherit;
+  /* The row is drawn above the press target that fills the li, so clicks have
+     to fall through it. The chips take theirs back — they are the exception
+     the pass-through exists for. */
+  position: relative; pointer-events: none;
+}
+/* Opening the response is a button the size of its row, laid under it, rather
+   than a button wrapped around it. The row now carries chips that filter the
+   list instead of opening anything, and a button inside a button is neither
+   valid nor reachable — the outer one swallows the inner one's press. Laying
+   the two side by side keeps the whole row clickable and the chips their own
+   controls. */
+.ih-response-open {
+  position: absolute; inset: 0; width: 100%; padding: 0;
+  background: none; border: 0; cursor: pointer;
   transition: background-color var(--motion-fast) var(--ease-out);
 }
-.ih-response-row:hover { background: var(--surface-100); }
+.ih-response-open:hover { background: var(--surface-100); }
+.ih-response-open:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 .ih-response-score { display: flex; flex-direction: column; align-items: center; width: 44px; flex: none; }
 .ih-answer-list { margin: 0; padding: 0; list-style: none; }
 .ih-answer { padding: 10px 12px; }
