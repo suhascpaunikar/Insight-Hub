@@ -343,6 +343,11 @@ export function Insights() {
             campaign={c}
             filters={filters}
             onBrush={(window) => setFilter('range', window)}
+            /* Settings → General → Keyboard. Threaded rather than read inside
+               the chart, which has no other reason to know the store exists —
+               and `undefined` from an older saved state has to read as on,
+               since the setting was added after the navigation it governs. */
+            keyboard={store.state.chartKeys !== false}
           />
         )}
         {active === 'responses' && (

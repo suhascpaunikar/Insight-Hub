@@ -81,10 +81,15 @@ function columnAt(plot, clientX, n) {
  * an arrow extends a selection from where the cursor was, Enter or Space
  * applies it, Escape abandons it. Home and End go to the ends of the series.
  *
+ * `keyboard` is Settings → General → Keyboard, and switching it off takes the
+ * plot out of the tab order entirely — no focus, no cursor, no keys. It is on
+ * by default and the setting says what turning it off costs, because what goes
+ * with it is the only way to read a column without a pointer.
+ *
  * `label` names the chart for a reader who arrives at it by tab and has no
  * heading in view; the chart itself has no idea which series it is drawing.
  */
-export function InsightChart({ top, points, onBrush, label }) {
+export function InsightChart({ top, points, onBrush, label, keyboard = true }) {
   const [reading, setReading] = useState(null);
   /* The two ends of a selection in progress. `via` is which input is drawing
      it, because the two want opposite things from the readout: a pointer is
@@ -205,6 +210,28 @@ export function InsightChart({ top, points, onBrush, label }) {
     e.preventDefault();
   };
 
+  /* Focus, the keys and the label that describes them, or none of it. Split
+     out so the three cannot drift apart: a plot that still took focus with the
+     keys switched off would be a tab stop that does nothing, and a label
+     naming keys that no longer answer is worse than no label. */
+  const keyHandlers = keyboard ? {
+    /* A group rather than an image: its contents are the point, and a reader
+       moves between them. The label carries the keys because there is nowhere
+       else a reader arriving by tab would find them. */
+    role: 'group',
+    tabIndex: 0,
+    'aria-label': `${label || 'Chart'}, ${n} columns. Arrow keys read each column`
+      + `${brushable ? ', shift and arrow keys select a window, Enter applies it' : ''}.`,
+    onFocus: () => { setFocused(true); if (cursor == null) setCursor(0); },
+    onBlur: () => {
+      setFocused(false);
+      // A selection being drawn by key belongs to the focus that was drawing
+      // it; a pointer's own drag is not focus's to cancel.
+      setDrag((d) => (d?.via === 'key' ? null : d));
+    },
+    onKeyDown,
+  } : {};
+
   /* What a screen reader is told, since everything above is a visual change to
      a set of bars. One line, recomposed as the cursor moves, so the readout a
      sighted reader gets from the tip arrives here as text. */
@@ -228,20 +255,9 @@ export function InsightChart({ top, points, onBrush, label }) {
         /* A group rather than an image: its contents are the point, and a
            reader moves between them. The label carries the keys because there
            is nowhere else a reader arriving by tab would find them. */
-        role="group"
-        tabIndex={0}
-        aria-label={`${label || 'Chart'}, ${n} columns. Arrow keys read each column`
-          + `${brushable ? ', shift and arrow keys select a window, Enter applies it' : ''}.`}
-        onFocus={() => { setFocused(true); if (cursor == null) setCursor(0); }}
-        onBlur={() => {
-          setFocused(false);
-          // A selection being drawn by key belongs to the focus that was
-          // drawing it; a pointer's own drag is not focus's to cancel.
-          setDrag((d) => (d?.via === 'key' ? null : d));
-        }}
-        onKeyDown={onKeyDown}
         onMouseLeave={() => setReading(null)}
         {...pointerHandlers}
+        {...keyHandlers}
       >
         {/* The window being drawn, over the columns it covers. Rendered from
             the same uniform division `columnAt` reads by, so the band lands on

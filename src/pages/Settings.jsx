@@ -294,6 +294,46 @@ function GeneralTab({ store, val, edit, dirty, onSave, onCancel, onReset }) {
         />
       </SettingsPanel>
 
+      <SectionHead title="Keyboard" docs="Keyboard">
+        How the console is driven without a pointer. Like the theme, the choice is this
+        browser’s and applies the moment it changes.
+      </SectionHead>
+      <SettingsPanel>
+        <SettingsRow
+          top
+          label="Chart navigation"
+          badge={<StatusPill on={store.state.chartKeys !== false} />}
+          desc={
+            <>
+              Lets the delivery chart take focus, so <kbd className="ih-kbd">←</kbd>
+              <kbd className="ih-kbd">→</kbd> read each column and{' '}
+              <kbd className="ih-kbd">⇧</kbd> with an arrow selects a window to apply with{' '}
+              <kbd className="ih-kbd">↵</kbd>. Turning it off takes the chart out of the tab
+              order — useful if you tab past it often, at the cost of the per-column figures,
+              which are then only readable by hovering. The Date range control still picks every
+              preset either way.
+            </>
+          }
+          control={
+            <Switch
+              aria-label="Chart keyboard navigation"
+              checked={store.state.chartKeys !== false}
+              onCheckedChange={(checked) => {
+                // On the spot rather than through a panel Save, the way the
+                // theme is: a preference for driving this browser, not a value
+                // a campaign carries.
+                store.set({ chartKeys: checked });
+                toast(checked ? 'Chart keyboard navigation on' : 'Chart keyboard navigation off',
+                  checked
+                    ? 'The delivery chart takes focus, and the arrow keys read it.'
+                    : 'The chart is no longer a tab stop. Its per-column figures are now on hover only.',
+                  checked ? 'success' : 'info');
+              }}
+            />
+          }
+        />
+      </SettingsPanel>
+
       <SectionHead title="Prototype state">
         This build keeps its state in the browser. Nothing here leaves the machine.
       </SectionHead>

@@ -449,6 +449,17 @@ const DEFAULT_STATE = {
      in each document's <head>, which is what keeps a light-mode reader from
      seeing a dark flash before the modules run. */
   theme: 'dark',
+  /* Whether the delivery chart takes focus and answers to the arrow keys.
+     On by default, and beside `theme` rather than in `settings` for the same
+     reason: it is this browser's choice about how the console is driven, not
+     a workspace value a campaign inherits.
+
+     It exists because the chart is a tab stop the moment it is navigable, and
+     on a page of controls that is a stop some readers would rather tab past.
+     Turning it off is not free — the readout behind each column is then only
+     reachable by hovering — so the row that sets it says so, and nothing in
+     the product turns it off on a reader's behalf. */
+  chartKeys: true,
   emptyDashboard: false,
   settings: { ...DEFAULT_SETTINGS },
 };

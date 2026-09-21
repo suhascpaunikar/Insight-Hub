@@ -18,7 +18,7 @@ import {
   ANNOUNCE_FUNNEL, ANNOUNCE_SERIES, ANNOUNCE_STEP_DAYS, ANNOUNCE_FAILURE_REASONS,
 } from '../../lib/data.js';
 
-export function DeliveryTab({ campaign: c, filters, onBrush }) {
+export function DeliveryTab({ campaign: c, filters, onBrush, keyboard = true }) {
   const feedback = isFeedback(c);
   const wholeFunnel = feedback ? DELIVERY_FUNNEL : ANNOUNCE_FUNNEL;
   const wholeFailures = feedback ? FAILURE_REASONS : ANNOUNCE_FAILURE_REASONS;
@@ -134,7 +134,13 @@ export function DeliveryTab({ campaign: c, filters, onBrush }) {
           </span>
         </div>
         <div className="ih-card-body">
-          <InsightChart top={plotTop} points={points} onBrush={onBrush} label="Delivery over time" />
+          <InsightChart
+            top={plotTop}
+            points={points}
+            onBrush={onBrush}
+            keyboard={keyboard}
+            label="Delivery over time"
+          />
           {/* The window between its own bounds. A range control the reader
               cannot see the effect of is one they stop trusting.
 
@@ -158,12 +164,20 @@ export function DeliveryTab({ campaign: c, filters, onBrush }) {
           {onBrush && (
             <Text size="xs" variant="secondary" className="ih-chart-hint">
               <Icon name="columns" size={12} />
-              {/* One span, so the sentence wraps as a sentence. */}
+              {/* One span, so the sentence wraps as a sentence. The keys are
+                  only named while they answer: a hint for a route that is
+                  switched off in Settings is worse than no hint at all. */}
               <span>
-                Drag across the chart to read a window of it — or tab to it and use{' '}
-                <kbd className="ih-kbd">←</kbd><kbd className="ih-kbd">→</kbd> to read each
-                column, <kbd className="ih-kbd">⇧</kbd> to select,{' '}
-                <kbd className="ih-kbd">↵</kbd> to apply. Date range above returns to a preset.
+                Drag across the chart to read a window of it
+                {keyboard && (
+                  <>
+                    {' '}— or tab to it and use <kbd className="ih-kbd">←</kbd>
+                    <kbd className="ih-kbd">→</kbd> to read each column,{' '}
+                    <kbd className="ih-kbd">⇧</kbd> to select,{' '}
+                    <kbd className="ih-kbd">↵</kbd> to apply
+                  </>
+                )}
+                . Date range above returns to a preset.
               </span>
             </Text>
           )}
