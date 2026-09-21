@@ -919,8 +919,35 @@ body {
 .ih-kv { display: inline-flex; align-items: center; gap: var(--sp-sm); font-size: var(--fs-xs); color: var(--foreground-lighter); }
 .ih-kv > * + *::before { content: "·"; margin-right: var(--sp-sm); color: var(--foreground-muted); }
 
-.ih-filters { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-sm); margin: var(--sp-lg) 0; }
-.ih-filter { display: inline-flex; align-items: center; gap: 6px; }
+.ih-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: var(--sp-lg) 0; }
+.ih-filter { display: inline-flex; align-items: center; gap: 7px; }
+
+/* The filter controls, as boxes rather than as chips.
+
+   Kumo's `sm` select is 26px tall with 8px of padding, which is the right
+   size for a control sitting inside a dense table row and the wrong one for
+   the six that carry this whole screen's state. These are the first thing
+   read on the page and the thing returned to after every panel, so they get
+   the height and the air to look like the controls they are.
+
+   Squarer with it: a 6px corner on a 32px box reads as a box. The 8px Kumo
+   ships is most of the way to a pill at 26px, and a row of pills reads as
+   tags — things the page is labelled with — rather than as controls the page
+   answers to. Overriding by attribute rather than by class because Kumo's own
+   classes are Tailwind utilities generated per size, and the pair Kumo sets
+   on every part it ships is the stable handle. */
+.ih-filters [data-kumo-component="Select"][data-kumo-part="trigger"] {
+  height: 32px;
+  padding-inline: 11px;
+  gap: 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-xs);
+}
+/* The panel it opens is not styled here and cannot be: it is rendered into a
+   portal at the end of the body, so no selector rooted in this row reaches
+   it. It takes the corner Kumo gives it, and the morph above starts that
+   corner at `--radius-control` so the growing box begins square-ish and
+   relaxes — which is the trigger's own shape either way. */
 .ih-insights-body { margin-top: var(--sp-sm); }
 
 /* Cross-filtering: a value anywhere on the page is the filter for that value.
@@ -1911,9 +1938,135 @@ body[data-asst-pointer="true"] [data-insight][data-insight-armed] {
   }
 }
 
+/* ==========================================================================
+   The morph — a panel that grows out of the control that opened it.
+
+   Every menu in this console is anchored to the thing that opens it, and the
+   honest reading of that is one shape: the control becomes the panel and goes
+   back to being the control. So the panel does not fade in beside its trigger;
+   it starts as the trigger's own box — the same width, the same height, the
+   same corner — and grows from there.
+
+   None of the numbers are guessed. Base UI puts `--anchor-width`,
+   `--anchor-height` and `--transform-origin` on the positioner that places
+   each panel, and a custom property inherits, so the panel can be written in
+   terms of the control it belongs to without either one knowing the other
+   exists. That is also why this is one rule rather than one per component:
+   the select, the sort menu, the row menus and the hover cards are all Base
+   UI popups under Kumo, all anchored, and all reached by the same selector.
+
+   `interpolate-size` is what makes it a morph rather than a scale. Growing a
+   box with `transform: scale()` squashes everything inside it and has to be
+   covered up; interpolating the real `height` from the trigger's to `auto`
+   moves the box itself, so the panel is never distorted and the content can
+   simply arrive once there is room for it. Where it is unsupported the panel
+   snaps to size and only the fade runs — no worse than it was before.
+   ========================================================================== */
+@supports (interpolate-size: allow-keywords) {
+  :root { interpolate-size: allow-keywords; }
+}
+
+/* What morphs, and what deliberately does not.
+
+   The rule is what opened it. A menu is opened by a press — a deliberate act
+   on a specific control — and the morph is the answer to "where did this come
+   from". A tooltip and a hover card are opened by resting a pointer, arrive
+   after a dwell the reader is already waiting through, and are read and
+   dismissed in about the time this animation takes. Putting 300ms of travel
+   after 400ms of dwell would make resting on something feel broken.
+
+   Base UI marks that split for us without meaning to. Every anchored popup
+   carries `data-side` and `data-align`, and the role on the popup says which
+   kind it is: a select is `presentation`, a menu is `menu`, a hover card is
+   `dialog`, and a tooltip has no role at all because its text is announced
+   through the trigger instead. Naming the two that morph is safer than
+   excluding the two that must not — a popup Kumo adds later stays still until
+   somebody decides it should move.
+
+   The command palette is out for a different reason: it is centred on the
+   viewport and has no `data-side`, because there is no trigger it came out of
+   for a morph to be a claim about. */
+[data-base-ui-focusable][data-side][data-align][role="presentation"],
+[data-base-ui-focusable][data-side][data-align][role="menu"],
+[data-base-ui-focusable][data-side][data-align][role="listbox"] {
+  transform-origin: var(--transform-origin);
+  /* The box is the animation, so nothing may spill out of it while it is
+     still small. Safe to clip permanently: Kumo scrolls the list on the
+     child inside this, not here. */
+  overflow: clip;
+  /* Width settles well before height, and before the contents arrive at all.
+     A panel narrower than its own text reflows it — "Last 30 days" breaks
+     over two lines and snaps back as the box widens — and a morph that
+     rewrites its contents while it travels is a resize with a fade on it.
+     Finishing the width first means the text is only ever laid out once, at
+     the size it will keep; the height carries the growth, and the clip above
+     is what uncovers the list. */
+  transition:
+    width 160ms var(--ease-morph),
+    height var(--motion-slow) var(--ease-morph),
+    border-radius var(--motion-slow) var(--ease-morph),
+    opacity 90ms linear;
+}
+[data-base-ui-focusable][data-side][data-align][role="presentation"][data-starting-style],
+[data-base-ui-focusable][data-side][data-align][role="menu"][data-starting-style],
+[data-base-ui-focusable][data-side][data-align][role="listbox"][data-starting-style],
+[data-base-ui-focusable][data-side][data-align][role="presentation"][data-ending-style],
+[data-base-ui-focusable][data-side][data-align][role="menu"][data-ending-style],
+[data-base-ui-focusable][data-side][data-align][role="listbox"][data-ending-style] {
+  width: var(--anchor-width);
+  height: var(--anchor-height);
+  border-radius: var(--radius-control);
+  /* Short enough to read as the box having been there all along, long enough
+     that it does not flash against the trigger still under it. */
+  opacity: 0;
+}
+
+/* The contents wait for the room. Fading them in with the box would put text
+   inside a shape too small to hold it, which is the one thing that gives a
+   morph away as a resize. */
+[data-base-ui-focusable][data-side][data-align][role="presentation"] > *,
+[data-base-ui-focusable][data-side][data-align][role="menu"] > *,
+[data-base-ui-focusable][data-side][data-align][role="listbox"] > * {
+  transition: opacity var(--motion-base) var(--ease-out) 170ms;
+}
+[data-base-ui-focusable][data-side][data-align][role="presentation"][data-starting-style] > *,
+[data-base-ui-focusable][data-side][data-align][role="menu"][data-starting-style] > *,
+[data-base-ui-focusable][data-side][data-align][role="listbox"][data-starting-style] > *,
+[data-base-ui-focusable][data-side][data-align][role="presentation"][data-ending-style] > *,
+[data-base-ui-focusable][data-side][data-align][role="menu"][data-ending-style] > *,
+[data-base-ui-focusable][data-side][data-align][role="listbox"][data-ending-style] > * {
+  opacity: 0;
+  /* Closing is not opening run backwards: the panel is leaving, so its
+     contents go at once rather than on the delay they arrived with. */
+  transition-duration: 60ms;
+  transition-delay: 0ms;
+}
+
 /* Everything above is stilled for a reader who asked for that. Kumo's own
    components honour the preference themselves. */
 @media (prefers-reduced-motion: reduce) {
+  /* The panel still has to appear and disappear, and it still must not show
+     its contents at the wrong size — it simply stops travelling to do it. */
+  [data-base-ui-focusable][data-side][data-align][role="presentation"],
+  [data-base-ui-focusable][data-side][data-align][role="menu"],
+  [data-base-ui-focusable][data-side][data-align][role="listbox"],
+  [data-base-ui-focusable][data-side][data-align][role="presentation"] > *,
+  [data-base-ui-focusable][data-side][data-align][role="menu"] > *,
+  [data-base-ui-focusable][data-side][data-align][role="listbox"] > * {
+    transition-property: opacity;
+    transition-duration: var(--motion-fast);
+    transition-delay: 0ms;
+  }
+  [data-base-ui-focusable][data-side][data-align][role="presentation"][data-starting-style],
+  [data-base-ui-focusable][data-side][data-align][role="menu"][data-starting-style],
+  [data-base-ui-focusable][data-side][data-align][role="listbox"][data-starting-style],
+  [data-base-ui-focusable][data-side][data-align][role="presentation"][data-ending-style],
+  [data-base-ui-focusable][data-side][data-align][role="menu"][data-ending-style],
+  [data-base-ui-focusable][data-side][data-align][role="listbox"][data-ending-style] {
+    width: auto;
+    height: auto;
+    border-radius: inherit;
+  }
   .ih-metric, .ih-opt, .ih-goal, .ih-tpl-card { transition: none; }
   .ih-metric:hover, .ih-opt:hover, .ih-goal:hover, .ih-tpl-card:hover { transform: none; }
   .ih-asst-caret { animation: none; }
