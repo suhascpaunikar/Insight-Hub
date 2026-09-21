@@ -4,7 +4,9 @@
    ========================================================================== */
 import { uid, minutesAgo, clamp, triggerLabel } from './format.js';
 import { loadState, saveState } from './persist.js';
-import { SEED_CAMPAIGNS, SEGMENTS, TEMPLATES, OBJECTIVE_SIGNALS, campaignKind } from './data.js';
+import {
+  SEED_CAMPAIGNS, SEGMENTS, TEMPLATES, EXCLUSION_LISTS, OBJECTIVE_SIGNALS, campaignKind,
+} from './data.js';
 
 let seq = 4970;
 const nextCampaignId = () => `CMP-${++seq}`;
@@ -204,6 +206,62 @@ export function validateStep(draft, step) {
   return issues;
 }
 
+/**
+ * Which panel on its step owns each validation field.
+ *
+ * `validateStep` names the thing that is wrong; the readiness card has to
+ * name the place it is fixed, and those are not the same list — `delay` and
+ * `event` are two failures of one panel, and `weight` is reported per draft
+ * but edited per variant. Kept beside the validator so a new issue field
+ * cannot be added without a decision about where it sends the reader.
+ */
+const FIELD_PANEL = {
+  goal: 'goal', name: 'name', apps: 'apps',
+  segments: 'segments', userList: 'userList', exclusions: 'exclusions',
+  template: 'template', delay: 'trigger', event: 'trigger',
+  vname: 'variant', weight: 'variant',
+  start: 'start', end: 'end',
+};
+
+/**
+ * Read one issue's `field` into where it is fixed.
+ *
+ * Step 3 reports per variant — `delay:v_7f3a` — because one campaign can
+ * carry four of them and "needs a whole-number delay" would otherwise not say
+ * whose. The variant id travels with the jump so the Content step can select
+ * the right tab before it focuses the panel.
+ */
+export function issueTarget(field) {
+  const [base, variantId] = String(field || '').split(':');
+  return { panel: FIELD_PANEL[base] || null, variantId: variantId || null };
+}
+
+/**
+ * What every step still needs, whether it can be reached, and what is holding
+ * it up if it cannot.
+ *
+ * The validator has always been able to answer this for any step — the wizard
+ * simply never asked it about more than the one on screen. Nothing here is a
+ * second source of truth: `blockedBy` is the first step that fails, which is
+ * exactly `furthestReachableStep`'s own stopping point.
+ */
+export function stepReadiness(draft) {
+  const reachable = furthestReachableStep(draft);
+  return Array.from({ length: STEP_COUNT }, (_, i) => {
+    const n = i + 1;
+    const issues = validateStep(draft, n);
+    const reached = draft.completedSteps.includes(n) || n === draft.currentStep || n <= reachable;
+    return {
+      n,
+      issues,
+      reachable: reached,
+      // Only a step you cannot get to has something holding it up, and it is
+      // always the first one that fails.
+      blockedBy: reached || reachable === n ? null : reachable,
+    };
+  });
+}
+
 /** The furthest step the draft's current state allows the user to reach. */
 export function furthestReachableStep(draft) {
   for (let step = 1; step <= STEP_COUNT; step += 1) {
@@ -261,20 +319,60 @@ export function suggestNameFromObjective(text, goalId) {
   return `${base} · ${qualifier}`;
 }
 
+/** Everyone, when the audience is not narrowed at all. */
+const ALL_USERS = 486320;
+
+/**
+ * The reach figure, and the terms it is the sum of.
+ *
+ * `adds` and `subtracts` are the same arithmetic the three stats have always
+ * shown, kept as rows rather than collapsed into two totals: a reader who
+ * ticked four things and watched one number move has no way back to which of
+ * them did what. They are also what the exclusion warning was missing — with
+ * the terms in hand it can name the list that emptied the audience instead of
+ * reporting that something did.
+ *
+ * The sizes come from the same records the two pickers are drawn from, so a
+ * breakdown cannot drift from the options it explains. The duplicate size
+ * table this replaced had done exactly that: `ex_loyal` was listed twice, at
+ * the same number, in two files.
+ */
 export function audienceReach(draft) {
   const { audience } = draft;
-  const included =
-    audience.mode === 'all' ? 486320
-    : audience.mode === 'user-data-table' ? (audience.userList ? audience.userList.size : 0)
-    : SEGMENTS.filter((s) => audience.segments.includes(s.id)).reduce((sum, s) => sum + s.size, 0);
-  const excluded = EXCLUSION_SIZES(audience.exclusions);
-  return { included, excluded, reach: Math.max(0, included - excluded) };
-}
 
-function EXCLUSION_SIZES(ids) {
-  // Kept local so store.js has a single import surface from data.js.
-  const sizes = { ex_optout: 12903, ex_recent: 34110, ex_internal: 214, ex_loyal: 61034 };
-  return ids.reduce((sum, id) => sum + (sizes[id] || 0), 0);
+  const adds =
+    audience.mode === 'all'
+      ? [{ id: 'all', name: 'All users', size: ALL_USERS }]
+      : audience.mode === 'user-data-table'
+        ? (audience.userList
+            ? [{ id: 'list', name: audience.userList.name, size: audience.userList.size }]
+            : [])
+        : SEGMENTS
+          .filter((s) => audience.segments.includes(s.id))
+          .map((s) => ({ id: s.id, name: s.name, size: s.size }));
+
+  const subtracts = audience.exclusions
+    .map((id) => EXCLUSION_LISTS.find((e) => e.id === id))
+    .filter(Boolean)
+    .map((e) => ({ id: e.id, name: e.name, size: e.size }));
+
+  const included = adds.reduce((sum, row) => sum + row.size, 0);
+  const excluded = subtracts.reduce((sum, row) => sum + row.size, 0);
+
+  return {
+    included,
+    excluded,
+    reach: Math.max(0, included - excluded),
+    adds,
+    subtracts,
+    /* The single exclusion costing the most, which is the one worth removing
+       first when the audience has been cut further than intended. */
+    costliest: subtracts.reduce((worst, row) => (!worst || row.size > worst.size ? row : worst), null),
+    /* Sizes are counted per list, so anyone on two of them is counted twice
+       and the arithmetic is a bound rather than a headcount. Only worth
+       saying once there are two terms that could overlap. */
+    overlapping: adds.length + subtracts.length > 1,
+  };
 }
 
 export function variantScaleMax(variant) {
@@ -581,7 +679,12 @@ export const store = {
       status: source.status,
       version: source.versions,
       audience: { mode: 'segmented', segments: ['seg_repeat'], exclusions: ['ex_recent'] },
-      currentStep: source.resumeStep || 1,
+      /* Clamped, because `resumeStep` outlived the wizard it was written for.
+         The seeds still carry 4 and 5 from the six-step model (OD-9), and a
+         draft resumed at 5 rendered no step body at all — every `step === n`
+         branch in the builder is false — under a footer offering to publish
+         it. A stored step past the end of the wizard is the last step. */
+      currentStep: clamp(Number(source.resumeStep) || 1, 1, STEP_COUNT),
       lastSavedAt: source.updatedAt,
     };
     draft.variants = reconcileVariants(draft).map((v) => ({ ...v, templateId: defaultTemplateFor(goal) }));

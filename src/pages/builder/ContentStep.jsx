@@ -24,7 +24,7 @@ import {
   CHANNELS, TEMPLATE_CATEGORIES, TEMPLATES, TRIGGER_EVENTS, ELEMENTS,
 } from '../../lib/data.js';
 
-export function ContentStep({ draft, issues, showIssues, update }) {
+export function ContentStep({ draft, issues, showIssues, update, jump = null }) {
   const store = useStore();
   const [activeId, setActiveId] = useState(draft.variants[0].id);
   const [query, setQuery] = useState('');
@@ -35,6 +35,17 @@ export function ContentStep({ draft, issues, showIssues, update }) {
   useEffect(() => {
     if (!draft.variants.some((v) => v.id === activeId)) setActiveId(draft.variants[0].id);
   }, [draft.variants, activeId]);
+
+  /* A readiness jump lands on a panel, and on this step every panel is a
+     panel *of a variant* — so "Variant B needs a whole-number delay" has to
+     select Variant B before the delay field is the one under the cursor.
+     Keyed on the jump object rather than on the id: taking the same line twice
+     is two jumps, and the second one must still land. */
+  useEffect(() => {
+    if (jump?.variantId && draft.variants.some((v) => v.id === jump.variantId)) {
+      setActiveId(jump.variantId);
+    }
+  }, [jump, draft.variants]);
 
   const variant = draft.variants.find((v) => v.id === activeId) || draft.variants[0];
   const template = templateOf(variant);
@@ -103,6 +114,7 @@ export function ContentStep({ draft, issues, showIssues, update }) {
         <div className="ih-stack-lg">
           <StepPanel
             title="Variant"
+            field="variant"
             desc="What this variant is called, and how much of the audience it gets."
           >
             <div className="ih-srow">
@@ -169,6 +181,7 @@ export function ContentStep({ draft, issues, showIssues, update }) {
 
           <StepPanel
             title="Template & component"
+            field="template"
             required
             desc="How this variant is delivered, and what it looks like."
             actions={variant.templateId && (
@@ -255,6 +268,7 @@ export function ContentStep({ draft, issues, showIssues, update }) {
 
           <StepPanel
             title="Trigger, event & delay"
+            field="trigger"
             required
             desc="What enrols someone into this variant, and how long after to ask them."
             // FR-44 / FR-45 — per-variant trigger; delay is a text input, not a dropdown.

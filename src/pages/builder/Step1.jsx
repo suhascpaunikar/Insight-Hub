@@ -9,7 +9,7 @@
    ========================================================================== */
 import { Button, Input, Textarea, Badge, Banner, Surface, Text, Field, Grid } from '@cloudflare/kumo';
 import { Icon } from '../../lib/icons.jsx';
-import { StepPanel, StepHead, OptionCard } from '../../app/wizard-kit.jsx';
+import { StepPanel, StepHead, OptionCard, OptionCardGroup } from '../../app/wizard-kit.jsx';
 import { GOALS } from '../../lib/data.js';
 import { suggestGoalFromObjective } from '../../lib/store.js';
 
@@ -45,6 +45,7 @@ export function Step1({ draft, issues, showIssues, update, onSuggestName }) {
         id="s1-goal"
         title="Select a template"
         insightKey={tip('pick-template')}
+        field="goal"
         required
         desc="Sets the defaults for the rest of the campaign. You can change them later."
         // FR-69 — only the goal blocks here; the name and app errors ride on
@@ -86,6 +87,7 @@ export function Step1({ draft, issues, showIssues, update, onSuggestName }) {
 
       <StepPanel
         title="Campaign name"
+        field="name"
         required
         narrow
         desc="Shown in your campaign list and on its insights page."
@@ -131,6 +133,7 @@ export function Step1({ draft, issues, showIssues, update, onSuggestName }) {
       <StepPanel
         title="Apps"
         insightKey={tip('pick-apps')}
+        field="apps"
         required
         narrow
         desc="Pick at least one. This limits which components you can use later."
@@ -160,20 +163,23 @@ export function Step1({ draft, issues, showIssues, update, onSuggestName }) {
         // FR-11 — channel is deliberately not here.
         note="You’ll choose the channel in the Content step."
       >
-        <div className="ih-stack-sm">
+        <OptionCardGroup
+          legend="Campaign type"
+          value={draft.type}
+          onValueChange={(type) => update({ type })}
+        >
           {TYPE_OPTIONS.map((t) => (
             <OptionCard
               key={t.id}
               as="radio"
-              name="ctype"
+              value={t.id}
               checked={draft.type === t.id}
               title={t.label}
               badge={t.recommended ? 'Recommended' : undefined}
               note={t.note}
-              onChange={() => update({ type: t.id })}
             />
           ))}
-        </div>
+        </OptionCardGroup>
       </StepPanel>
     </section>
   );

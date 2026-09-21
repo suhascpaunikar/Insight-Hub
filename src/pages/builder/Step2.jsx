@@ -4,10 +4,11 @@
 import { useRef } from 'react';
 import { Button, Select, Badge, Banner, Text } from '@cloudflare/kumo';
 import { Icon } from '../../lib/icons.jsx';
-import { StepPanel, StepHead, OptionCard, Stat } from '../../app/wizard-kit.jsx';
+import { StepPanel, StepHead, OptionCard, OptionCardGroup, Stat } from '../../app/wizard-kit.jsx';
 import { EXCLUSION_LISTS } from '../../lib/data.js';
 import { audienceReach } from '../../lib/store.js';
 import { count, relativeTime } from '../../lib/format.js';
+import { useCountUp } from '../../lib/useCountUp.js';
 import { readUserList } from '../../lib/csv.js';
 import { toast } from '../../lib/toast.js';
 
@@ -19,8 +20,17 @@ const AUDIENCE_MODES = [
 
 export function Step2({ draft, issues, showIssues, segments, update, onNewSegment }) {
   const { audience } = draft;
-  const { included, excluded, reach } = audienceReach(draft);
+  const totals = audienceReach(draft);
+  const { included, excluded, reach } = totals;
   const emptied = included > 0 && reach === 0;
+
+  /* §12's `countUp`. Every figure here is moved by a click — a segment ticked,
+     a list excluded, a CSV chosen — so all three qualify as the deliberate
+     change the rule allows, and the number and the choice that moved it read
+     as one event rather than two. */
+  const includedText = useCountUp(included);
+  const excludedText = useCountUp(excluded);
+  const reachText = useCountUp(reach);
   const issue = (f) => issues.find((i) => i.field === f);
   const available = EXCLUSION_LISTS.filter((e) => !audience.exclusions.includes(e.id));
 
@@ -31,24 +41,29 @@ export function Step2({ draft, issues, showIssues, segments, update, onNewSegmen
       <StepHead title="Audience" id="s3">Who gets asked, and who to leave out.</StepHead>
 
       <StepPanel title="Target audience" required desc="How this campaign decides who qualifies.">
-        <div className="ih-grid ih-g3">
+        <OptionCardGroup
+          legend="Target audience"
+          columns={3}
+          value={audience.mode}
+          onValueChange={(mode) => patchAudience({ mode })}
+        >
           {AUDIENCE_MODES.map((m) => (
             <OptionCard
               key={m.id}
               as="radio"
-              name="amode"
+              value={m.id}
               checked={audience.mode === m.id}
               title={m.label}
               note={m.note}
-              onChange={() => patchAudience({ mode: m.id })}
             />
           ))}
-        </div>
+        </OptionCardGroup>
       </StepPanel>
 
       {audience.mode === 'segmented' && (
         <StepPanel
           title="Segments"
+          field="segments"
           required
           desc="Shared rule-based groups. Each shows the rule it matches on."
           actions={
@@ -89,6 +104,7 @@ export function Step2({ draft, issues, showIssues, segments, update, onNewSegmen
       {audience.mode === 'user-data-table' && (
         <StepPanel
           title="User ID list"
+          field="userList"
           required
           desc="Upload a CSV to target exactly those users. No rules are applied."
           note="IDs are matched when you send, and rows that do not match a user are dropped — so the estimate below is an upper bound."
@@ -103,6 +119,7 @@ export function Step2({ draft, issues, showIssues, segments, update, onNewSegmen
 
       <StepPanel
         title="Exclude"
+        field="exclusions"
         desc="Leave people out of the audience above. Add as many lists as you need."
       >
         {/* FR-16 — exclusion is a select, multi-select via repeat selection. */}
@@ -166,21 +183,105 @@ export function Step2({ draft, issues, showIssues, segments, update, onNewSegmen
         }
       >
         <div className="ih-grid ih-g3">
-          <Stat icon={<Icon name="users" size={13} />} label="Included" value={count(included)} />
-          <Stat icon={<Icon name="users" size={13} />} label="Excluded" value={`${excluded > 0 ? '−' : ''}${count(excluded)}`} />
-          <Stat keyed icon={<Icon name="target" size={13} />} label="Estimated reach" value={count(reach)} />
+          <Stat icon={<Icon name="users" size={13} />} label="Included" value={includedText} />
+          <Stat
+            icon={<Icon name="users" size={13} />}
+            label="Excluded"
+            value={`${excluded > 0 ? '−' : ''}${excludedText}`}
+          />
+          <Stat
+            keyed
+            icon={<Icon name="target" size={13} />}
+            label="Estimated reach"
+            value={reachText}
+            /* FR-18's figure has always moved when a selection changed and
+               never said how it got there, which left the reader adding
+               segment sizes in their head to find out which tick cost what. */
+            hint={<ReachBreakdown totals={totals} />}
+            hintLabel="How the estimated reach is calculated"
+          />
         </div>
       </StepPanel>
 
-      {/* FR-17 — warn before proceeding if exclusion empties the audience. */}
+      {/* FR-17 — warn before proceeding if exclusion empties the audience.
+          With the terms in hand it can name the list that did it: "something
+          emptied your audience" left the reader to find which of four. */}
       {emptied && (
         <Banner
           variant="error"
           icon={<Icon name="warn" size={16} />}
-          description="Your exclusions remove everyone in this audience. Remove an exclusion or widen the audience to continue."
+          description={totals.costliest
+            ? `Your exclusions remove everyone in this audience — ${totals.costliest.name} alone accounts for ${count(totals.costliest.size)}. Remove an exclusion or widen the audience to continue.`
+            : 'Your exclusions remove everyone in this audience. Remove an exclusion or widen the audience to continue.'}
         />
       )}
     </section>
+  );
+}
+
+/**
+ * The arithmetic behind the reach figure.
+ *
+ * Read-only on purpose. The rows are the same records the two pickers above
+ * are drawn from, and the pickers are where a selection is changed — a second
+ * set of controls in here would be a second place to change the same thing,
+ * out of sight of the panel that shows what is chosen.
+ *
+ * The bound is stated rather than implied. Sizes are counted per list, so
+ * anyone on two of them is counted twice, and a figure that reads like a
+ * headcount when it is an upper bound is the kind of number people plan
+ * against.
+ */
+function ReachBreakdown({ totals }) {
+  const { adds, subtracts, included, excluded, reach, costliest, overlapping } = totals;
+
+  return (
+    <>
+      <p className="ih-hovercard-title">
+        <Icon name="target" size={12} />How this adds up
+      </p>
+
+      {adds.length === 0 ? (
+        <Text size="xs" variant="secondary" className="ih-block">
+          Nothing is selected yet, so there is no audience to measure.
+        </Text>
+      ) : (
+        <dl className="ih-sum">
+          {adds.map((row) => (
+            <div className="ih-sum-row" key={row.id}>
+              <dt className="truncate">{row.name}</dt>
+              <dd>+{count(row.size)}</dd>
+            </div>
+          ))}
+          {subtracts.map((row) => (
+            <div className="ih-sum-row" data-negative="true" key={row.id}>
+              <dt className="truncate">{row.name}</dt>
+              <dd>−{count(row.size)}</dd>
+            </div>
+          ))}
+          <div className="ih-sum-row" data-total="true">
+            <dt>Estimated reach</dt>
+            <dd>{count(reach)}</dd>
+          </div>
+        </dl>
+      )}
+
+      {/* The one row worth acting on, and only where removing it would change
+          the answer — naming the costliest of one exclusion says nothing. */}
+      {costliest && subtracts.length > 1 && (
+        <Text size="xs" variant="secondary" className="ih-block ih-mt-6">
+          <strong>{costliest.name}</strong> costs the most of the {subtracts.length} exclusions —
+          removing it would return {count(costliest.size)}.
+        </Text>
+      )}
+
+      {overlapping && (
+        <div className="ih-hovercard-foot">
+          Counted per list, so anyone on two of them is counted twice. {count(included)} −{' '}
+          {count(excluded)} is an upper bound, not a headcount.
+        </div>
+      )}
+    </>
   );
 }
 
