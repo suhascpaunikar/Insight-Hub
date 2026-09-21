@@ -679,12 +679,7 @@ export const store = {
       status: source.status,
       version: source.versions,
       audience: { mode: 'segmented', segments: ['seg_repeat'], exclusions: ['ex_recent'] },
-      /* Clamped, because `resumeStep` outlived the wizard it was written for.
-         The seeds still carry 4 and 5 from the six-step model (OD-9), and a
-         draft resumed at 5 rendered no step body at all — every `step === n`
-         branch in the builder is false — under a footer offering to publish
-         it. A stored step past the end of the wizard is the last step. */
-      currentStep: clamp(Number(source.resumeStep) || 1, 1, STEP_COUNT),
+      currentStep: resumeStepOf(source),
       lastSavedAt: source.updatedAt,
     };
     draft.variants = reconcileVariants(draft).map((v) => ({ ...v, templateId: defaultTemplateFor(goal) }));
@@ -776,6 +771,22 @@ export const store = {
     return id;
   },
 };
+
+/**
+ * Where resuming a campaign puts you.
+ *
+ * Clamped, because `resumeStep` outlived the wizard it was written for. The
+ * seeds carried 4 and 5 from the six-step model (OD-9), and a draft resumed at
+ * 5 rendered no step body at all — every `step === n` branch in the builder is
+ * false — under a footer offering to publish it. A stored step past the end of
+ * the wizard is the last step.
+ *
+ * Exported because the campaign list now says where Resume lands before you
+ * press it, and a row promising step 4 that opens on step 3 is worse than a
+ * row that promised nothing.
+ */
+export const resumeStepOf = (campaign) =>
+  clamp(Number(campaign?.resumeStep) || 1, 1, STEP_COUNT);
 
 export function audienceLabel(draft) {
   const { audience } = draft;

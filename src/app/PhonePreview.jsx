@@ -13,10 +13,47 @@ import { Badge, Button, Text } from '@cloudflare/kumo';
 import { Icon } from '../lib/icons.jsx';
 import { templateOf, variantScaleMax } from '../lib/store.js';
 import { BAND_LABEL } from '../lib/palette.js';
+import { markPanel } from './wizard-kit.jsx';
 
 // scale comes from the store, so the preview and the validator agree
 
-export function PhonePreview({ variant, interactive = false, picked = null, onRate }) {
+/**
+ * A part of the preview that some field on the step produced.
+ *
+ * With `onEdit` the preview stops being only an answer and becomes a way back
+ * into the question: resting on a part lights the panel that wrote it, and
+ * pressing it goes there. The Content step is a long column of panels and the
+ * preview is the one place every one of them is visible at once, so it is the
+ * better index of the two.
+ *
+ * Without `onEdit` this is the plain wrapper it replaces, so the preview is
+ * unchanged wherever nothing is listening — and a part is only ever a button
+ * where it holds no control of its own. The rating row is interactive on the
+ * Schedule step and is never wrapped in one: a button inside a button is not
+ * a shortcut, it is invalid markup.
+ */
+function Part({ target, onEdit, label, className = '', children }) {
+  if (!onEdit) return <div className={className || undefined}>{children}</div>;
+  return (
+    <button
+      type="button"
+      className={`ih-preview-part ${className}`.trim()}
+      // Named for the field rather than for what it says: the text inside is
+      // the campaign's copy, and "How would you rate…, button" announces a
+      // question as though pressing it answered one.
+      aria-label={`Edit ${label}`}
+      onMouseEnter={() => markPanel(target, true)}
+      onMouseLeave={() => markPanel(target, false)}
+      onFocus={() => markPanel(target, true)}
+      onBlur={() => markPanel(target, false)}
+      onClick={() => { markPanel(target, false); onEdit(target); }}
+    >
+      {children}
+    </button>
+  );
+}
+
+export function PhonePreview({ variant, interactive = false, picked = null, onRate, onEdit }) {
   const template = templateOf(variant);
   if (!template) {
     return (
@@ -47,7 +84,9 @@ export function PhonePreview({ variant, interactive = false, picked = null, onRa
       <div className="ih-phone-notch" />
       <div className="ih-phone-screen">
         <div className="ih-row-between">
-          <Text size="xs" variant="mono-secondary">{template.name} · {variant.channel}</Text>
+          <Part target="template" onEdit={onEdit} label="the template and channel">
+            <Text size="xs" variant="mono-secondary">{template.name} · {variant.channel}</Text>
+          </Part>
           <Icon name="x" size={12} />
         </div>
 
@@ -57,7 +96,9 @@ export function PhonePreview({ variant, interactive = false, picked = null, onRa
 
         {showRating && (
           <div>
-            <p className="ih-phone-q">{variant.ratingQuestion}</p>
+            <Part target="q1-text" onEdit={onEdit} label="the rating question">
+              <p className="ih-phone-q">{variant.ratingQuestion}</p>
+            </Part>
             <div className="ih-rate-row">
               {variant.ratingElement === 'star'
                 ? Array.from({ length: 5 }, (_, i) => (
@@ -89,7 +130,11 @@ export function PhonePreview({ variant, interactive = false, picked = null, onRa
         )}
 
         {(picked || !showRating) && (
-          <div>
+          <Part
+            target={`q2-${branchingOn && band ? band : 'passive'}`}
+            onEdit={onEdit}
+            label={`the ${BAND_LABEL[branchingOn && band ? band : 'passive']} follow-up`}
+          >
             <p className="ih-phone-q">{followUp.question || 'Type here'}</p>
             <div className="ih-stack-sm ih-mt-6">
               {followUp.choices.map((c, i) => (
@@ -101,18 +146,18 @@ export function PhonePreview({ variant, interactive = false, picked = null, onRa
                 </div>
               ))}
             </div>
-          </div>
+          </Part>
         )}
 
         {(picked || !showRating) && supports.includes('text') && (
-          <div>
+          <Part target="q3-text" onEdit={onEdit} label="the open-text question">
             <p className="ih-phone-q">{variant.openTextQuestion}</p>
             <div className="ih-dv ih-dv-field" />
-          </div>
+          </Part>
         )}
 
         {variant.elements.filter((e) => e.type === 'mcq').map((e) => (
-          <div key={e.id}>
+          <Part key={e.id} target="elements" onEdit={onEdit} label={`the “${e.label}” element`}>
             <p className="ih-phone-q">{e.label}</p>
             <div className="ih-stack-sm ih-mt-6">
               {(e.choices || []).map((c, i) => (
@@ -124,7 +169,7 @@ export function PhonePreview({ variant, interactive = false, picked = null, onRa
                 </div>
               ))}
             </div>
-          </div>
+          </Part>
         ))}
 
         {variant.elements.some((e) => e.type === 'thumbs') && (

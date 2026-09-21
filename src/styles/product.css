@@ -1562,6 +1562,43 @@ body[data-asst-pointer="true"] [data-insight][data-insight-armed] {
   font-family: var(--font-mono); font-size: 10px; color: var(--foreground-muted);
 }
 
+/* ---------- The preview as an index of the form ----------
+
+   A part of the phone preview that some field wrote. It is a button, so it
+   needs the resets — and it must not look like a button: the preview's job is
+   to show what the campaign will look like on a device, and a row of outlined
+   controls inside the bezel would be the prototype showing through the thing
+   it is previewing. So it is invisible until the pointer is on it. */
+.ih-preview-part {
+  display: block; width: 100%; margin: 0; padding: 3px 5px;
+  background: none; border: 0; border-radius: var(--radius-xs);
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out),
+              box-shadow var(--motion-fast) var(--ease-out);
+}
+/* Inset, so a part lighting up never changes the height of the screen it is
+   in — the preview would otherwise reflow under the pointer crossing it. */
+.ih-preview-part:hover, .ih-preview-part:focus-visible {
+  background: var(--surface-100);
+  box-shadow: inset 0 0 0 1px var(--brand-default);
+  outline: none;
+}
+
+/* The other end of the same gesture: the panel that wrote the part under the
+   pointer. The same brand edge, so the two read as one link across the step
+   rather than as two things that happen to have lit up. An edge rather than
+   the ring `[data-jumped]` uses — this one says "here", not "you have
+   arrived". Keyed off `[data-field]`, which is every jump target on the step,
+   so a new one is lit by being tagged rather than by being listed again. */
+[data-field] { transition: box-shadow var(--motion-fast) var(--ease-out); }
+[data-field][data-linked] {
+  box-shadow: 0 0 0 1px var(--brand-default);
+  border-radius: var(--radius-md);
+}
+/* The jump targets are focusable only as targets, so the ring a click would
+   otherwise leave on them is not the focus ring anyone asked for. */
+[data-field]:focus { outline: none; }
+
 /* ---------- A card that is arithmetic ---------- */
 
 /* Term, amount, and a ruled total. A definition list because that is what it
@@ -1576,12 +1613,36 @@ body[data-asst-pointer="true"] [data-insight][data-insight-armed] {
   font-family: var(--font-mono); font-variant-numeric: tabular-nums;
   color: var(--foreground-default);
 }
+/* A value that is a sentence rather than a figure. The mono column is what
+   makes a sum read as a sum; an audience label set in it is just narrow. */
+.ih-sum-row dd[data-prose] {
+  font-family: var(--font-sans); text-align: right; max-width: 62%;
+  color: var(--foreground-light);
+}
 .ih-sum-row[data-negative] dd { color: var(--destructive-fg); }
 .ih-sum-row[data-total] {
   margin-top: 5px; padding-top: 6px; border-top: 1px solid var(--border-muted);
 }
 .ih-sum-row[data-total] dt { color: var(--foreground-default); font-weight: var(--fw-label); }
 .ih-sum-row[data-total] dd { color: var(--brand-default); font-weight: 600; }
+
+/* ---------- The campaign list's row peek ---------- */
+
+/* Wider than the readiness card: this one carries an audience label and an
+   objective, which are sentences, where that one carries short lines. */
+.ih-peek { width: 330px; max-width: min(330px, calc(100vw - 32px)); }
+.ih-peek .ih-hovercard-title { justify-content: flex-start; gap: 8px; }
+.ih-peek-id { font-size: 10.5px; color: var(--foreground-muted); }
+
+/* The campaign's own words, so they are set as words — and the placeholder
+   for a campaign that recorded none is the same shape, because a card that
+   simply omits the line does not say the line is missing. */
+.ih-peek-objective {
+  margin: 8px 0 0; font-size: var(--fs-xs); line-height: 1.5;
+  color: var(--foreground-light);
+}
+.ih-peek-objective[data-empty] { color: var(--foreground-muted); font-style: italic; }
+.ih-peek-action { margin-top: 7px; color: var(--foreground-default); }
 
 /* ---------- The stepper's readiness card ---------- */
 

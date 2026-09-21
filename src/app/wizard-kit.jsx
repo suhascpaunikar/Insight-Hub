@@ -233,6 +233,23 @@ const FOCUSABLE = 'input:not([type="hidden"]):not([disabled]), textarea, select,
   + 'button:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /**
+ * Light the panel a preview part came from, while the pointer is on that part.
+ *
+ * Direct DOM rather than state threaded down through the step: the two ends
+ * are a preview in the right-hand rail and a panel in the left-hand column,
+ * and the only thing they share is the step that renders both. A `data-`
+ * attribute is what `focusPanel` already reaches for, and it keeps the
+ * highlight out of the render path — nothing about which panel is lit belongs
+ * in the draft.
+ */
+export function markPanel(field, on) {
+  const panel = field && document.querySelector(`[data-field="${CSS.escape(field)}"]`);
+  if (!panel) return;
+  if (on) panel.dataset.linked = 'true';
+  else delete panel.dataset.linked;
+}
+
+/**
  * Put the reader in front of the panel that owns a failing field.
  *
  * Scroll first and focus second: focusing alone scrolls the panel to wherever
