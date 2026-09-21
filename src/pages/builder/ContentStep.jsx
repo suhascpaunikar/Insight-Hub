@@ -31,6 +31,14 @@ export function ContentStep({ draft, issues, showIssues, update, jump = null }) 
   const [group, setGroup] = useState('all');
   const [confirm, setConfirm] = useState(null);
   const [addContent, setAddContent] = useState(false);
+  /* The rating tapped in the preview, and what it was tapped against.
+     This step has variant tabs and step 4 does not, so a pick here cannot be a
+     bare number: variant B can carry a different rating element and a
+     different scale, and a 9 picked on a 1–10 NPS means nothing on the
+     5-point star next door. Stored with the reading it was made under and
+     ignored the moment that reading changes, which keeps it out of an effect
+     — there is no stale value to clear, only one that stops applying. */
+  const [pick, setPick] = useState(null);
 
   useEffect(() => {
     if (!draft.variants.some((v) => v.id === activeId)) setActiveId(draft.variants[0].id);
@@ -49,6 +57,11 @@ export function ContentStep({ draft, issues, showIssues, update, jump = null }) 
 
   const variant = draft.variants.find((v) => v.id === activeId) || draft.variants[0];
   const template = templateOf(variant);
+  /* Which preview a pick belongs to. The scale is in the key because the band
+     a number falls in is decided by it — 3 is a detractor out of 10 and a
+     passive out of 5. */
+  const previewKey = `${variant.id}:${variant.ratingElement}:${variantScaleMax(variant)}`;
+  const picked = pick && pick.key === previewKey ? pick.value : null;
   const aiManaged = draft.type === 'intelligent-ab';
   const weightTotal = draft.variants.reduce((s, v) => s + Number(v.weight || 0), 0);
   const issue = (field) => issues.find((i) => i.field === field);
@@ -347,12 +360,29 @@ export function ContentStep({ draft, issues, showIssues, update, jump = null }) 
         </div>
 
         <aside className="ih-preview-rail">
-          <h3 className="ih-t-h2 ih-mb-10">Preview</h3>
-          {/* Every field the preview can point at is on this step, so pressing
-              a part is a scroll and a focus rather than a journey. */}
-          <PhonePreview variant={variant} onEdit={focusPanel} />
+          <div className="ih-row-between ih-mb-10">
+            <h3 className="ih-t-h2">Preview</h3>
+            {picked && (
+              <Button variant="ghost" size="xs" onClick={() => setPick(null)}>Reset</Button>
+            )}
+          </div>
+          {/* FR-54, on the step that writes the branches rather than only on
+              the one that ships them. A rating is what reveals the follow-up
+              and the open text — without one this preview showed the rating
+              question and stopped, which is a preview of a third of what this
+              step configures. Tapping through is also what makes the rest of
+              it reachable: every field the preview can point at is on this
+              step, so pressing a part is a scroll and a focus rather than a
+              journey, and Q2 and Q3 had no part to press. */}
+          <PhonePreview
+            variant={variant}
+            interactive
+            picked={picked}
+            onRate={(value) => setPick({ key: previewKey, value })}
+            onEdit={focusPanel}
+          />
           <Text size="xs" variant="secondary" className="ih-block ih-mt-8">
-            Press anything in the preview to edit what wrote it.
+            Tap a rating to walk the branch it leads to. Press any wording to edit what wrote it.
           </Text>
         </aside>
       </div>
