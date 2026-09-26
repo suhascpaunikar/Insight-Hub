@@ -50,6 +50,12 @@ const ASK_MAX = 90;
 
 const toFollowUps = (ids) => ids.map((id) => ({ id, label: intentLabel(id) }));
 
+/* Turn ids come from a counter rather than from the transcript's length: an
+   abandoned turn can leave the log, and a length-derived id would then be
+   handed out a second time — two turns under one React key. */
+let turnSeq = 0;
+const turnId = (prefix) => `${prefix}_${(turnSeq += 1)}`;
+
 /** The reply-arrow that marks a follow-up. Not in the shared icon set. */
 const ReplyArrow = () => (
   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -102,24 +108,54 @@ export function Assistant() {
   }, []);
 
   /**
+   * Give up on the stream in flight, if any, and settle the turn it was
+   * filling.
+   *
+   * Settling it is the whole point. A turn left flagged `streaming` with no
+   * stream behind it keeps rendering `streamed` — and `streamed` belongs to
+   * whatever streams next. So an abandoned answer did not merely sit there
+   * blank: the following answer landed in it as well as in its own turn, the
+   * same words twice on screen at once, and every further abandon added
+   * another copy. What was revealed stands as what was said, ellipsed because
+   * it was cut off mid-sentence; a turn that got no words out leaves the log
+   * rather than staying on as an empty paragraph with a caret.
+   *
+   * The orb is the caller's: abandoning settles it, starting the next answer
+   * keeps it awake.
+   */
+  const dropStream = useCallback(() => {
+    const s = streamRef.current;
+    stopTimer();
+    streamRef.current = null;
+    setStreamed(null);
+    if (!s) return;
+    setTurns((list) => list.flatMap((t) => {
+      if (t.id !== s.id) return [t];
+      const said = s.words.slice(0, s.index).join(' ');
+      return said ? [{ ...t, text: `${said}…`, streaming: false }] : [];
+    }));
+  }, []);
+
+  /**
    * Give up on the current answer without finishing it — closing the card, or
    * switching into pointer mode. The orb settles either way: an abandoned
    * answer is not still being composed.
    */
   const abandonStream = useCallback(() => {
-    stopTimer();
-    streamRef.current = null;
-    setStreamed(null);
+    dropStream();
     orbThinking('answer', false);
-  }, []);
+  }, [dropStream]);
 
   const streamAnswer = useCallback(({ text, followUps: ups }, nextTitle = 'Assistant', label = '') => {
-    stopTimer();
+    // An answer can arrive over one still streaming: a dwell fires into it,
+    // the rail opens the card on an intent, the keyboard arms the pointer.
+    // Whatever it interrupts has to be settled first — see dropStream.
+    dropStream();
     orbThinking('answer', true);
     setTitle(nextTitle);
     setFollowUps([]);
 
-    const id = `t_${Math.random().toString(36).slice(2, 9)}`;
+    const id = turnId('t');
     const words = String(text).split(/\s+/).filter(Boolean);
     streamRef.current = { id, words, index: 0, followUps: ups };
     setTurns((list) => [...list, { id, from: 'asst', label, text: '', streaming: true }]);
@@ -131,7 +167,7 @@ export function Assistant() {
       s.index += 1;
       setStreamed(s.words.slice(0, s.index));
     }, WORD_MS);
-  }, [finishStream]);
+  }, [dropStream, finishStream]);
 
   /**
    * The reader's own words, echoed above the answer to them. Without it the
@@ -139,7 +175,8 @@ export function Assistant() {
    * and a follow-up button is as much a question asked as a typed one is.
    */
   const appendQuestion = useCallback((text) => {
-    setTurns((list) => [...list, { id: `q_${list.length}_${text.length}`, from: 'you', text }]);
+    const id = turnId('q');
+    setTurns((list) => [...list, { id, from: 'you', text }]);
   }, []);
 
   const ask = useCallback((intentId = 'overview') => {
@@ -327,11 +364,12 @@ export function Assistant() {
               fieldRef.current?.blur();
               setTitle('Pointer on');
               setFollowUps([]);
-              setTurns((list) => [...list, {
-                id: `n_${list.length}`, from: 'asst',
+              const note = {
+                id: turnId('n'), from: 'asst',
                 text: 'Move over any panel and hold still for a moment — I’ll read what its '
                   + 'numbers say. Escape puts the pointer away.',
-              }]);
+              };
+              setTurns((list) => [...list, note]);
             }}
           >
             <Icon name="target" size={14} />

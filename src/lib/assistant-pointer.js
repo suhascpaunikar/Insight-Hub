@@ -72,6 +72,28 @@ function trackCursor(event) {
   }
 }
 
+/**
+ * Show or hide the companion, which is how it keeps off the assistant's own
+ * surface.
+ *
+ * The card and the launcher wear this same orb, so a buddy trailing across
+ * them parks beside one and the assistant reads as drawn twice — and it was
+ * always the header it landed on, because that is the corner the cursor
+ * arrives from. Sliding under the card instead was the original intent
+ * (z-index 79 against the card's 80) and it no longer happens: Kumo's sidebar
+ * wrapper carries `isolation: isolate`, so the card's z-index is spent inside
+ * that wrapper and never compares with this one at the top level. Hiding it
+ * outright is the better answer anyway — the card is not a panel, there is
+ * nothing here for the companion to read, and a buddy that vanished under an
+ * opaque card would only be lost rather than put away.
+ *
+ * It keeps trailing while hidden, so leaving the card fades it back in where
+ * the cursor actually is.
+ */
+function showBuddy(on) {
+  if (buddy) buddy.dataset.visible = String(on);
+}
+
 function clearDwell() {
   if (dwellTimer) clearTimeout(dwellTimer);
   dwellTimer = null;
@@ -116,6 +138,7 @@ function handleMove(event) {
   // panel behind it, and coming back re-armed the dwell and read it again.
   // That is the three and four copies of one answer.
   const inCard = event.target.closest && event.target.closest(CARD);
+  showBuddy(!inCard);
   if (panel && !inCard) enterPanel(panel);
   else leavePanel();
 }
@@ -142,7 +165,10 @@ export function setPointer(on, fire) {
     build();
     trail.x = cursor.x;
     trail.y = cursor.y;
-    buddy.dataset.visible = 'true';
+    // Armed from the target button in the card's own header, so the cursor is
+    // over the card as often as not: read where it is rather than showing the
+    // buddy there and hiding it again on the first move.
+    showBuddy(!document.elementFromPoint(cursor.x, cursor.y)?.closest(CARD));
     document.addEventListener('mousemove', handleMove, true);
     document.addEventListener('click', handleTap, true);
     frame = requestAnimationFrame(step);
@@ -152,7 +178,7 @@ export function setPointer(on, fire) {
     document.removeEventListener('click', handleTap, true);
     if (frame) cancelAnimationFrame(frame);
     frame = null;
-    if (buddy) buddy.dataset.visible = 'false';
+    showBuddy(false);
   }
 }
 

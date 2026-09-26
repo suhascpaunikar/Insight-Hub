@@ -90,6 +90,13 @@ They overlap on purpose. A dwell fires *into* an answer, so the handover has to
 be seamless; and a dwell abandoned while an earlier answer is still streaming
 must not put the orbs back to sleep. Counting reasons is what makes both true.
 
+An answer arriving over one still streaming settles the turn it interrupts
+first. The stream's revealed words are state the transcript shares, so a turn
+still flagged as streaming with nothing behind it goes on reading from them —
+and the next answer lands in that turn as well as in its own, the same words
+twice on screen. What the interrupted turn had said stands as what it said,
+ellipsed; one that got no words out leaves the log.
+
 ### Waking and settling are not the same curve
 
 Waking is 800ms on a cubic ease-out — most of the distance is covered in the
@@ -321,6 +328,14 @@ follow-ups under each reading lead back to the intent registry. The companion
 wears the same orb as the card, so the dwell reads as consideration rather
 than as a wait: the ring says how long is left, the orb says the time is being
 spent on something.
+
+Wearing the same orb is also why the companion hides on the assistant's own
+surface. The card is the one place the cursor is certain to go — the answer is
+there, and so are the follow-ups — and a companion trailing onto it parks
+beside the header's orb, which reads as the assistant drawn twice. There is
+nothing there for it to do in any case: the card is not a panel. It keeps
+trailing while hidden, so leaving the card fades it back in where the cursor
+actually is.
 
 ### Why a dwell, and why a mode
 

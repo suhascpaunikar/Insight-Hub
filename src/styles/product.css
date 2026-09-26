@@ -1717,7 +1717,11 @@ body[data-asst-thinking="true"] .ih-asst-card::before { opacity: 0.36; transitio
    what can be read is visible before you reach it, and the armed panel lifts
    as the dwell ring closes. Violet throughout — a reading is a claim. */
 .asst-pointer {
-  position: fixed; top: 0; left: 0; z-index: 79;   /* under the card, over the page */
+  /* Over the page, and never mind the card: the companion hides itself on the
+     assistant's own surface rather than sliding beneath it. 79 against the
+     card's 80 does not decide that anyway — Kumo's sidebar wrapper isolates
+     the stacking context the card lives in, so the two never compare. */
+  position: fixed; top: 0; left: 0; z-index: 79;
   width: 40px; height: 40px; margin: -20px 0 0 -20px;
   pointer-events: none;
   display: grid; place-items: center;
