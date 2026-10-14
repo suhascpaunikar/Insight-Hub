@@ -1,0 +1,2191 @@
+/* ==========================================================================
+   product.css — what Kumo does not ship.
+
+   Everything Kumo *does* ship was deleted from this project when the console
+   moved onto the real components; §11.4 of the guideline is the map. What is
+   left here is the list §11.4 marks "(none)" — the wizard stepper, the stat
+   strip and metric cards, the rating ramp, the skeletons, the mobile preview,
+   and the assistant — plus the shell glue around Kumo's Sidebar.
+   ========================================================================== */
+
+body {
+  margin: 0;
+  background: var(--background-200);
+  color: var(--foreground-default);
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Read aloud, never drawn — for the running commentary a visual affordance
+   owes a reader who cannot see it. `clip-path` and a 1px box rather than
+   `display: none` or a zero size, because both of those take the element out
+   of the accessibility tree along with the layout, and then it announces
+   nothing. */
+.ih-sr {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap; border: 0; padding: 0; margin: -1px;
+}
+
+/* ==========================================================================
+   The shell frame (§5).
+
+   Kumo's Sidebar owns the rail — its width, its collapse, its tooltips and
+   its surface — so what is left here is the column beside it: the bar, the
+   scroller, the two bands, and the footer. The 260/56px rail widths, the
+   `.rail-text` fade and the whole `.tabgroup` pill track are gone; they were
+   the mirror.
+   ========================================================================== */
+
+.ih-main {
+  display: flex; flex-direction: column; min-width: 0; flex: 1;
+  height: 100vh; overflow: hidden;
+}
+
+/* The bar (§5.3): 58px, breadcrumb left, three utilities right. */
+.ih-topbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  flex: none; height: var(--bar-h); padding: 0 16px;
+  background: var(--background-200);
+  border-bottom: 1px solid var(--topbar-border);
+}
+.ih-topbar-dock { display: flex; align-items: center; min-width: 0; }
+.ih-topbar-right { display: flex; align-items: center; gap: 4px; flex: none; }
+
+/* FR-62 — the environment dot. Staging is the one that has to look different
+   at a glance, so it takes the warning colour and Production the success. */
+.ih-env-dot {
+  width: 7px; height: 7px; border-radius: var(--radius-full);
+  background: var(--success);
+}
+.ih-env-dot[data-env="Staging"] { background: var(--warning); }
+
+.ih-avatar {
+  width: 28px; height: 28px; padding: 0; border-radius: var(--radius-full);
+  background: var(--surface-200); color: var(--foreground-default);
+  font-size: 11px; font-weight: var(--fw-title); letter-spacing: 0.02em;
+}
+
+.ih-rail-mark {
+  display: grid; place-items: center; flex: none; width: 22px; height: 22px;
+  border-radius: var(--radius-sm);
+  background: var(--logo); color: #121212;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.02em;
+}
+
+.ih-kbd {
+  padding: 1px 5px; border: 1px solid var(--border-muted); border-radius: var(--radius-xs);
+  font-family: var(--font-mono, ui-monospace, monospace); font-size: 10px;
+  color: var(--foreground-muted);
+}
+
+.ih-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+.ih-content { padding: 20px 20px 0; }
+
+/* The tab strip band (§5.4). The group inside it is Kumo's Tabs; this is
+   only the band it sits in, which keeps its height while empty so the
+   content does not move when the group docks into the bar. */
+.ih-tabstrip {
+  display: flex; align-items: center; flex: none; height: var(--bar-h); padding: 0 16px;
+  background: var(--background-200); border-bottom: 1px solid var(--border-default);
+}
+.ih-tab-label { display: inline-flex; align-items: center; gap: 8px; }
+/* The wizard's steps carry their number, or the mark their state has earned:
+   a check when complete, a lock when out of reach, an alert when a step the
+   reader has left needs something. */
+.ih-tab-glyph {
+  display: grid; place-items: center; flex: none; width: 18px; height: 18px;
+  border-radius: var(--radius-full);
+  background: var(--surface-200); color: var(--foreground-lighter);
+  font-family: var(--font-mono, ui-monospace, monospace); font-size: 10.5px; line-height: 1;
+}
+[data-selected] .ih-tab-glyph { background: var(--brand-default); color: var(--on-brand); }
+
+/* The stat strip (§6.8): the band under the tab strip on a detail page,
+   carrying the state the breadcrumb cannot — status, trigger, channel,
+   audience, volume — with the campaign's own actions at the right end.
+   One of the components §11.4 marks "(none)".
+
+   `--strip-h` is a minimum, not a fixed height: at narrow widths the columns
+   wrap and the band grows rather than clipping a value. */
+.ih-statstrip {
+  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+  flex: none; min-height: var(--strip-h); padding: 12px 20px;
+  background: var(--background-200); border-bottom: 1px solid var(--border-default);
+}
+.ih-statstrip-cols { display: flex; align-items: center; flex-wrap: wrap; gap: 16px 48px; min-width: 0; }
+/* §6.8 asks for an 80px gap, which assumes the band is nothing but columns.
+   §9.2 then puts the campaign's four actions at its right end, and the two
+   cannot both hold at 1352px — so the gap gives way rather than the actions. */
+.ih-statstrip-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; max-width: 260px; }
+.ih-statstrip-label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: var(--fs-xs); line-height: 1; color: var(--foreground-lighter); white-space: nowrap;
+}
+.ih-statstrip-value {
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+  font-size: var(--fs-body); font-weight: var(--fw-title); line-height: 1.2;
+  color: var(--foreground-default); white-space: nowrap;
+}
+/* A value that is an identifier or a figure is monospaced, so the strip's
+   numbers line up with the same values wherever else they are printed. */
+.ih-statstrip-value.ih-mono { font-family: var(--font-mono, ui-monospace, monospace); font-weight: var(--fw-label); }
+.ih-statstrip-acts { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; flex: none; }
+/* Used twice: as the stat strip's tooltip trigger, and as the reach figure's
+   hover-card trigger on the Audience step. A real button in both — the card it
+   opens has to be reachable without a pointer — so it carries the resets a
+   bare span never needed. */
+.ih-hint-mark {
+  display: inline-flex; padding: 0; background: none; border: 0;
+  color: var(--foreground-muted); cursor: help;
+  transition: color var(--motion-fast) var(--ease-out);
+}
+.ih-hint-mark:hover { color: var(--foreground-default); }
+.ih-hint-mark:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-xs); }
+
+/* Below the point where five columns and four buttons stop fitting, the
+   actions drop under the columns rather than the columns shrinking — a
+   truncated audience label is worse than a taller band. */
+@media (max-width: 1100px) {
+  .ih-statstrip { flex-direction: column; align-items: flex-start; gap: 12px; }
+}
+
+/* The site footer (§5.7). */
+.ih-site-foot {
+  display: flex; align-items: center; justify-content: center; gap: 20px; flex: none;
+  height: var(--site-foot-h, 60px); margin-top: 24px;
+  border-top: 1px solid var(--border-default); font-size: 14px;
+}
+.ih-site-foot-links { display: flex; align-items: center; margin: 0; padding: 0; list-style: none; }
+.ih-site-foot-links li { display: flex; align-items: center; }
+.ih-site-foot-links li + li::before {
+  content: ""; width: 1px; height: 16px; margin: 0 20px; background: var(--border-default);
+}
+.ih-site-foot-copy { font-size: 13px; color: var(--foreground-lighter); }
+
+/* Quick search rows. */
+.ih-cmd-row { display: flex; align-items: center; gap: 10px; width: 100%; }
+.ih-cmd-icon { display: inline-flex; color: var(--foreground-lighter); }
+.ih-cmd-note { margin-left: auto; font-size: var(--fs-xs); color: var(--foreground-muted); }
+
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ==========================================================================
+   Page and settings patterns (§6.7, §6.11).
+
+   The row *layout* stays here — Kumo ships no settings row — but everything
+   inside a row is a Kumo component now, and the panel around it is a
+   LayerCard. What went away with the mirror: `.spanel`'s own border and
+   surface (LayerCard's), every control's styling, and the `.pill`, `.badge`,
+   `.notice` and `.btn` rules these rows used to reach for.
+   ========================================================================== */
+
+.ih-page { max-width: var(--content-settings); margin: 0 auto; }
+.ih-page-body { margin-top: var(--sp-xl); }
+
+/* The page's arrival (`.ih-reveal`, FR-71's landing screen).
+
+   Until now a page was a hard cut: the document parses, React mounts, and
+   every block of console appears on one frame with nothing to say the screen
+   had loaded. This gives the arrival a shape — each direct child of the page
+   rises out of `--stagger-distance` through `--stagger-blur`, one
+   `--stagger-stagger` behind the last, so the eye lands on the title, then
+   the activity strip, then the list, in the order they are meant to be read.
+
+   Opted into per page rather than applied to every `.ih-page`, because a
+   cascade is an arrival and only one of the four screens is one. The other
+   three are places you go *from* here with a decision already made, and a
+   wizard step that re-reveals itself on every load reads as lag.
+
+   Three things the shape depends on:
+
+   An animation rather than a transition, because there is no state change to
+   key it off. The blocks mount already arrived — there is no frame at which
+   something flips them from hidden to shown — so the entrance has to be
+   something the element does on being inserted, which is what an animation
+   is. It also means no class to add on a timer and no reflow to force: it
+   starts when React commits, which is the moment there is something to show.
+
+   `backwards` rather than `both`, which is load-bearing rather than a detail.
+   Both hold the blocks at the `from` state through their delay, but `both`
+   also leaves the `to` state resident afterwards — and the `to` state carries
+   a filter. A filter is a containing block and a stacking context, so six of
+   them left on the page for the life of the document would quietly re-parent
+   every sticky table header and popover under them. `backwards` drops the
+   whole declaration the moment the animation ends.
+
+   And the index is capped. Past the fourth block the reader is already
+   reading; a pager or a footnote landing half a second after the rows it
+   belongs to stops reading as a cascade and starts reading as a repaint.
+   The tail arrives with the list. */
+.ih-reveal > * {
+  animation: ih-reveal var(--stagger-dur) var(--stagger-ease) backwards;
+  animation-delay: calc(var(--stagger-stagger) * var(--reveal-i, 0));
+}
+.ih-reveal > *:nth-child(2) { --reveal-i: 1; }
+.ih-reveal > *:nth-child(3) { --reveal-i: 2; }
+.ih-reveal > *:nth-child(4) { --reveal-i: 3; }
+.ih-reveal > *:nth-child(n + 5) { --reveal-i: 4; }
+
+/* No `to`: the resting state is whatever the block already computes to, and
+   naming it here would mean restating a transform and a filter that these
+   blocks do not otherwise have. `blur()` interpolating against `none` is the
+   identity case, so it resolves to `blur(0)`. */
+@keyframes ih-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(var(--stagger-distance));
+    filter: blur(var(--stagger-blur));
+  }
+}
+
+/* Title, a one-line description, and the actions that belong to the whole
+   page. The description is the screen's only prose: it says what the screen
+   is for, not what each control does. */
+.ih-page-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--sp-lg); flex-wrap: wrap; margin-bottom: 40px;
+}
+.ih-page-head-title {
+  margin: 0; font-size: var(--fs-title); font-weight: var(--fw-title);
+  letter-spacing: var(--tracking-title); line-height: var(--lh-title);
+}
+.ih-page-head-desc {
+  margin: 8px 0 0; max-width: 64ch;
+  font-size: var(--fs-body); line-height: var(--lh-body); color: var(--foreground-lighter);
+}
+.ih-page-head-actions { display: flex; align-items: center; gap: var(--sp-md); flex-wrap: wrap; }
+
+/* Names the group of rows beneath it. Sized a step under the page title so a
+   screen of four groups still has one obvious first line. */
+.ih-section-head { margin: var(--sp-xxl) 0 var(--sp-lg); }
+.ih-section-head:first-child { margin-top: 0; }
+.ih-section-head h2 {
+  display: flex; align-items: center; gap: var(--sp-md); margin: 0;
+  font-size: var(--fs-lg); font-weight: var(--fw-title); line-height: 1.4;
+}
+.ih-section-head p {
+  margin: 8px 0 0; max-width: 62ch;
+  font-size: var(--fs-body); line-height: var(--lh-body); color: var(--foreground-light);
+}
+
+/* The documentation chip (§6.7): a 30×20 violet pill beside a section title.
+
+   It keeps its own token rather than reading `--ai`, even though the two hold
+   the same hex today. FR-91 reserves the AI violet for machine inference — a
+   violet element is a claim, never a measurement — and a link to a manual is
+   neither. One value, two ideas: naming them apart is what lets the AI accent
+   move later without dragging the chip with it. */
+.ih-docs-chip {
+  display: inline-grid; place-items: center; flex: none; width: 30px; height: 20px;
+  border: 0; background: var(--docs-chip); border-radius: var(--radius-full);
+  color: #ffffff; cursor: pointer;
+  transition: opacity var(--motion-fast) var(--ease-out);
+}
+.ih-docs-chip:hover { opacity: .85; }
+
+/* One container, hairline-divided rows. Every row is label plus explanation
+   on the left and its control on the right — the shape that makes a settings
+   screen scannable without reading it. */
+.ih-spanel { overflow: hidden; margin-bottom: var(--sp-lg); }
+.ih-srow {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-xl); padding: var(--sp-lg); width: 100%;
+  border-top: 1px solid var(--border-muted);
+  background: none; text-align: left; color: inherit; font: inherit;
+}
+.ih-srow:first-child { border-top: 0; }
+.ih-srow-top { align-items: flex-start; }
+.ih-srow-main { flex: 1 1 auto; min-width: 0; }
+.ih-srow-label {
+  font-size: var(--fs-body); font-weight: var(--fw-label); color: var(--foreground-default);
+}
+.ih-srow-desc {
+  margin: 6px 0 0; max-width: 64ch;
+  font-size: var(--fs-body); line-height: var(--lh-body); color: var(--foreground-lighter);
+}
+.ih-block { display: block; }
+.ih-srow-ctl {
+  flex: none; display: flex; flex-direction: column; align-items: flex-end;
+  gap: 5px; width: 300px;
+}
+.ih-srow-ctl-auto { width: auto; }
+
+/* A row that navigates. The whole row is the target, the chevron says so. */
+.ih-srow-link { cursor: pointer; transition: background-color var(--motion-fast) var(--ease-out); }
+.ih-srow-link:hover { background: var(--surface-100); }
+/* The link row's right side is a status beside its chevron, not stacked above
+   it — `.ih-srow-ctl` is a column by default and would otherwise win on order. */
+.ih-srow-link .ih-srow-ctl { flex-direction: row; align-items: center; gap: 10px; }
+.ih-srow-chev {
+  display: inline-flex; color: var(--foreground-muted);
+  transition: color var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out);
+}
+.ih-srow-link:hover .ih-srow-chev { color: var(--foreground-default); transform: translateX(2px); }
+
+/* A notice that lives inside the panel, between the rows it qualifies. */
+.ih-srow-notice { display: block; padding: var(--sp-md) var(--sp-lg); background: var(--background-200); }
+
+/* The panel's own footer: the one save for everything above it. */
+.ih-spanel-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-md);
+  padding: 14px var(--sp-lg);
+  background: var(--background-200); border-top: 1px solid var(--border-muted);
+}
+.ih-row-gap { display: flex; align-items: center; gap: var(--sp-sm); }
+.ih-unit-note { text-align: right; }
+
+/* A standing condition with the action that resolves it. Kumo's Banner is
+   the component (§11.2: the one place §8's "never tint" gives way); this is
+   only the space it sits in. */
+.ih-callout { margin-bottom: var(--sp-xl); }
+
+/* One primary action with its variants folded behind the chevron. §11.4:
+   "no single Kumo split button; compose it". The seam is the radius, so the
+   two halves stay one object. */
+.ih-split { display: inline-flex; align-items: stretch; }
+.ih-split > :first-child > button,
+.ih-split > button:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.ih-split > :last-child button,
+.ih-split > button:last-child {
+  border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: -1px; padding: 0 8px;
+}
+
+/* The AI accent, on a badge that means a machine did the work (FR-91). */
+.ih-badge-ai {
+  margin-left: 7px; padding: 1px 6px; border-radius: var(--radius-full);
+  background: var(--ai-200); color: var(--ai-fg);
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500; letter-spacing: .04em;
+}
+
+/* Dialog interior. Kumo owns the frame, the scrim and the focus trap. */
+.ih-dialog-title { margin: 0 0 var(--sp-md); font-size: var(--fs-lg); font-weight: var(--fw-title); }
+.ih-dialog-body { display: flex; flex-direction: column; gap: var(--sp-md); }
+.ih-dialog-foot { display: flex; justify-content: flex-end; gap: var(--sp-sm); margin-top: var(--sp-xl); }
+.ih-well {
+  padding: var(--sp-md); border: 1px solid var(--border-muted); border-radius: var(--radius-md);
+  background: var(--well); display: flex; flex-direction: column; gap: var(--sp-sm);
+}
+.ih-row-between { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-md); }
+
+/* Kumo's Sidebar.MenuBadge is `inline-flex` inside a `relative` MenuItem and
+   carries no placement of its own, so without this it takes a line under the
+   item it belongs to. Right-aligned and vertically centred over the button,
+   which is where the rail's Beta chips sat before the port. */
+[data-sidebar="menu-item"] > [data-sidebar="menu-badge"] {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   The campaign list (§9.1).
+
+   Kumo's Table draws the rows, Pagination the pager, Badge the status pill,
+   LayerCard the card. What is left here is the list's own behaviour: the row
+   that opens a campaign, the sortable header Kumo's Table has no notion of,
+   the status filter, and the two-line campaign cell.
+   ========================================================================== */
+
+.ih-page-list { max-width: var(--content-max); }
+
+.ih-toolbar {
+  display: flex; align-items: center; gap: var(--sp-sm); flex-wrap: wrap;
+  margin-bottom: var(--sp-md);
+}
+.ih-toolbar-search { flex: 1 1 auto; min-width: 220px; }
+
+.ih-list-card { overflow: visible; padding: 0; }
+.ih-table-scroll { overflow-x: auto; }
+
+/* The status filter. A pill track like the shell's tab group, but it filters
+   rather than navigates, so it is not a Tabs: pressing one does not change
+   what the page *is*, only which of its rows are drawn. */
+.ih-list-tabs {
+  display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
+  padding: 10px var(--sp-md); border-bottom: 1px solid var(--border-muted);
+}
+.ih-list-tab {
+  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px;
+  border: 1px solid transparent; border-radius: var(--radius-sm); background: none;
+  font-size: var(--fs-sm); font-weight: var(--fw-label); color: var(--foreground-lighter);
+  cursor: pointer;
+  transition: color var(--motion-fast) var(--ease-out),
+              background-color var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out);
+}
+.ih-list-tab:hover { color: var(--foreground-default); }
+.ih-list-tab[aria-selected="true"] {
+  background: var(--surface-100); border-color: var(--border-default); color: var(--foreground-default);
+}
+.ih-list-tab-count {
+  font-family: var(--font-mono); font-size: 11px; color: var(--foreground-muted);
+}
+
+/* FR-63 — sortable column headers. Kumo's Table ships selection, sticky
+   columns and a resize handle, but no sorting, so the button and its arrow
+   are the product's. */
+.ih-th-sort {
+  display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0;
+  background: none; color: inherit; font: inherit; cursor: pointer;
+}
+.ih-th-arrow { display: inline-flex; opacity: 0; transition: opacity var(--motion-fast) var(--ease-out); }
+.ih-th-sort:hover .ih-th-arrow { opacity: .55; }
+.ih-th-sort[data-on] .ih-th-arrow { opacity: 1; }
+
+/* FR-72 — the whole row opens the campaign. */
+.ih-row-open { cursor: pointer; }
+.ih-row-chev {
+  display: inline-flex; color: var(--foreground-muted);
+  transition: color var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out);
+}
+.ih-row-open:hover .ih-row-chev { color: var(--foreground-default); transform: translateX(2px); }
+
+.ih-cell-campaign { min-width: 240px; }
+.ih-cell-tight { width: 1%; }
+.ih-campaign-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ih-campaign-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.ih-row-name {
+  padding: 0; border: 0; background: none; color: var(--foreground-default);
+  font-size: var(--fs-lg); font-weight: var(--fw-title); text-align: left; cursor: pointer;
+}
+.ih-row-name:hover { color: var(--link); }
+/* FR-75 — the ID is selectable for support and debugging. */
+.ih-campaign-id {
+  font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--foreground-muted);
+  user-select: all;
+}
+.ih-num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--fs-sm); }
+.ih-rating-val {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: var(--fs-sm); font-weight: var(--fw-label);
+}
+.ih-ta-r { text-align: right; }
+.ih-ml-6 { margin-left: 6px; }
+.ih-dot {
+  width: 5px; height: 5px; border-radius: var(--radius-full);
+  background: currentColor; margin-right: 5px;
+}
+
+.ih-card-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-md);
+  padding: 10px var(--sp-lg); border-top: 1px solid var(--border-muted);
+}
+.ih-pager { margin-top: var(--sp-md); }
+.ih-proto-note { display: flex; align-items: center; gap: 2px; margin-top: var(--sp-lg); }
+
+.ih-sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ==========================================================================
+   The activity strip's metric cards (§6.9, FR-71).
+
+   One of §11.4's "(none)" entries: Kumo defers charts to ECharts and ships no
+   sparkline, and a 40px band of bars inside a figure is not a `Chart`.
+   ========================================================================== */
+
+.ih-activity { margin-bottom: 20px; }
+.ih-activity-head { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+.ih-metric-grid { display: grid; gap: var(--sp-md); grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .ih-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .ih-metric-grid { grid-template-columns: minmax(0, 1fr); } }
+
+.ih-metric { display: flex; flex-direction: column; padding: var(--sp-md) var(--sp-lg) 10px; }
+.ih-metric-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-sm); }
+.ih-metric-name {
+  font-size: 10px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--foreground-lighter);
+}
+.ih-metric-legend { display: flex; align-items: center; gap: 10px; }
+.ih-metric-key {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 9.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--foreground-muted);
+}
+.ih-metric-key i { width: 5px; height: 5px; border-radius: var(--radius-full); background: currentColor; }
+.ih-metric-key[data-tone="warning"] { color: var(--warning); }
+.ih-metric-key[data-tone="danger"] { color: var(--destructive); }
+.ih-metric-key[data-tone="muted"] { color: var(--foreground-lighter); }
+.ih-metric-key[data-tone="muted"] i { background: var(--border-strong); }
+/* What population the figure covers — its own row, so the legend beside the
+   name never squeezes it into an ellipsis. */
+.ih-metric-scope {
+  align-self: flex-start; max-width: 100%; margin-top: 2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--fs-xs); color: var(--foreground-lighter);
+}
+.ih-metric-scope-tip {
+  cursor: help; text-decoration: underline dotted var(--border-strong); text-underline-offset: 3px;
+}
+
+/* Campaigns running: the portfolio at its real proportions, in the slot the
+   other cards give to a sparkline. Bottom-aligned to the same 40px band. */
+.ih-portfolio { display: flex; align-items: flex-end; gap: 2px; height: 40px; }
+.ih-portfolio-seg { display: block; height: 22px; min-width: 4px; border-radius: 2px; }
+.ih-metric-figures {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-md); margin-top: 6px;
+}
+.ih-metric-value {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: var(--fs-section); font-weight: var(--fw-title); line-height: 1.15;
+  letter-spacing: -0.02em; color: var(--foreground-default);
+}
+.ih-metric-sub { display: flex; gap: 14px; }
+.ih-metric-sub b {
+  display: block; font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: 15px; font-weight: 400; line-height: 1.2; text-align: right; color: var(--foreground-light);
+}
+.ih-metric-plot { position: relative; margin-top: auto; padding-top: var(--sp-md); }
+.ih-metric-axis {
+  display: flex; align-items: center; justify-content: space-between; margin-top: 8px;
+  font-family: var(--font-mono); font-size: 11px; color: var(--foreground-muted);
+}
+
+.ih-chart-plot { position: relative; display: flex; align-items: flex-end; gap: 3px; height: 40px; }
+/* The bar column is the hover target, and it spans the full plot height so
+   the readout opens anywhere over the column rather than only over the ink. */
+.ih-chart-col {
+  position: relative; flex: 1; display: flex; flex-direction: column; justify-content: flex-end;
+  gap: 2px; min-width: 0; cursor: default;
+}
+.ih-chart-col::before { content: ""; position: absolute; inset: 0; }
+.ih-chart-col:hover::before { background: var(--surface-100); opacity: .5; border-radius: 2px; }
+.ih-chart-seg { position: relative; border-radius: 2px 2px 0 0; }
+/* Everything but the column under the cursor steps back, so the one being
+   read is the one in focus. On the plot rather than each column: a :hover
+   rule on the siblings would fire on the gaps between them too. */
+.ih-chart-plot[data-reading] .ih-chart-col { transition: opacity var(--motion-fast) var(--ease-out); }
+.ih-chart-plot[data-reading] .ih-chart-col:not([data-on]) { opacity: .38; }
+
+/* The readout. Lifted out of the plot: a 40px band cannot hold it, so it opens
+   over the card's own figures, which are printed and stay printed.
+
+   `left` belongs to ChartTip, which measures the hovered column and this box
+   and centres the tip on the one inside the other. Hence no translate here,
+   and hence the clamp there: `.ih-scroll` hides horizontal overflow, so a
+   readout centred on the plot's first or last column — where half of it falls
+   outside the card — is a readout with its labels sliced off. `max-width` is
+   the same promise for a card too narrow to hold it at any position. */
+.ih-chart-tip {
+  position: absolute; left: 0; bottom: 46px; z-index: 20;
+  min-width: 168px; max-width: 100%; padding: 8px 10px;
+  background: var(--frame); border: 1px solid var(--border-overlay); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-3); pointer-events: none;
+}
+.ih-chart-tip-row {
+  display: flex; align-items: center; gap: 7px; font-size: var(--fs-xs); white-space: nowrap;
+}
+.ih-chart-tip-row i { width: 7px; height: 7px; flex: none; border-radius: 2px; }
+.ih-chart-tip-row b {
+  margin-left: auto; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 500;
+}
+.ih-chart-tip-foot {
+  margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--border-muted);
+  font-family: var(--font-mono); font-size: 10px; color: var(--foreground-muted);
+}
+
+/* Flat table rows (§11.4a, decided).
+
+   Kumo's Table.Row stripes even rows: `even:bg-kumo-elevated`, hard-coded in
+   the variant's class string. §11.4a said to "pass it the unstriped variant
+   rather than overriding the stripe in CSS" — but there is no such variant.
+   Table.Row's `variant` is `default` (which *is* the striped one) or
+   `selected`, so an override is the only way to hold the decision.
+
+   And the decision stands. This product's tables already encode meaning with
+   row background — hover fills a row, and the campaign list colours its
+   rating cells on the ramp. A stripe is a background that means *nothing*,
+   and putting one behind marks that do mean something makes the meaningful
+   ones harder to see. The two-line rows and the hairline between them already
+   do the work a stripe would.
+
+   `--kumo-table-row-bg` is set alongside, because Kumo's sticky-column cells
+   paint themselves from it: leaving it on `elevated` would make a pinned cell
+   a different colour from the row it belongs to. */
+.ih-table-scroll tbody tr:nth-child(even) {
+  background: var(--color-kumo-base);
+  --kumo-table-row-bg: var(--color-kumo-base);
+}
+.ih-table-scroll tbody tr:hover { background: var(--surface-100); }
+
+/* ==========================================================================
+   The wizard (§9.3).
+
+   Kumo's Sidebar, Tabs, Input, Select, Switch, Radio, Checkbox, Banner,
+   Dialog, DatePicker and Popover do the controls. What is left here is the
+   wizard's own shape: the stepper, the section rhythm, the option card's
+   frame, the template gallery and the phone.
+   ========================================================================== */
+
+.ih-step-page { max-width: var(--content-max); padding-bottom: var(--sp-xl); }
+
+/* The footer bar. */
+.ih-builder-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-md);
+  flex: none; height: var(--foot-h); padding: 0 20px;
+  background: var(--background-200); border-top: 1px solid var(--border-default);
+}
+.ih-topbar-wide { gap: var(--sp-lg); }
+
+/* A stop per step, joined by the line between them. The stop is the circle and
+   its label; the line belongs to the step it leaves, so a completed step fills
+   the run to the next one and progress reads as one continuous track. The
+   button carries no box of its own — the circle is the marker, and a card
+   around it would put two edges around one number. */
+.ih-stepper-bar {
+  display: flex; align-items: center; flex: none; padding: 10px 20px;
+  background: var(--background-200); border-bottom: 1px solid var(--border-default);
+}
+.ih-stepper { display: flex; align-items: center; width: 100%; margin: 0; padding: 0; list-style: none; }
+.ih-stepstop { display: flex; align-items: center; min-width: 0; }
+.ih-stepstop:not(:last-child) { flex: 1 1 auto; }
+.ih-step-line {
+  flex: 1 1 auto; min-width: 16px; height: 2px; margin: 0 10px; border-radius: 1px;
+  background: var(--border-default);
+  transition: background-color var(--motion-base) var(--ease-out);
+}
+.ih-stepstop[data-state="complete"] .ih-step-line { background: var(--brand-default); }
+
+.ih-step {
+  position: relative; display: flex; align-items: center; gap: 9px; min-width: 0;
+  padding: 6px 10px; border-radius: var(--radius-md);
+  background: none; border: 0; text-align: left; cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out);
+}
+/* `:not([aria-disabled])` rather than `:not(:disabled)`: a locked stop is
+   hoverable on purpose now, so that it can say what is holding it up, but it
+   must not light up as though pressing it would go there. */
+.ih-step:hover:not([aria-disabled="true"]) { background: var(--surface-100); }
+.ih-step-num {
+  display: grid; place-items: center; flex: none; width: 22px; height: 22px;
+  border: 1px solid var(--border-strong); border-radius: var(--radius-full);
+  font-family: var(--font-mono); font-size: 10.5px; color: var(--foreground-lighter);
+  transition: background-color var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out);
+}
+.ih-step-label { display: block; font-size: 12px; font-weight: 500; color: var(--foreground-light); }
+
+/* Legible in greyscale (FR-65): fill, weight and glyph carry the state, not hue. */
+.ih-step[data-state="current"] .ih-step-num {
+  background: var(--brand-default); border-color: var(--brand-default);
+  color: var(--on-brand); font-weight: 600;
+}
+.ih-step[data-state="current"] .ih-step-label { color: var(--foreground-default); font-weight: 600; }
+.ih-step[data-state="complete"] .ih-step-num {
+  background: var(--brand-default); border-color: var(--brand-default); color: var(--on-brand);
+}
+.ih-step[data-state="complete"] .ih-step-label { color: var(--foreground-default); }
+.ih-step[data-state="locked"] { opacity: .5; cursor: not-allowed; }
+.ih-step[data-state="locked"] .ih-step-num { border-style: dashed; }
+.ih-step[data-state="attention"] .ih-step-num {
+  background: var(--destructive-200); border-color: var(--destructive); color: var(--destructive-fg);
+}
+.ih-step[data-state="attention"] .ih-step-label { color: var(--destructive-fg); }
+
+/* A step is a stack of sections with a rule between them. The rule is the
+   point: with the panel box gone, nothing said where one decision ended and
+   the next began, and five identically-typeset regions in one column read as
+   one. The ratio does the work — 24px and a hairline between sections against
+   10px from a heading to the controls it governs. */
+.ih-ssections { display: flex; flex-direction: column; }
+.ih-w-940 { max-width: 940px; }
+.ih-sstep-head { padding-bottom: var(--sp-xs); }
+.ih-sstep-desc { margin: 4px 0 0; max-width: 70ch; font-size: var(--fs-sm); color: var(--foreground-lighter); }
+.ih-t-h1 { margin: 0; font-size: var(--fs-section); font-weight: var(--fw-title); letter-spacing: var(--tracking-title-sm); }
+.ih-t-h2 { margin: 0; font-size: var(--fs-lg); font-weight: var(--fw-title); }
+.ih-t-h3 { font-size: var(--fs-body); font-weight: var(--fw-title); }
+
+.ih-ssection {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: var(--sp-xl) 0; border-top: 1px solid var(--border-muted);
+}
+.ih-ssections > .ih-ssection:first-of-type { border-top: 0; }
+/* Prose and short fields are held to a column; a gallery of cards is not. The
+   cap goes on the content rather than the section, so the separator above a
+   narrow section still spans the step — a rule that changes width between one
+   section and the next reads as a mistake rather than as a boundary. */
+.ih-ssection-narrow > .ih-ssection-head,
+.ih-ssection-narrow > .ih-sbody { max-width: 820px; }
+.ih-ssection-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--sp-md); flex-wrap: wrap;
+}
+.ih-ssection-title { margin: 0; font-size: var(--fs-lg); font-weight: var(--fw-title); line-height: 1.4; }
+.ih-ssection-desc {
+  margin: 6px 0 0; max-width: 62ch;
+  font-size: var(--fs-body); line-height: var(--lh-body); color: var(--foreground-light);
+}
+.ih-ssection-actions { display: flex; align-items: center; gap: var(--sp-sm); flex-wrap: wrap; }
+.ih-sbody { display: flex; flex-direction: column; gap: var(--sp-md); }
+.ih-sbody-note {
+  font-size: var(--fs-sm); line-height: var(--lh-body); color: var(--foreground-lighter);
+}
+.ih-req { margin-left: 4px; color: var(--destructive-fg); }
+.ih-error { margin: 0; font-size: var(--fs-sm); color: var(--destructive-fg); }
+.ih-issue-list { margin: 6px 0 0; padding-left: 16px; }
+
+/* The option card: §11.4's "no single Kumo card-radio; compose it". Surface
+   supplies the frame and its ring; the control inside is a real Kumo Radio or
+   Checkbox, so keyboard and screen-reader behaviour come with it. */
+.ih-opt {
+  display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px;
+  cursor: pointer; text-align: left; width: 100%;
+  transition: background-color var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out);
+}
+.ih-opt:hover { background: var(--surface-200); }
+.ih-opt-on { background: var(--surface-200); border-color: var(--border-strong); }
+.ih-opt[aria-disabled="true"]:hover { background: transparent; }
+.ih-opt-body { display: block; min-width: 0; }
+.ih-opt-title { display: block; font-size: var(--fs-lg); font-weight: var(--fw-title); color: var(--foreground-default); }
+.ih-opt-note { display: block; margin-top: 6px; font-size: var(--fs-body); line-height: var(--lh-body); color: var(--foreground-light); }
+.ih-opt-icon { display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: var(--radius-md); background: var(--surface-100); color: var(--foreground-lighter); }
+.ih-opt-tight { padding: 6px 8px; align-items: center; }
+.ih-opt-full { width: 100%; }
+
+/* The goal gallery. */
+.ih-goal {
+  display: flex; flex-direction: column; align-items: stretch; padding: 14px;
+  text-align: left; cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
+}
+.ih-goal:hover { background: var(--surface-200); }
+.ih-goal-name { margin-top: 12px; font-size: var(--fs-lg); font-weight: var(--fw-title); }
+.ih-goal-note { margin-top: 6px; font-size: var(--fs-sm); color: var(--foreground-light); }
+.ih-goal-badge { margin-top: 12px; align-self: flex-start; }
+/* FR-6 — present but non-interactive, cannot be focused, does not count. */
+.ih-goal-soon { border-style: dashed; opacity: .55; cursor: not-allowed; background: transparent; }
+
+/* The AI accent, for a claim rather than a measurement (FR-91). Kumo's Banner
+   variants are default / alert / error / secondary — it has no AI rung — so
+   this one notice stays the product's own. */
+.ih-notice-ai {
+  display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px;
+  background: var(--ai-200); border: 1px solid var(--ai-400); border-radius: var(--radius-md);
+  color: var(--ai-fg); font-size: var(--fs-sm); line-height: var(--lh-body);
+}
+.ih-notice-ai svg { flex: none; margin-top: 1px; }
+
+/* Layout helpers the steps reach for. */
+.ih-grid { display: grid; gap: var(--sp-md); }
+.ih-g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ih-g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ih-g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .ih-g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .ih-g2, .ih-g3, .ih-g4 { grid-template-columns: minmax(0, 1fr); } }
+.ih-stack { display: flex; flex-direction: column; gap: var(--sp-md); }
+.ih-stack-sm { display: flex; flex-direction: column; gap: var(--sp-sm); }
+.ih-stack-lg { display: flex; flex-direction: column; gap: var(--sp-xl); }
+.ih-col { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ih-row-wrap { display: flex; align-items: center; gap: var(--sp-sm); flex-wrap: wrap; }
+.ih-row-stretch { display: flex; align-items: stretch; gap: var(--sp-sm); }
+.ih-grow { flex: 1 1 auto; min-width: 0; }
+.ih-min-0 { min-width: 0; }
+.ih-align-start { align-items: flex-start; gap: var(--sp-lg); }
+.ih-mono { font-family: var(--font-mono); }
+.ih-mt-4 { margin-top: 4px; }
+.ih-mt-6 { margin-top: 6px; }
+.ih-mt-8 { margin-top: var(--sp-sm); }
+.ih-mb-8 { margin-bottom: var(--sp-sm); }
+.ih-mb-10 { margin-bottom: 10px; }
+.ih-mb-20 { margin-bottom: 20px; }
+.ih-block { display: block; }
+.ih-w-88 { width: 88px; }
+.ih-w-130 { width: 130px; }
+.ih-w-280 { width: 280px; }
+.ih-w-292 { max-width: 292px; }
+.ih-w-320 { width: 320px; }
+.ih-flip { transform: scaleY(-1); }
+
+/* ---------- Choice groups, on Kumo's Radio.Group ----------
+
+   `className` lands on the fieldset Kumo renders; the items sit in a flex
+   column inside it, and there is no prop for that box. So the layout rules
+   reach it as the group's last child — the legend is the only other one, and
+   it is visually hidden. Commented because it is a reach into Kumo's own
+   markup: if the group ever renders a third child, this is where it shows. */
+.ih-optgroup, .ih-radio-rows { border: 0; margin: 0; padding: 0; min-width: 0; }
+.ih-optgroup > :last-child { display: grid; gap: var(--sp-md); }
+.ih-optgroup-3 > :last-child { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 760px) { .ih-optgroup-3 > :last-child { grid-template-columns: minmax(0, 1fr); } }
+/* No `columns`: the campaign type is a stack, at the gap `ih-stack-sm` used. */
+.ih-optgroup:not([class*="ih-optgroup-"]) > :last-child { gap: var(--sp-sm); }
+.ih-radio-rows > :last-child { display: flex; flex-direction: column; gap: var(--sp-sm); }
+
+/* A checkbox card gets its frame from `Surface`; a radio card is Kumo's own
+   item label and cannot be wrapped in one without nesting a label in a label.
+   So the frame is the product's here, and it is Surface's own recipe rather
+   than a second look: `bg-kumo-base` with a `ring` of `kumo-line`, which is
+   `--background-100` and `--border-default` through the token bridge. A ring
+   rather than a border, so the two kinds of card measure the same. */
+.ih-optgroup .ih-opt {
+  background: var(--background-100);
+  box-shadow: 0 0 0 1px var(--border-default);
+  transition: background-color var(--motion-fast) var(--ease-out),
+              box-shadow var(--motion-fast) var(--ease-out);
+}
+.ih-optgroup .ih-opt-on { box-shadow: 0 0 0 1px var(--border-strong); }
+
+/* Kumo's Radio.Item is `items-start` with its own gap; the row wants its word
+   and its note on one baseline, which is what the hand-written label did. */
+.ih-radio-row { display: flex; align-items: center; gap: var(--sp-sm); cursor: pointer; }
+.ih-radio-inline { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: var(--fs-sm); }
+.ih-radio-label { font-size: var(--fs-sm); font-weight: var(--fw-label); }
+.ih-when-row { display: flex; align-items: center; gap: var(--sp-sm); padding-left: 25px; }
+.ih-date-field { min-width: 170px; justify-content: flex-start; }
+.ih-date-empty { color: var(--foreground-muted); }
+
+.ih-step4-grid,
+.ih-content-grid {
+  display: grid; grid-template-columns: minmax(0, 1fr) 292px; gap: var(--sp-xl); align-items: start;
+}
+@media (max-width: 1100px) {
+  .ih-step4-grid, .ih-content-grid { grid-template-columns: minmax(0, 1fr); }
+}
+.ih-preview-rail { position: sticky; top: 16px; }
+.ih-summary-row {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-md);
+  padding: 5px 0; border-bottom: 1px solid var(--border-muted);
+}
+
+/* Estimated reach. */
+.ih-stat {
+  display: flex; flex-direction: column; gap: 6px; padding: var(--sp-md);
+  background: var(--well); border: 1px solid var(--border-muted); border-radius: var(--radius-md);
+}
+.ih-stat-key { border-color: var(--brand-default); }
+.ih-stat-label { display: flex; align-items: center; gap: 6px; font-size: var(--fs-xs); color: var(--foreground-lighter); }
+.ih-stat-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--fs-section); font-weight: var(--fw-title); }
+
+/* Exclusion chips. */
+.ih-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.ih-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 6px 3px 10px;
+  background: var(--surface-100); border: 1px solid var(--border-muted);
+  border-radius: var(--radius-full); font-size: var(--fs-xs);
+}
+.ih-chip button {
+  display: grid; place-items: center; width: 16px; height: 16px; padding: 0;
+  border: 0; border-radius: var(--radius-full); background: none;
+  color: var(--foreground-muted); cursor: pointer;
+}
+.ih-chip button:hover { background: var(--surface-300); color: var(--foreground-default); }
+
+/* The CSV drop zone. */
+.ih-drop {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: var(--sp-xl); width: 100%; cursor: pointer;
+  background: none; border: 1px dashed var(--border-strong); border-radius: var(--radius-md);
+  color: var(--foreground-lighter);
+  transition: border-color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out);
+}
+.ih-drop:hover, .ih-drop[data-over] { border-color: var(--brand-default); background: var(--brand-200); }
+.ih-drop-title { font-size: var(--fs-body); font-weight: var(--fw-label); color: var(--foreground-default); }
+.ih-drop-note { max-width: 46ch; text-align: center; font-size: var(--fs-xs); }
+.ih-dropped {
+  display: flex; align-items: flex-start; gap: var(--sp-md); padding: var(--sp-md);
+  background: var(--well); border: 1px solid var(--border-muted); border-radius: var(--radius-md);
+}
+.ih-dropped-body { min-width: 0; flex: 1 1 auto; }
+.ih-dropped-name { margin: 0; font-size: var(--fs-body); font-weight: var(--fw-title); }
+
+/* Variant tabs and content rows. */
+.ih-variant-tabs { display: flex; align-items: center; gap: var(--sp-sm); flex-wrap: wrap; padding: var(--sp-md) 0; }
+.ih-variant-tab { display: inline-flex; align-items: center; gap: 6px; }
+.ih-element-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-md); padding: 10px 12px; }
+.ih-choice-row { display: flex; align-items: center; gap: 6px; }
+.ih-choice-letter { width: 20px; justify-content: center; }
+.ih-rule-row { display: grid; grid-template-columns: 52px minmax(0, 1.4fr) minmax(0, 1.2fr) minmax(0, 1fr) auto; align-items: center; gap: 6px; }
+.ih-rule-join { text-align: right; }
+
+/* The template gallery (FR-27 … FR-33). */
+.ih-tpl-group-head { padding: var(--sp-md) 0 6px; border-bottom: 1px solid var(--border-muted); margin-bottom: var(--sp-md); }
+.ih-tpl-grid { display: grid; gap: var(--sp-md); grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); }
+.ih-tpl-card {
+  position: relative; display: flex; flex-direction: column; gap: var(--sp-sm); padding: 10px;
+  background: var(--background-100); border: 1px solid var(--border-muted);
+  border-radius: var(--radius-md); cursor: pointer; text-align: left; overflow: hidden;
+  transition: border-color var(--motion-fast) var(--ease-out);
+}
+.ih-tpl-card:hover { border-color: var(--border-strong); }
+.ih-tpl-card.ih-opt-on { border-color: var(--brand-default); }
+.ih-tpl-name { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; min-width: 0; }
+.ih-tpl-name b { font-size: var(--fs-sm); font-weight: var(--fw-label); }
+.ih-tpl-name i { font-family: var(--font-mono); font-size: 10px; font-style: normal; color: var(--foreground-muted); }
+/* FR-32 — hover surfaces the primary action over the preview. */
+.ih-tpl-hover {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--background-200) 78%, transparent);
+  opacity: 0; transition: opacity var(--motion-fast) var(--ease-out);
+}
+.ih-tpl-card:hover .ih-tpl-hover, .ih-tpl-card:focus-visible .ih-tpl-hover { opacity: 1; }
+.ih-tpl-cta {
+  display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px;
+  background: var(--brand-default); border-radius: var(--radius-sm);
+  color: var(--on-brand); font-size: var(--fs-sm); font-weight: var(--fw-label);
+}
+
+/* The wireframe inside a template card: bars and blocks, never copy. */
+.ih-device {
+  display: block; height: 112px; padding: 5px;
+  background: var(--panel); border: 1px solid var(--border-muted); border-radius: var(--radius-sm);
+}
+.ih-dv { background: var(--surface-200); border-radius: 3px; }
+.ih-dv-col { display: flex; flex-direction: column; gap: 5px; padding: 6px 4px; }
+.ih-dv-line { height: 6px; background: var(--surface-300); border-radius: 3px; }
+.ih-w70 { width: 70%; } .ih-w45 { width: 45%; }
+.ih-dv-img { background: var(--surface-300); }
+.ih-dv-dots { display: flex; gap: 4px; }
+.ih-dv-dot { width: 7px; height: 7px; border-radius: var(--radius-full); background: var(--surface-300); }
+.ih-dv-cta { background: var(--brand-200); }
+.ih-h-14 { height: 14px; } .ih-h-16 { height: 16px; } .ih-h-22 { height: 22px; }
+.ih-h-34 { height: 34%; } .ih-h-38 { height: 38%; } .ih-h-70 { height: 70%; }
+
+/* The phone (FR-50 / FR-54) — §11.4's "(none)". */
+.ih-phone {
+  position: relative; width: 292px; padding: 10px;
+  background: var(--panel); border: 1px solid var(--border-strong); border-radius: 22px;
+}
+.ih-phone-notch {
+  width: 64px; height: 5px; margin: 2px auto 8px;
+  background: var(--surface-300); border-radius: var(--radius-full);
+}
+.ih-phone-screen {
+  display: flex; flex-direction: column; gap: var(--sp-md); min-height: 380px; padding: var(--sp-md);
+  background: var(--background-100); border-radius: 14px;
+}
+.ih-phone-empty { display: grid; place-items: center; text-align: center; }
+.ih-phone-q { margin: 0; font-size: var(--fs-body); font-weight: var(--fw-title); }
+.ih-phone-submit { width: 100%; margin-top: auto; }
+.ih-dv-field { height: 44px; margin-top: 6px; }
+.ih-rate-row { display: flex; gap: 4px; margin-top: var(--sp-sm); flex-wrap: wrap; }
+.ih-rate-btn {
+  flex: 1 1 0; min-width: 22px; height: 28px; padding: 0;
+  background: var(--surface-100); border: 1px solid var(--border-muted); border-radius: var(--radius-xs);
+  color: var(--foreground-lighter); font-family: var(--font-mono); font-size: 11px; cursor: pointer;
+}
+.ih-rate-btn:disabled, .ih-star-btn:disabled { cursor: default; }
+.ih-rate-btn.ih-on { background: var(--brand-default); border-color: var(--brand-default); color: var(--on-brand); }
+.ih-star-btn {
+  padding: 0 2px; background: none; border: 0; cursor: pointer;
+  color: var(--surface-300); font-size: 22px; line-height: 1;
+}
+.ih-star-btn.ih-on { color: var(--rating-4); }
+
+/* ==========================================================================
+   The campaign data screen (§9.2).
+
+   Kumo's LayerCard, Table, Badge, Banner, Select, Tooltip and Dialog do the
+   containers and controls. What is left here is what the screen is actually
+   about: the funnel figures, the delivery plot, the distribution rows, the
+   rating ramp legend, and the AI-accented panels FR-91 reserves.
+   ========================================================================== */
+
+.ih-page-insights { max-width: var(--content-max); }
+
+.ih-insights-head {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
+  padding-bottom: var(--sp-lg); border-bottom: 1px solid var(--border-default);
+}
+.ih-kv { display: inline-flex; align-items: center; gap: var(--sp-sm); font-size: var(--fs-xs); color: var(--foreground-lighter); }
+.ih-kv > * + *::before { content: "·"; margin-right: var(--sp-sm); color: var(--foreground-muted); }
+
+.ih-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: var(--sp-lg) 0; }
+.ih-filter { display: inline-flex; align-items: center; gap: 7px; }
+
+/* The filter controls, as boxes rather than as chips.
+
+   Kumo's `sm` select is 26px tall with 8px of padding, which is the right
+   size for a control sitting inside a dense table row and the wrong one for
+   the six that carry this whole screen's state. These are the first thing
+   read on the page and the thing returned to after every panel, so they get
+   the height and the air to look like the controls they are.
+
+   Squarer with it: a 6px corner on a 32px box reads as a box. The 8px Kumo
+   ships is most of the way to a pill at 26px, and a row of pills reads as
+   tags — things the page is labelled with — rather than as controls the page
+   answers to. Overriding by attribute rather than by class because Kumo's own
+   classes are Tailwind utilities generated per size, and the pair Kumo sets
+   on every part it ships is the stable handle. */
+.ih-filters [data-kumo-component="Select"][data-kumo-part="trigger"] {
+  height: 32px;
+  padding-inline: 11px;
+  gap: 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-xs);
+}
+/* The panel it opens is not styled here and cannot be: it is rendered into a
+   portal at the end of the body, so no selector rooted in this row reaches
+   it. It takes the corner Kumo gives it, and the morph above starts that
+   corner at `--radius-control` so the growing box begins square-ish and
+   relaxes — which is the trigger's own shape either way. */
+.ih-insights-body { margin-top: var(--sp-sm); }
+
+/* Cross-filtering: a value anywhere on the page is the filter for that value.
+
+   Two shapes, one idea. `ih-xf` is the value in place — a segment name on a
+   response, a driver in the Impact table — which has to stay legible as text
+   first and reveal that it is pressable on approach, or every reading of the
+   page turns into a wall of controls. `ih-xf-chip` is the same filter once it
+   is on, gathered above the tabs, where the point is the opposite: it must be
+   countable at a glance and it must say how to take it off. */
+.ih-xf {
+  display: inline-flex; align-items: center; gap: 3px;
+  margin: -1px -4px; padding: 1px 4px;
+  background: none; border: 0; border-radius: var(--radius-xs);
+  color: inherit; font: inherit; cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out);
+}
+.ih-xf:hover { background: var(--surface-200); color: var(--foreground-default); }
+.ih-xf[data-on] { background: var(--surface-200); color: var(--foreground-default); }
+.ih-xf:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+/* The row under these passes its clicks through to the "open" target beneath
+   it; a chip is what takes them back. */
+.ih-response-meta .ih-xf { pointer-events: auto; }
+
+.ih-xf-bar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+  margin: calc(var(--sp-md) * -1) 0 var(--sp-md);
+}
+/* Filled at rest, for the same reason the band is: these sit on the page
+   canvas in one theme and inside a white card's neighbourhood in the other,
+   and a chip that is only a hairline is a chip that gets skimmed past. */
+.ih-xf-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 6px 3px 9px; border-radius: var(--radius-full);
+  background: var(--surface-200); border: 1px solid var(--border-muted);
+  color: var(--foreground-light); font: inherit; font-size: var(--fs-xs);
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out);
+}
+.ih-xf-chip:hover { background: var(--surface-300); border-color: var(--border-default); }
+.ih-xf-chip:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.ih-xf-chip b { font-weight: 500; color: var(--foreground-default); }
+.ih-xf-chip svg { color: var(--foreground-muted); }
+.ih-xf-chip:hover svg { color: var(--foreground-default); }
+.ih-xf-clear {
+  background: none; border: 0; padding: 3px 4px; cursor: pointer;
+  color: var(--foreground-lighter); font: inherit; font-size: var(--fs-xs);
+  text-decoration: underline; text-underline-offset: 2px;
+  transition: color var(--motion-fast) var(--ease-out);
+}
+.ih-xf-clear:hover { color: var(--foreground-default); }
+.ih-xf-clear:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+
+/* FR-89 — the ramp, with the scale it is normalised to stated beside it. */
+.ih-legend { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+.ih-legend-scale { display: inline-flex; height: 8px; border-radius: 2px; overflow: hidden; }
+.ih-legend-swatch { width: 18px; height: 100%; }
+.ih-legend-row { display: flex; align-items: center; gap: 12px; }
+.ih-legend-key { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-xs); color: var(--foreground-lighter); }
+.ih-legend-key i { width: 9px; height: 9px; border-radius: 2px; }
+
+/* The card. LayerCard supplies the surface and the ring; these are the bands
+   inside it, which Kumo does not have an opinion about. */
+.ih-card { padding: 0; overflow: hidden; }
+.ih-card-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg); border-bottom: 1px solid var(--border-muted);
+}
+.ih-card-head-tight { padding: 10px 12px; }
+.ih-card-head h3 { margin: 0; }
+.ih-card-body { padding: var(--sp-lg); }
+.ih-card-inset { padding: 0 var(--sp-lg); }
+.ih-card-foot { border-top: 1px solid var(--border-muted); }
+
+/* FR-95 — the count is the headline; conversion is its caption. Bar length
+   only ever restated the count, so the figures carry the step on their own. */
+.ih-figures { display: flex; flex-wrap: wrap; gap: var(--sp-lg) 40px; }
+.ih-figure { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ih-figure-label {
+  display: flex; align-items: center; gap: 5px;
+  font-size: var(--fs-xs); color: var(--foreground-lighter);
+}
+.ih-figure[data-flag="worst"] .ih-figure-label { color: var(--warning-fg); }
+.ih-figure-value {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: var(--fs-section); font-weight: var(--fw-title); line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+.ih-figure-note { font-size: var(--fs-xs); color: var(--foreground-muted); }
+
+/* The plot. Dashed rules sit behind the marks; the axis labels hang off the
+   top rule of each band so the number reads as that height, not that row. */
+.ih-chart { position: relative; padding-left: 46px; }
+.ih-chart-grid { position: absolute; inset: 0; pointer-events: none; }
+.ih-chart-rule { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--border-default); }
+.ih-chart-rule span {
+  position: absolute; left: 0; top: 0; transform: translateY(-50%);
+  font-family: var(--font-mono); font-size: 9.5px; color: var(--foreground-muted);
+}
+/* The outer two labels would each hang half outside the plot. They sit inside
+   their own rule instead — the baseline's above it, the top rule's below it. */
+.ih-chart-rule[data-base] span { transform: translateY(-100%); }
+.ih-chart-rule[data-top] span { transform: none; }
+.ih-chart-plot-tall { height: 100%; align-items: flex-end; }
+.ih-chart-slot { position: relative; flex: 1; display: flex; min-width: 0; }
+.ih-chart-slot > .ih-chart-col { flex: 1; }
+/* FR-93 — where a new version begins. */
+.ih-chart-boundary {
+  position: absolute; left: -2px; top: 0; bottom: 0; width: 0;
+  border-left: 1px dashed var(--ai); pointer-events: none;
+}
+/* The tall plot has the height to hold the readout beside its bars. */
+.ih-chart-tip-inline { bottom: auto; top: 0; }
+.ih-chart-axis { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: var(--sp-sm); }
+.ih-ta-c { text-align: center; }
+
+/* The brush — drag across the plot to set the window.
+
+   `touch-action: none` is what makes it work under a finger at all: without
+   it the browser claims a horizontal drag for scrolling and the gesture never
+   reaches the handler. It is scoped to the brushable plot, so the charts that
+   are only read keep the page's own scrolling.
+
+   The band is drawn under the bars, not over them. A translucent sheet across
+   the marks would tint the two series differently — the 38% sends against the
+   solid completions — and the one rule these charts hold to is that a colour
+   means the same thing everywhere. Behind them it changes the ground instead. */
+.ih-chart-plot[data-brushable] { touch-action: none; cursor: crosshair; }
+/* `--surface-200` and not the `--surface-100` every hover in this product
+   uses: on a light card the two are the same white, so a band drawn in it
+   would be invisible in one of the two themes. 200 is the step the token file
+   reserves for "pressed, selected row", which is what a selection is, and it
+   separates from the card both ways — lighter on the dark card, darker on the
+   light one. */
+.ih-chart-brush {
+  position: absolute; top: 0; bottom: 0; z-index: 0;
+  background: var(--surface-200);
+  border-left: 1px solid var(--border-default);
+  border-right: 1px solid var(--border-default);
+  border-radius: 2px;
+  pointer-events: none;
+}
+/* Too short to commit, so it says so rather than releasing into nothing. */
+.ih-chart-brush[data-short] { border-color: transparent; opacity: .55; }
+.ih-chart-plot[data-brushing] .ih-chart-col { transition: opacity var(--motion-fast) var(--ease-out); }
+.ih-chart-plot[data-brushing] .ih-chart-col:not([data-in]) { opacity: .38; }
+/* The hover tint would otherwise track the pointer across a selection that is
+   already stating which columns are covered. */
+.ih-chart-plot[data-brushing] .ih-chart-col:hover::before { background: none; }
+
+/* The keyboard cursor. Marked apart from the readout's own `data-on`, because
+   the two answer different questions — the tip says what this column holds,
+   the cursor says which one the arrow keys will move from. That distinction
+   only becomes visible during a selection, where every covered column is lit
+   and exactly one of them is the end that moves.
+
+   A hairline around the column, offset off the ink. A rule beneath it was the
+   first attempt and it landed under the plot's own bottom edge, where the
+   focus ring already sits — two lines in the same 3px arguing about which one
+   means what. */
+.ih-chart-col[data-cursor] {
+  outline: 1.5px solid var(--foreground-default);
+  outline-offset: 1px; border-radius: 2px;
+}
+/* The ring belongs on the plot, which is what actually takes focus. */
+.ih-chart-plot:focus-visible {
+  outline: 2px solid var(--focus-ring); outline-offset: 3px; border-radius: 2px;
+}
+/* The icon is a flex item; the sentence is not. Left as loose text in a flex
+   row, every run between two <kbd> marks became its own item and wrapped on
+   its own, which broke one line into a scatter of phrases with gaps in it. */
+.ih-chart-hint {
+  display: flex; align-items: baseline; gap: 6px;
+  margin-top: 10px; padding-left: 46px; /* clears the gridline gutter */
+  color: var(--foreground-muted);
+}
+.ih-chart-hint svg { flex: none; position: relative; top: 2px; }
+.ih-chart-hint .ih-kbd { margin: 0 1px; }
+
+/* The distribution row: a label, the bar, and the count with its share.
+   §11.4 maps this onto Kumo's Meter, and it is the same idea — but Meter
+   prints its own label above its own track and takes no per-row colour, and
+   the fill here carries the rating ramp, which is the one thing about these
+   rows that means something. */
+.ih-dist { display: flex; flex-direction: column; gap: 10px; }
+.ih-dist-row { display: grid; grid-template-columns: 1fr 120px; align-items: center; gap: 12px; }
+/* A row that is also the filter it describes. The press target is padded out
+   past the row's own box so the bar keeps its measured width — the grid is
+   what makes these rows comparable, and inset padding would shorten every
+   track by the same amount but move the baseline the eye reads them against. */
+.ih-dist-row-press {
+  margin: -4px -8px; padding: 4px 8px; width: calc(100% + 16px);
+  background: none; border: 0; border-radius: var(--radius-sm); color: inherit;
+  font: inherit; text-align: left; cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out);
+}
+.ih-dist-row-press:hover { background: var(--surface-100); }
+.ih-dist-row-press[data-on] { background: var(--surface-200); }
+.ih-dist-row-press[data-on] .ih-dist-label { color: var(--foreground-default); }
+.ih-dist-label { font-size: var(--fs-sm); color: var(--foreground-light); min-width: 0; }
+.ih-dist-figures { display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-sm); }
+.ih-bar-track {
+  position: relative; height: 10px; border-radius: 3px;
+  background: var(--surface-100); overflow: hidden;
+}
+.ih-bar-thin { height: 5px; display: block; }
+.ih-bar-drag { width: 52px; height: 6px; }
+.ih-bar-fill { display: block; height: 100%; border-radius: 3px; }
+.ih-swatch { width: 9px; height: 9px; border-radius: 2px; }
+.ih-band-dot { width: 8px; height: 8px; border-radius: 2px; }
+.ih-stackbar { display: flex; width: 100%; height: 14px; border-radius: 4px; overflow: hidden; }
+.ih-stackbar > * { height: 100%; }
+/* Percentage-width children need a parent with a width of its own: as a
+   Tooltip trigger this sits in an inline wrapper, which gives it none. */
+.ih-bandbar { display: flex; width: 100%; height: 10px; border-radius: 3px; overflow: hidden; }
+.ih-bandbar > span { height: 100%; }
+
+.ih-headline-figures { display: flex; gap: 14px; }
+.ih-headline { display: flex; flex-direction: column; align-items: flex-end; }
+.ih-headline-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 20px; font-weight: var(--fw-title); }
+.ih-rating-lg { font-size: 15px; }
+.ih-rating-scale { font-size: var(--fs-xs); color: var(--foreground-muted); font-weight: 400; }
+.ih-display { display: block; font-size: 28px; font-weight: var(--fw-title); letter-spacing: -0.02em; }
+.ih-cell-value { font-size: var(--fs-section); font-weight: var(--fw-title); }
+.ih-fg-light { color: var(--foreground-light); }
+.ih-fg-success { color: var(--success-fg); }
+.ih-fg-ai { color: var(--ai-fg); }
+.ih-row-gap-6 { display: inline-flex; align-items: center; gap: 6px; }
+.ih-mb-3 { margin-bottom: 3px; }
+.ih-mt-3 { margin-top: 3px; }
+.ih-mt-12 { margin-top: 12px; }
+.ih-mb-12 { margin-bottom: 12px; }
+.ih-mb-16 { margin-bottom: 16px; }
+.ih-t-xs { font-size: var(--fs-xs); }
+.ih-w-52 { width: 52px; } .ih-w-74 { width: 74px; } .ih-w-140 { width: 140px; }
+.ih-w-170 { width: 170px; } .ih-w-190 { width: 190px; }
+.ih-toolbar-inset { padding: 10px var(--sp-lg); border-bottom: 1px solid var(--border-muted); margin-bottom: 0; }
+
+/* The open-text list. */
+.ih-response-list { margin: 0; padding: 0; list-style: none; }
+.ih-response-list > li { border-bottom: 1px solid var(--border-muted); position: relative; }
+.ih-response-row {
+  display: flex; align-items: flex-start; gap: var(--sp-md); width: 100%;
+  padding: 12px 16px; text-align: left; background: none; border: 0; color: inherit;
+  font: inherit;
+  /* The row is drawn above the press target that fills the li, so clicks have
+     to fall through it. The chips take theirs back — they are the exception
+     the pass-through exists for. */
+  position: relative; pointer-events: none;
+}
+/* Opening the response is a button the size of its row, laid under it, rather
+   than a button wrapped around it. The row now carries chips that filter the
+   list instead of opening anything, and a button inside a button is neither
+   valid nor reachable — the outer one swallows the inner one's press. Laying
+   the two side by side keeps the whole row clickable and the chips their own
+   controls. */
+.ih-response-open {
+  position: absolute; inset: 0; width: 100%; padding: 0;
+  background: none; border: 0; cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out);
+}
+.ih-response-open:hover { background: var(--surface-100); }
+.ih-response-open:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.ih-response-score { display: flex; flex-direction: column; align-items: center; width: 44px; flex: none; }
+.ih-answer-list { margin: 0; padding: 0; list-style: none; }
+.ih-answer { padding: 10px 12px; }
+.ih-answer p { margin: 2px 0 0; }
+
+/* The score-driver table. */
+.ih-cell-driver { min-width: 220px; }
+.ih-driver-mark { width: 3px; height: 20px; border-radius: 2px; flex: none; }
+.ih-drag { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; }
+
+/* FR-91 / FR-109 — machine inference, in the accent reserved for it. */
+.ih-card-ai { border-color: var(--ai-400); }
+.ih-card-head-ai { border-color: var(--ai-400); }
+.ih-badge-ai {
+  padding: 2px 8px; border-radius: var(--radius-full);
+  background: var(--ai-200); color: var(--ai-fg);
+  font-size: 11px; font-weight: 500;
+}
+.ih-ai-lines { margin: 0; padding: 0; list-style: none; }
+.ih-ai-lines > li { display: flex; align-items: stretch; gap: var(--sp-sm); }
+.ih-ai-mark { width: 3px; flex: none; border-radius: 2px; }
+.ih-weight-row { display: flex; align-items: center; gap: 10px; }
+.ih-weight-bar { display: flex; flex: 1; width: 100%; height: 16px; border-radius: 4px; overflow: hidden; }
+.ih-weight-bar > * { height: 100%; }
+
+/* ==========================================================================
+   The assistant — the companion card (FR-91). §11.4's "(none)", and nothing
+   inside it is Kumo's either: the port had swapped the field, the send button
+   and the pointer toggle for Kumo's, and each one changed the shape of a card
+   built around its own. These are the card's own controls.
+
+   Violet throughout: the design system reserves the AI accent for machine
+   claims, so the whole surface reads as inference and never as measurement.
+   The card is a fixed 320×380 box — the transcript scrolls inside it rather
+   than growing it, so the console layout never shifts underneath an answer.
+   ========================================================================== */
+.ih-asst {
+  position: fixed; right: var(--sp-lg); bottom: var(--sp-lg);
+  z-index: 80;                     /* over dropdowns and tooltips, under dialogs and toasts */
+  display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-sm);
+  /* The closed card keeps its box — it hides with `visibility`, not `display`,
+     so the reveal has something to animate from. That would make this
+     container a 320×436 hole in the corner of every page that ate clicks on
+     whatever was under it, so the panel is transparent to the pointer and its
+     two children take it back. */
+  pointer-events: none;
+}
+.ih-asst-bubble, .ih-asst[data-open="true"] .ih-asst-card { pointer-events: auto; }
+
+/* The wizard is the one screen carrying a bar of its own along the bottom
+   edge, and at the default 16px the 44px launcher lands on top of Next — the
+   primary action of the whole screen, half-covered by a floating orb. */
+body:has(.ih-builder-foot) .ih-asst { bottom: calc(var(--foot-h) + var(--sp-md)); }
+
+.ih-asst-bubble {
+  width: 44px; height: 44px; flex: none;
+  display: grid; place-items: center; padding: 0; overflow: hidden;
+  border: 1px solid var(--ai-400); border-radius: var(--radius-full);
+  background: transparent;         /* the orb paints its own ground */
+  box-shadow: var(--shadow-2); cursor: pointer;
+  transition: transform var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out), box-shadow 400ms ease;
+}
+.ih-asst-bubble:hover { border-color: var(--ai-fg); transform: translateY(-1px); }
+/* The CSS half of the thinking state: the orb brightens from the inside and
+   the halo says so past its own edge. Slow on the way out, matching the two
+   seconds the orb takes to settle. `data-orb-state` is written by
+   assistant-orb.js onto the element it paints into, which is this button. */
+.ih-asst-bubble[data-orb-state="thinking"] {
+  border-color: var(--ai-fg);
+  box-shadow: var(--shadow-2), 0 0 18px -2px rgba(167, 139, 250, 0.55);
+}
+
+/* The canvas assistant-orb.js paints into — three of them, one assistant. The
+   class is the module's own, so it is unprefixed like everything else that
+   module writes. */
+.asst-orb {
+  display: block; width: 100%; height: 100%;
+  border-radius: var(--radius-full); pointer-events: none;
+}
+
+.ih-asst-card {
+  position: relative; width: 320px; height: 380px; max-height: calc(100vh - 120px);
+  display: flex; flex-direction: column;
+  border: 1px solid var(--border-default); border-radius: var(--radius-md);
+  background: var(--background-100); overflow: hidden;
+  transform-origin: bottom right;
+  transition: opacity 180ms ease, transform 180ms cubic-bezier(0.23, 1, 0.32, 1),
+              border-color 600ms ease;
+}
+.ih-asst[data-open="false"] .ih-asst-card {
+  opacity: 0; transform: translateY(8px) scale(0.96); visibility: hidden;
+}
+.ih-asst[data-open="true"] .ih-asst-card { opacity: 1; transform: none; visibility: visible; }
+
+.ih-asst-head {
+  display: flex; align-items: center; gap: var(--sp-sm); flex: none;
+  padding: var(--sp-sm) var(--sp-md); border-bottom: 1px solid var(--border-default);
+}
+.ih-asst-head-orb { width: 20px; height: 20px; flex: none; display: block; }
+.ih-asst-head-title { flex: 1; font-size: 12px; font-weight: 500; }
+/* Kumo's `beta` badge is a dashed brand border on nothing; this is the same
+   shape in the violet that means inference. */
+.ih-asst-beta {
+  display: inline-flex; align-items: center; height: 20px; padding: 0 8px;
+  border: 1px dashed var(--ai-400); border-radius: var(--radius-full);
+  background: transparent; color: var(--ai-fg);
+  font-family: var(--font-mono); font-size: var(--fs-xs); font-weight: var(--fw-label);
+  white-space: nowrap;
+}
+.ih-asst-icon-btn {
+  display: grid; place-items: center; width: 22px; height: 22px; flex: none;
+  border: 0; border-radius: var(--radius-sm);
+  background: transparent; color: var(--foreground-muted); cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+}
+.ih-asst-icon-btn:hover { background: var(--surface-200); color: var(--foreground-default); }
+.ih-asst-icon-btn[aria-pressed="true"] { background: var(--ai-200); color: var(--ai-fg); }
+
+/* The scrolling transcript — the only part that grows. */
+.ih-asst-body {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  padding: var(--sp-md); cursor: default;
+}
+/* Turns stack oldest first and the newest is the one in view. A question is
+   the reader's own words, so it sits against the right edge on the console's
+   own surface; an answer is the assistant's, so it runs the full width as
+   prose and carries no bubble at all. A claim about the data should read as a
+   sentence rather than as chat furniture, and only one side of this
+   conversation is a person. */
+.ih-asst-log { display: flex; flex-direction: column; gap: var(--sp-md); }
+.ih-asst-turn { display: flex; flex-direction: column; }
+.ih-asst-turn[data-from="you"] { align-items: flex-end; }
+.ih-asst-turn[data-from="you"] .ih-asst-text {
+  max-width: 85%; padding: 5px 9px; border-radius: var(--radius-md);
+  background: var(--surface-200); color: var(--foreground-light);
+  animation: ih-asst-rise var(--motion-base) var(--ease-out) both;
+}
+/* Which panel a reading came from. The header title only ever names the newest
+   reply, so a pointer reading further up the log would lose its subject. */
+.ih-asst-turn-label {
+  margin-bottom: 3px;
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--ai-fg);
+}
+.ih-asst-text { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--foreground-default); }
+/* Each word resolves out of a blur as it lands, so the reveal reads as
+   composition rather than as a machine printing characters. */
+.ih-asst-word { display: inline; animation: ih-asst-resolve 260ms ease-out both; }
+@keyframes ih-asst-resolve {
+  from { opacity: 0; filter: blur(4px); }
+  to   { opacity: 1; filter: blur(0); }
+}
+.ih-asst-caret {
+  display: inline-block; width: 2px; height: 12px; margin-left: 2px; vertical-align: -2px;
+  border-radius: var(--radius-full); background: var(--ai-fg);
+  animation: ih-asst-blink 1s steps(2, start) infinite;
+}
+@keyframes ih-asst-blink { 50% { opacity: 0; } }
+@keyframes ih-asst-rise { from { opacity: 0; transform: translateY(8px); } }
+
+/* Pinned to the bottom edge — present only once the answer has landed. */
+.ih-asst-follow { flex: none; padding: 0 var(--sp-md) var(--sp-sm); }
+.ih-asst-follow:empty { display: none; }
+.ih-asst-follow-btn {
+  display: flex; align-items: center; gap: var(--sp-sm); width: 100%;
+  padding: 5px var(--sp-xs);
+  border: 0; border-top: 1px solid var(--border-muted);
+  background: transparent; color: var(--foreground-light);
+  font: inherit; font-size: 12px; text-align: left; cursor: pointer;
+  animation: ih-asst-rise 350ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+}
+.ih-asst-follow-btn:hover { background: var(--surface-100); color: var(--foreground-default); }
+.ih-asst-follow-btn svg { flex: none; color: var(--ai-fg); }
+.ih-asst-follow-label {
+  margin: 0 0 var(--sp-xxs); font-size: 11px; font-weight: 500;
+  color: var(--foreground-lighter);
+}
+
+/* The ask box — ported from the shadcn `ai-input-with-search` component: the
+   two-tier shape (a field with a squared-off bar beneath it), a field that
+   grows with what you type up to a cap, and a send button that lights only
+   once there is something to send. The bar carries no rule of its own: the
+   shell is one box, and a line across it would cut the box in two. */
+.ih-asst-ask { flex: none; padding: 0 var(--sp-md) var(--sp-md); }
+.ih-asst-ask-shell {
+  overflow: hidden;
+  border: 1px solid var(--border-default); border-radius: var(--radius-md);
+  background: var(--surface-100);
+  transition: border-color var(--motion-fast) var(--ease-out);
+}
+.ih-asst-ask-shell:focus-within { border-color: var(--ai-400); }
+.ih-asst-ask-field {
+  display: block; width: 100%; min-height: 34px; max-height: 90px;
+  padding: 9px 10px 0; border: 0; background: transparent; resize: none;
+  overflow-y: auto; overscroll-behavior: contain;
+  color: var(--foreground-default); font: inherit; font-size: 12.5px; line-height: 1.35;
+}
+.ih-asst-ask-field:focus { outline: none; }
+.ih-asst-ask-field::placeholder { color: var(--foreground-muted); }
+.ih-asst-ask-bar {
+  display: flex; align-items: center; justify-content: flex-end;
+  height: 30px; padding: 0 5px;
+}
+.ih-asst-ask-send {
+  display: grid; place-items: center; width: 24px; height: 24px;
+  border: 0; border-radius: var(--radius-sm);
+  background: var(--surface-200); color: var(--foreground-muted); cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+}
+.ih-asst-ask-send[data-armed="true"] { background: var(--ai-200); color: var(--ai-fg); }
+.ih-asst-ask-send svg { width: 13px; height: 13px; }
+
+/* A fixed box will cut a line in half whenever the transcript runs past it.
+   Fading only the edge the content actually overflows makes that cut read as
+   "there is more this way" rather than as a clipped render. Both offsets are
+   0 when the log fits, which collapses the mask to fully opaque. */
+.ih-asst-body {
+  --asst-fade-top: 0px;
+  --asst-fade-bottom: 0px;
+  -webkit-mask-image: linear-gradient(to bottom,
+    transparent 0, #000 var(--asst-fade-top),
+    #000 calc(100% - var(--asst-fade-bottom)), transparent 100%);
+  mask-image: linear-gradient(to bottom,
+    transparent 0, #000 var(--asst-fade-top),
+    #000 calc(100% - var(--asst-fade-bottom)), transparent 100%);
+}
+.ih-asst-body[data-fade-top="true"] { --asst-fade-top: 18px; }
+.ih-asst-body[data-fade-bottom="true"] { --asst-fade-bottom: 22px; }
+
+/* Below the console's narrow breakpoint the fixed card would crowd the content
+   it is describing, so it takes the width it can have. */
+@media (max-width: 560px) {
+  .ih-asst-card { width: calc(100vw - var(--sp-xl)); }
+}
+
+/* ==========================================================================
+   The border beam — a travelling comet around the card's edge while it thinks.
+
+   A port of border-beam@1.3.0 at `size="md" colorVariant="colorful"
+   theme="dark"`, in plain CSS. That package is React + Tailwind + TypeScript
+   and this prototype is none of those — it has no package.json, no bundler,
+   and netlify.toml publishes the repo root as-is — but the effect itself never
+   needed a framework. The React component only emits scoped CSS with a
+   generated id; every prop is a variable in the rules below.
+
+   How it works, and it is worth knowing because it is not the obvious build:
+   the colour does NOT travel. Nine radial-gradient blobs are pinned at fixed
+   points around the border — magenta at the top, blue upper-left, green on the
+   left flank, violet along the bottom, orange top-right — and it is the WHITE
+   COMET that sweeps, as a conic-gradient mask spun by --asst-beam-angle. So
+   the beam changes colour as it passes each blob rather than carrying a colour
+   with it, which is why the highlights land in the same places every lap.
+
+   Three composited masks pin it to the edge: the comet, INTERSECTed with the
+   classic border-ring trick (the full box EXCLUDEd against the content box,
+   the ring's thickness being this element's 1px padding).
+
+   Values below are the package's own for this preset — 1.96s a lap, stroke at
+   0.26, inner glow at 0.42, a 12s ±30° hue drift under brightness 1.3 and
+   saturate 1.2.
+
+   FR-91 note: the console reserves violet for machine inference and gives
+   amber and green to the rating ramp, and this beam sweeps through both. It
+   was specified as the rainbow variant deliberately. It reads as chrome on the
+   card's edge rather than as a value in the data, and it only ever runs while
+   the assistant is composing — but it is the one place in the console where
+   ramp colours appear off-ramp, so it is written down here.
+   ========================================================================== */
+@property --asst-beam-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+/* Both layers share the pinned colour field; the inner glow is the same nine
+   blobs at 0.45 alpha, which is how the package derives it.
+
+   ONE DEVIATION, and it is a real bug fix rather than taste. The package sizes
+   its blobs in fixed pixels — 70px, 180px — against its own demo card, which
+   is 348x137. This card is 320x240: nearly twice as tall, so the blobs pinned
+   to the left and right edges covered a much smaller fraction of them and the
+   beam guttered out as it travelled the vertical runs. Each size below is that
+   px value as a percentage of the package's own card, which restores the
+   intent (every blob covers the same share of the edge it sits on) and makes
+   the field scale with whatever it wraps instead of with one card's height. */
+.ih-asst-card::before,
+.ih-asst-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+  clip-path: inset(0 round var(--radius-lg));
+  pointer-events: none;
+  opacity: 0;
+  /* Out over the package's 0.5s; the `in` below overrides to its 0.6s. */
+  transition: opacity 500ms ease;
+}
+
+/* z-index 2 — the beam proper: the comet, over the pinned colours, cut to a
+   1px ring, then softened.
+
+   The blur is what turns that ring into something worth looking at. Masking
+   happens before filtering, so the blur spreads the masked 1px line outward
+   into a soft band instead of being clipped back to it — the ring stays the
+   geometry and the blur becomes the light. */
+.ih-asst-card::after {
+  z-index: 2;
+  padding: 1px;
+  --asst-beam-blur: 4px;
+  background:
+    conic-gradient(
+      from var(--asst-beam-angle),
+      transparent 0%, transparent 54%,
+      rgba(255, 255, 255, 0.1) 57%,
+      rgba(255, 255, 255, 0.3) 60%,
+      rgba(255, 255, 255, 0.6) 63%,
+      rgba(255, 255, 255, 0.75) 66%,
+      rgba(255, 255, 255, 0.6) 69%,
+      rgba(255, 255, 255, 0.3) 72%,
+      rgba(255, 255, 255, 0.1) 75%,
+      transparent 78%, transparent 100%
+    ),
+    radial-gradient(ellipse 20.1% 29.2% at 33% -7.4%, rgb(255, 50, 100), transparent),
+    radial-gradient(ellipse 17.2% 25.5% at 12% -5%, rgb(40, 140, 255), transparent),
+    radial-gradient(ellipse 11.5% 51.1% at 2.1% 68.3%, rgb(50, 200, 80), transparent),
+    radial-gradient(ellipse 5.7% 25.5% at 2.1% 68.3%, rgb(30, 185, 170), transparent),
+    radial-gradient(ellipse 51.7% 23.4% at 74.4% 100%, rgb(100, 70, 255), transparent),
+    radial-gradient(ellipse 24.4% 19.0% at 55% 100%, rgb(40, 140, 255), transparent),
+    radial-gradient(ellipse 21.3% 23.4% at 93.9% 0%, rgb(255, 120, 40), transparent),
+    radial-gradient(ellipse 7.5% 30.7% at 100% 27.1%, rgb(240, 50, 180), transparent),
+    radial-gradient(ellipse 14.9% 35.0% at 100% 27.1%, rgb(180, 40, 240), transparent);
+  -webkit-mask:
+    conic-gradient(
+      from var(--asst-beam-angle),
+      transparent 0%, transparent 30%,
+      rgba(255, 255, 255, 0.1) 36%, rgba(255, 255, 255, 0.35) 44%,
+      white 52%, white 80%,
+      rgba(255, 255, 255, 0.35) 86%, rgba(255, 255, 255, 0.1) 92%,
+      transparent 95%, transparent 100%
+    ),
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: source-in, xor;
+  mask:
+    conic-gradient(
+      from var(--asst-beam-angle),
+      transparent 0%, transparent 30%,
+      rgba(255, 255, 255, 0.1) 36%, rgba(255, 255, 255, 0.35) 44%,
+      white 52%, white 80%,
+      rgba(255, 255, 255, 0.35) 86%, rgba(255, 255, 255, 0.1) 92%,
+      transparent 95%, transparent 100%
+    ),
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: intersect, exclude;
+}
+
+/* z-index 1 — the inner glow the beam sits on, so the edge has depth rather
+   than being one hard hairline. Not masked to the ring: it bleeds inward, and
+   blurs more than twice as wide as the stroke so the two read as one light
+   falling off rather than as two concentric rings. */
+.ih-asst-card::before {
+  z-index: 1;
+  --asst-beam-blur: 9px;
+  box-shadow: inset 0 0 5px 1px rgba(255, 255, 255, 0.18);
+  background:
+    radial-gradient(ellipse 20.1% 29.2% at 33% -7.4%, rgba(255, 50, 100, 0.45), transparent),
+    radial-gradient(ellipse 17.2% 25.5% at 12% -5%, rgba(40, 140, 255, 0.45), transparent),
+    radial-gradient(ellipse 11.5% 51.1% at 2.1% 68.3%, rgba(50, 200, 80, 0.45), transparent),
+    radial-gradient(ellipse 5.7% 25.5% at 2.1% 68.3%, rgba(30, 185, 170, 0.45), transparent),
+    radial-gradient(ellipse 51.7% 23.4% at 74.4% 100%, rgba(100, 70, 255, 0.45), transparent),
+    radial-gradient(ellipse 24.4% 19.0% at 55% 100%, rgba(40, 140, 255, 0.45), transparent),
+    radial-gradient(ellipse 21.3% 23.4% at 93.9% 0%, rgba(255, 120, 40, 0.45), transparent),
+    radial-gradient(ellipse 7.5% 30.7% at 100% 27.1%, rgba(240, 50, 180, 0.45), transparent),
+    radial-gradient(ellipse 14.9% 35.0% at 100% 27.1%, rgba(180, 40, 240, 0.45), transparent);
+  -webkit-mask:
+    conic-gradient(
+      from var(--asst-beam-angle),
+      transparent 0%, transparent 30%,
+      rgba(255, 255, 255, 0.1) 36%, rgba(255, 255, 255, 0.35) 44%,
+      white 52%, white 80%,
+      rgba(255, 255, 255, 0.35) 86%, rgba(255, 255, 255, 0.1) 92%,
+      transparent 95%, transparent 100%
+    );
+  mask:
+    conic-gradient(
+      from var(--asst-beam-angle),
+      transparent 0%, transparent 30%,
+      rgba(255, 255, 255, 0.1) 36%, rgba(255, 255, 255, 0.35) 44%,
+      white 52%, white 80%,
+      rgba(255, 255, 255, 0.35) 86%, rgba(255, 255, 255, 0.1) 92%,
+      transparent 95%, transparent 100%
+    );
+}
+
+/* Lit. The card's own violet hairline steps aside so the beam owns the edge
+   rather than running as a second ring just inside it. */
+body[data-asst-thinking="true"] .ih-asst-card,
+body[data-asst-thinking="fading"] .ih-asst-card { border-color: transparent; }
+
+body[data-asst-thinking="true"] .ih-asst-card::after,
+body[data-asst-thinking="fading"] .ih-asst-card::after,
+body[data-asst-thinking="true"] .ih-asst-card::before,
+body[data-asst-thinking="fading"] .ih-asst-card::before {
+  animation:
+    asst-beam-spin 3.4s linear infinite,
+    asst-beam-hue 12s ease-in-out infinite;
+}
+/* Opacity is paired with the blur above rather than chosen on its own: blur
+   spreads the same light over more pixels, so a blurred beam reads brighter
+   per unit of opacity than a hard one and has to come down to stay quiet. The
+   package's own 0.26 / 0.42 are for an unblurred 1px hairline on near-black at
+   full width; these are for a soft band on a 320px card over the console's
+   --background-200. The inner glow deliberately stays well under the stroke,
+   so the edge still reads as an edge and not as a coloured wash. */
+body[data-asst-thinking="true"] .ih-asst-card::after  { opacity: 0.58; transition: opacity 600ms ease; }
+body[data-asst-thinking="true"] .ih-asst-card::before { opacity: 0.36; transition: opacity 600ms ease; }
+
+@keyframes asst-beam-spin { to { --asst-beam-angle: 360deg; } }
+
+/* The blur has to be repeated in every keyframe, not set once on the element:
+   `filter` is one property, so the hue drift animating it would otherwise
+   animate the blur away on the first frame. Each layer supplies its own radius
+   through --asst-beam-blur, which is why one set of keyframes serves both.
+
+   Brightness comes down from the package's 1.30 with the same reasoning as the
+   opacities — blur concentrates nothing and spreads everything, so the gain
+   that suited a hairline overdrives a band. */
+@keyframes asst-beam-hue {
+  0%   { filter: blur(var(--asst-beam-blur, 0)) hue-rotate(-30deg) brightness(1.20) saturate(1.20); }
+  50%  { filter: blur(var(--asst-beam-blur, 0)) hue-rotate(30deg)  brightness(1.20) saturate(1.20); }
+  100% { filter: blur(var(--asst-beam-blur, 0)) hue-rotate(-30deg) brightness(1.20) saturate(1.20); }
+}
+
+/* A beam whose whole content is motion has nothing to show when motion is
+   off, so it does not run at all — the orb still carries the state. */
+@media (prefers-reduced-motion: reduce) {
+  .ih-asst-card::before, .ih-asst-card::after { display: none; }
+}
+
+/* ---------- Pointer mode ----------
+   The companion trails the real cursor; resting on a panel for a beat asks it
+   what its numbers say. Panels outline faintly while the pointer is armed so
+   what can be read is visible before you reach it, and the armed panel lifts
+   as the dwell ring closes. Violet throughout — a reading is a claim. */
+.asst-pointer {
+  /* Over the page, and never mind the card: the companion hides itself on the
+     assistant's own surface rather than sliding beneath it. 79 against the
+     card's 80 does not decide that anyway — Kumo's sidebar wrapper isolates
+     the stacking context the card lives in, so the two never compare. */
+  position: fixed; top: 0; left: 0; z-index: 79;
+  width: 40px; height: 40px; margin: -20px 0 0 -20px;
+  pointer-events: none;
+  display: grid; place-items: center;
+  opacity: 0; transition: opacity 160ms ease;
+}
+.asst-pointer[data-visible="true"] { opacity: 1; }
+
+.asst-pointer-mark {
+  position: relative;
+  display: grid; place-items: center;
+  width: 22px; height: 22px; overflow: hidden;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--ai-400);
+  background: transparent;
+  box-shadow: var(--shadow-2);
+}
+
+/* The ring closes over the dwell, so the wait reads as deliberate. */
+.asst-pointer-ring {
+  position: absolute; inset: 0;
+  width: 40px; height: 40px;
+  transform: rotate(-90deg);
+  fill: none;
+  opacity: 0;
+  transition: opacity var(--motion-fast) var(--ease-out);
+}
+.asst-pointer[data-dwelling="true"] .asst-pointer-ring { opacity: 1; }
+.asst-pointer-track { stroke: var(--ai-400); stroke-width: 2.5; }
+.asst-pointer-progress {
+  stroke: var(--ai-fg); stroke-width: 2.5; stroke-linecap: round;
+  stroke-dasharray: 107; stroke-dashoffset: 107;   /* 2πr, r = 17 */
+}
+.asst-pointer[data-dwelling="true"] .asst-pointer-progress {
+  animation: asst-dwell 600ms linear forwards;
+}
+@keyframes asst-dwell { to { stroke-dashoffset: 0; } }
+
+body[data-asst-pointer="true"] [data-insight] {
+  outline: 1px dashed var(--ai-400);
+  outline-offset: 2px;
+  border-radius: var(--radius-lg);
+  transition: outline-color var(--motion-fast) var(--ease-out), background var(--motion-fast) var(--ease-out);
+}
+body[data-asst-pointer="true"] [data-insight][data-insight-armed] {
+  outline: 2px solid var(--ai-fg);
+  background: var(--ai-200);
+  position: relative; z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .asst-pointer-progress { animation: none; stroke-dashoffset: 0; }
+}
+
+/* ==========================================================================
+   Hover cards (HoverCard.jsx).
+
+   A third hover readout, beside the Tooltip and the chart tip, and the one
+   with controls in it. Kumo's Popover positions and portals it, so nothing
+   here measures anything — what this block owns is the card's inside, which
+   Kumo has no opinion about.
+
+   It borrows the chart tip's frame deliberately: `--frame` on
+   `--border-overlay` at `--shadow-3` is what every floating surface in the
+   product is already made of, and a fourth recipe for a fifth kind of
+   overlay is how a console stops looking like one thing.
+   ========================================================================== */
+.ih-hovercard {
+  width: 290px; max-width: min(290px, calc(100vw - 32px)); padding: 10px 12px;
+  background: var(--frame); border: 1px solid var(--border-overlay);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow-3);
+  font-size: var(--fs-xs); color: var(--foreground-light);
+}
+.ih-hovercard-title {
+  display: flex; align-items: center; gap: 6px; margin: 0 0 6px;
+  font-size: var(--fs-xs); font-weight: var(--fw-label); color: var(--foreground-default);
+}
+.ih-hovercard-foot {
+  margin-top: 7px; padding-top: 6px; border-top: 1px solid var(--border-muted);
+  font-family: var(--font-mono); font-size: 10px; color: var(--foreground-muted);
+}
+
+/* ---------- The preview as an index of the form ----------
+
+   A part of the phone preview that some field wrote. It is a button, so it
+   needs the resets — and it must not look like a button: the preview's job is
+   to show what the campaign will look like on a device, and a row of outlined
+   controls inside the bezel would be the prototype showing through the thing
+   it is previewing. So it is invisible until the pointer is on it. */
+.ih-preview-part {
+  display: block; width: 100%; margin: 0; padding: 3px 5px;
+  background: none; border: 0; border-radius: var(--radius-xs);
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out),
+              box-shadow var(--motion-fast) var(--ease-out);
+}
+/* Inset, so a part lighting up never changes the height of the screen it is
+   in — the preview would otherwise reflow under the pointer crossing it. */
+.ih-preview-part:hover, .ih-preview-part:focus-visible {
+  background: var(--surface-100);
+  box-shadow: inset 0 0 0 1px var(--brand-default);
+  outline: none;
+}
+
+/* The other end of the same gesture: the panel that wrote the part under the
+   pointer. The same brand edge, so the two read as one link across the step
+   rather than as two things that happen to have lit up. An edge rather than
+   the ring `[data-jumped]` uses — this one says "here", not "you have
+   arrived". Keyed off `[data-field]`, which is every jump target on the step,
+   so a new one is lit by being tagged rather than by being listed again. */
+[data-field] { transition: box-shadow var(--motion-fast) var(--ease-out); }
+[data-field][data-linked] {
+  box-shadow: 0 0 0 1px var(--brand-default);
+  border-radius: var(--radius-md);
+}
+/* The jump targets are focusable only as targets, so the ring a click would
+   otherwise leave on them is not the focus ring anyone asked for. */
+[data-field]:focus { outline: none; }
+
+/* ---------- A card that is arithmetic ---------- */
+
+/* Term, amount, and a ruled total. A definition list because that is what it
+   is — each row names a selection and gives what it contributes — and the
+   amounts are monospaced and tabular so the column reads as a sum rather than
+   as a list that happens to end in a number. */
+.ih-sum { margin: 0; }
+.ih-sum-row { display: flex; align-items: baseline; gap: 10px; padding: 2px 0; }
+.ih-sum-row dt { min-width: 0; flex: 1 1 auto; color: var(--foreground-light); }
+.ih-sum-row dd {
+  margin: 0; flex: none;
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  color: var(--foreground-default);
+}
+/* A value that is a sentence rather than a figure. The mono column is what
+   makes a sum read as a sum; an audience label set in it is just narrow. */
+.ih-sum-row dd[data-prose] {
+  font-family: var(--font-sans); text-align: right; max-width: 62%;
+  color: var(--foreground-light);
+}
+.ih-sum-row[data-negative] dd { color: var(--destructive-fg); }
+.ih-sum-row[data-total] {
+  margin-top: 5px; padding-top: 6px; border-top: 1px solid var(--border-muted);
+}
+.ih-sum-row[data-total] dt { color: var(--foreground-default); font-weight: var(--fw-label); }
+.ih-sum-row[data-total] dd { color: var(--brand-default); font-weight: 600; }
+
+/* ---------- The campaign list's row peek ---------- */
+
+/* Wider than the readiness card: this one carries an audience label and an
+   objective, which are sentences, where that one carries short lines. */
+.ih-peek { width: 330px; max-width: min(330px, calc(100vw - 32px)); }
+.ih-peek .ih-hovercard-title { justify-content: flex-start; gap: 8px; }
+.ih-peek-id { font-size: 10.5px; color: var(--foreground-muted); }
+
+/* The campaign's own words, so they are set as words — and the placeholder
+   for a campaign that recorded none is the same shape, because a card that
+   simply omits the line does not say the line is missing. */
+.ih-peek-objective {
+  margin: 8px 0 0; font-size: var(--fs-xs); line-height: 1.5;
+  color: var(--foreground-light);
+}
+.ih-peek-objective[data-empty] { color: var(--foreground-muted); font-style: italic; }
+.ih-peek-action { margin-top: 7px; color: var(--foreground-default); }
+
+/* ---------- The stepper's readiness card ---------- */
+
+/* Each outstanding item is the way to it, so each one is a button. Full width
+   and left-aligned: these are sentences, and a row of centred sentences reads
+   as a menu of labels rather than as a list of work. */
+.ih-readiness-list { margin: 0; padding: 0; list-style: none; }
+.ih-readiness-line {
+  display: flex; align-items: flex-start; gap: 6px; width: 100%;
+  padding: 5px 6px; margin: 1px 0 1px -6px;
+  background: none; border: 0; border-radius: var(--radius-xs);
+  font: inherit; color: var(--foreground-light); text-align: left; cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out);
+}
+.ih-readiness-line:hover { background: var(--surface-100); color: var(--foreground-default); }
+.ih-readiness-line:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+/* The chevron sits on the first line of a message that wraps to two. */
+.ih-readiness-line svg { flex: none; margin-top: 2px; color: var(--foreground-muted); }
+.ih-readiness-line:hover svg { color: var(--brand-default); }
+
+/* The count on a step stop. Not a Kumo Badge: it rides inside the step button,
+   and Badge brings its own padding and line height, which pushed the 22px
+   marker off its own baseline. */
+.ih-step-count {
+  display: grid; place-items: center; flex: none;
+  min-width: 15px; height: 15px; padding: 0 4px; border-radius: var(--radius-full);
+  background: var(--destructive-200); color: var(--destructive-fg);
+  font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
+}
+.ih-stepstop[data-state="locked"] .ih-step-count {
+  /* A locked step's count is not work you can take yet, so it does not shout. */
+  background: var(--surface-300); color: var(--foreground-muted);
+}
+
+/* Where a readiness jump landed. The control inside the panel takes focus, but
+   on a panel of eight checkboxes the focus ring alone does not say which
+   *section* answered — so the section says so, briefly, and then stops.
+   Removed by a timeout rather than an animation end, so a reader with reduced
+   motion still gets the mark. */
+.ih-ssection[data-jumped] {
+  outline: 2px solid var(--brand-default); outline-offset: 4px;
+  border-radius: var(--radius-md);
+}
+.ih-ssection { transition: outline-color var(--motion-base) var(--ease-out); }
+.ih-ssection:focus { outline: none; }
+
+/* ==========================================================================
+   Motion the product owns (§12).
+
+   Kumo's own keyframes — bounce-in, toast-bump, clipboard-toast-bump,
+   refresh, skeleton — used to be transcribed into motion-kumo.css because
+   there was no package to load them from. The real package ships all five in
+   kumo-binding.css, so that half of the file is gone and its components
+   animate themselves. What is left is the motion Kumo has no opinion about.
+   ========================================================================== */
+
+/* A card the reader is scanning. One pixel and a brighter edge: enough to say
+   which card the pointer is on, not enough to look like it can be pressed. */
+.ih-metric, .ih-opt, .ih-goal, .ih-tpl-card {
+  transition: border-color var(--motion-fast) var(--ease-out),
+              background-color var(--motion-fast) var(--ease-out),
+              transform var(--motion-fast) var(--ease-out);
+}
+.ih-metric:hover, .ih-opt:hover, .ih-goal:hover, .ih-tpl-card:hover {
+  transform: translateY(-1px);
+  border-color: var(--border-strong);
+  /* Insurance against the stacking context the transform makes, and it keeps
+     the lifted edge over its neighbour's. */
+  position: relative; z-index: 2;
+}
+/* A card that is already chosen does not lift: it is not an offer any more,
+   and a selected control that moves under the pointer reads as though the
+   selection is still in question. */
+.ih-opt-on:hover, .ih-goal-soon:hover { transform: none; }
+
+/* The row under the pointer. The background was already there; this is the
+   hairline coming with it, so the row reads as one band rather than as a fill
+   that stops at the cell edges. */
+.ih-table-scroll tbody tr { transition: box-shadow var(--motion-fast) var(--ease-out); }
+.ih-table-scroll tbody tr:hover { box-shadow: inset 2px 0 0 var(--border-strong); }
+
+/* The horizontally overflowing table fades at whichever edge it runs past,
+   so the cut reads as "there is more this way" rather than as clipping.
+   Scroll-driven rather than time-driven: the fade *is* the scroll position,
+   not an animation of it.
+
+   The whole thing sits behind `@supports` — a browser without
+   `animation-timeline` keeps its scrollbar and loses nothing but the fade.
+   Unlike the vanilla build this needs no ResizeObserver to mark the scroller:
+   `scroll(self x)` simply never advances on a box that does not overflow. */
+@property --fade-left-n  { syntax: "<number>"; inherits: false; initial-value: 0; }
+@property --fade-right-n { syntax: "<number>"; inherits: false; initial-value: 0; }
+@keyframes ih-fade-x-left  { from { --fade-left-n: 0; }  to { --fade-left-n: 1; } }
+@keyframes ih-fade-x-right { from { --fade-right-n: 1; } to { --fade-right-n: 0; } }
+
+@supports (animation-timeline: scroll()) {
+  .ih-table-scroll {
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      white calc(var(--fade-left-n) * var(--scroll-fade-width, 3rem)),
+      white calc(100% - var(--fade-right-n) * var(--scroll-fade-width, 3rem)),
+      transparent
+    );
+    animation-name: ih-fade-x-left, ih-fade-x-right;
+    animation-timing-function: linear, linear;
+    animation-timeline: scroll(self x);
+    animation-range:
+      0 var(--scroll-fade-range, 3rem),
+      calc(100% - var(--scroll-fade-range, 3rem)) 100%;
+  }
+}
+
+/* ==========================================================================
+   The morph — a panel that grows out of the control that opened it.
+
+   Every menu in this console is anchored to the thing that opens it, and the
+   honest reading of that is one shape: the control becomes the panel and goes
+   back to being the control. So the panel does not fade in beside its trigger;
+   it starts as the trigger's own box — the same width, the same height, the
+   same corner — and grows from there.
+
+   None of the numbers are guessed. Base UI puts `--anchor-width`,
+   `--anchor-height` and `--transform-origin` on the positioner that places
+   each panel, and a custom property inherits, so the panel can be written in
+   terms of the control it belongs to without either one knowing the other
+   exists. That is also why this is one rule rather than one per component:
+   the select, the sort menu, the row menus and the hover cards are all Base
+   UI popups under Kumo, all anchored, and all reached by the same selector.
+
+   `interpolate-size` is what makes it a morph rather than a scale. Growing a
+   box with `transform: scale()` squashes everything inside it and has to be
+   covered up; interpolating the real `height` from the trigger's to `auto`
+   moves the box itself, so the panel is never distorted and the content can
+   simply arrive once there is room for it. Where it is unsupported the panel
+   snaps to size and only the fade runs — no worse than it was before.
+   ========================================================================== */
+@supports (interpolate-size: allow-keywords) {
+  :root { interpolate-size: allow-keywords; }
+}
+
+/* What morphs, and what deliberately does not.
+
+   The rule is what opened it. A menu is opened by a press — a deliberate act
+   on a specific control — and the morph is the answer to "where did this come
+   from". A tooltip and a hover card are opened by resting a pointer, arrive
+   after a dwell the reader is already waiting through, and are read and
+   dismissed in about the time this animation takes. Putting 300ms of travel
+   after 400ms of dwell would make resting on something feel broken.
+
+   Base UI marks that split for us without meaning to. Every anchored popup
+   carries `data-side` and `data-align`, and the role on the popup says which
+   kind it is: a select is `presentation`, a menu is `menu`, a hover card is
+   `dialog`, and a tooltip has no role at all because its text is announced
+   through the trigger instead. Naming the two that morph is safer than
+   excluding the two that must not — a popup Kumo adds later stays still until
+   somebody decides it should move.
+
+   The command palette is out for a different reason: it is centred on the
+   viewport and has no `data-side`, because there is no trigger it came out of
+   for a morph to be a claim about. */
+[data-base-ui-focusable][data-side][data-align][role="presentation"],
+[data-base-ui-focusable][data-side][data-align][role="menu"],
+[data-base-ui-focusable][data-side][data-align][role="listbox"] {
+  transform-origin: var(--transform-origin);
+  /* The box is the animation, so nothing may spill out of it while it is
+     still small. Safe to clip permanently: Kumo scrolls the list on the
+     child inside this, not here. */
+  overflow: clip;
+  /* Width settles well before height, and before the contents arrive at all.
+     A panel narrower than its own text reflows it — "Last 30 days" breaks
+     over two lines and snaps back as the box widens — and a morph that
+     rewrites its contents while it travels is a resize with a fade on it.
+     Finishing the width first means the text is only ever laid out once, at
+     the size it will keep; the height carries the growth, and the clip above
+     is what uncovers the list. */
+  transition:
+    width 160ms var(--ease-morph),
+    height var(--motion-slow) var(--ease-morph),
+    border-radius var(--motion-slow) var(--ease-morph),
+    opacity 90ms linear;
+}
+[data-base-ui-focusable][data-side][data-align][role="presentation"][data-starting-style],
+[data-base-ui-focusable][data-side][data-align][role="menu"][data-starting-style],
+[data-base-ui-focusable][data-side][data-align][role="listbox"][data-starting-style],
+[data-base-ui-focusable][data-side][data-align][role="presentation"][data-ending-style],
+[data-base-ui-focusable][data-side][data-align][role="menu"][data-ending-style],
+[data-base-ui-focusable][data-side][data-align][role="listbox"][data-ending-style] {
+  width: var(--anchor-width);
+  height: var(--anchor-height);
+  border-radius: var(--radius-control);
+  /* Short enough to read as the box having been there all along, long enough
+     that it does not flash against the trigger still under it. */
+  opacity: 0;
+}
+
+/* The contents wait for the room. Fading them in with the box would put text
+   inside a shape too small to hold it, which is the one thing that gives a
+   morph away as a resize. */
+[data-base-ui-focusable][data-side][data-align][role="presentation"] > *,
+[data-base-ui-focusable][data-side][data-align][role="menu"] > *,
+[data-base-ui-focusable][data-side][data-align][role="listbox"] > * {
+  transition: opacity var(--motion-base) var(--ease-out) 170ms;
+}
+[data-base-ui-focusable][data-side][data-align][role="presentation"][data-starting-style] > *,
+[data-base-ui-focusable][data-side][data-align][role="menu"][data-starting-style] > *,
+[data-base-ui-focusable][data-side][data-align][role="listbox"][data-starting-style] > *,
+[data-base-ui-focusable][data-side][data-align][role="presentation"][data-ending-style] > *,
+[data-base-ui-focusable][data-side][data-align][role="menu"][data-ending-style] > *,
+[data-base-ui-focusable][data-side][data-align][role="listbox"][data-ending-style] > * {
+  opacity: 0;
+  /* Closing is not opening run backwards: the panel is leaving, so its
+     contents go at once rather than on the delay they arrived with. */
+  transition-duration: 60ms;
+  transition-delay: 0ms;
+}
+
+/* Everything above is stilled for a reader who asked for that. Kumo's own
+   components honour the preference themselves. */
+@media (prefers-reduced-motion: reduce) {
+  /* The panel still has to appear and disappear, and it still must not show
+     its contents at the wrong size — it simply stops travelling to do it. */
+  [data-base-ui-focusable][data-side][data-align][role="presentation"],
+  [data-base-ui-focusable][data-side][data-align][role="menu"],
+  [data-base-ui-focusable][data-side][data-align][role="listbox"],
+  [data-base-ui-focusable][data-side][data-align][role="presentation"] > *,
+  [data-base-ui-focusable][data-side][data-align][role="menu"] > *,
+  [data-base-ui-focusable][data-side][data-align][role="listbox"] > * {
+    transition-property: opacity;
+    transition-duration: var(--motion-fast);
+    transition-delay: 0ms;
+  }
+  [data-base-ui-focusable][data-side][data-align][role="presentation"][data-starting-style],
+  [data-base-ui-focusable][data-side][data-align][role="menu"][data-starting-style],
+  [data-base-ui-focusable][data-side][data-align][role="listbox"][data-starting-style],
+  [data-base-ui-focusable][data-side][data-align][role="presentation"][data-ending-style],
+  [data-base-ui-focusable][data-side][data-align][role="menu"][data-ending-style],
+  [data-base-ui-focusable][data-side][data-align][role="listbox"][data-ending-style] {
+    width: auto;
+    height: auto;
+    border-radius: inherit;
+  }
+  .ih-metric, .ih-opt, .ih-goal, .ih-tpl-card { transition: none; }
+  .ih-metric:hover, .ih-opt:hover, .ih-goal:hover, .ih-tpl-card:hover { transform: none; }
+  .ih-asst-caret { animation: none; }
+  /* The word reveal is motion with nothing else to say, so it does not run —
+     the words simply land. */
+  .ih-asst-word,
+  .ih-asst-turn[data-from="you"] .ih-asst-text,
+  .ih-asst-follow-btn { animation: none; }
+  .ih-asst-card { transition: none; }
+  /* The page arriving is motion decorating a load that has already happened:
+     there is no state change underneath it to read, so it does not run and
+     the blocks simply land. */
+  .ih-reveal > * { animation: none; }
+}
+
+/* ==========================================================================
+   The open-text word cloud (FR-101).
+
+   Size is mention count (on √count), colour is the rating ramp. Selection is
+   a ring, never a colour: a term's colour is its rating, and overriding it to
+   say "selected" would print a rating the term does not have.
+   ========================================================================== */
+
+.ih-cloud {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px;
+  padding: var(--sp-md) var(--sp-lg) var(--sp-lg);
+}
+.ih-cloud-term {
+  padding: 1px 5px; border: 0; border-radius: var(--radius-sm); background: none;
+  font: inherit; font-weight: 500; line-height: 1.15; letter-spacing: -0.01em; cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-out);
+}
+.ih-cloud-term:hover { background: var(--surface-200); }
+.ih-cloud-term[aria-pressed="true"] { background: var(--surface-200); box-shadow: inset 0 0 0 1px var(--border-strong); }
+.ih-cloud-term:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.ih-cloud-ramp {
+  display: inline-flex; align-items: center; gap: 6px; flex: none;
+  font-size: var(--fs-xs); color: var(--foreground-muted);
+}
+.ih-cloud-ramp i { display: block; width: 72px; height: 6px; border-radius: var(--radius-full); }
+
+/* Response detail: a repeat respondent's other verbatims. */
+.ih-also-from { display: flex; align-items: flex-start; gap: 10px; }
+.ih-also-from .ih-rating-val { flex: none; font-size: 14px; }
+.ih-select-all { user-select: all; }

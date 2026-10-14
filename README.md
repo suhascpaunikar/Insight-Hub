@@ -1,29 +1,46 @@
 # InsightHub — Feedback Campaign Builder
 
-An HTML prototype of the campaign creation flow described in
-[`docs/prd-v5.md`](docs/prd-v5.md), built in the **Supabase design system, dark**.
+A prototype of the campaign creation flow described in
+[`docs/prd-v5.md`](docs/prd-v5.md), built on
+**[@cloudflare/kumo](https://www.npmjs.com/package/@cloudflare/kumo)** — the
+Cloudflare dashboard's own component library.
 
-No build step, no dependencies. Open `index.html` in a browser.
+**Live:** <https://suhascpaunikar.github.io/Insight-Hub/> — GitHub Pages, published
+from `main` by [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
 
 ```
 git clone … && cd Insight-Hub
-python3 -m http.server 8000     # or any static server
-open http://localhost:8000
+pnpm install
+pnpm dev                        # or `pnpm build && pnpm preview`
 ```
 
-> A static server is recommended over `file://`: the pages are ES modules, which
-> browsers block on the `file:` scheme.
+> This used to be four static HTML documents with no build step, mirroring Kumo by
+> hand. It now uses the real components, which are React — so there is a build. See
+> [§11.5 of the guideline](docs/ui-guidelines-cloudflare-dark.md) for what that
+> changed and why the mirror could not stay.
+>
+> **That build is still here**, on the `html-prototype` branch — the last commit
+> before the port. `scripts/revert-to-html.sh` restores it;
+> [`docs/revert-to-html.md`](docs/revert-to-html.md) covers both routes and what
+> reverting costs.
+
+```bash
+git switch html-prototype && python3 -m http.server 8000   # the old build, no install
+scripts/revert-to-html.sh --check                          # what reverting would change
+```
 
 ---
 
 ## Screens
 
-| File | Screen | Requirements |
+| URL | Screen | Requirements |
 |---|---|---|
 | `index.html` | Campaign dashboard — workspace activity strip + campaign list | FR-71 – FR-85 |
-| `builder.html` | Six-step creation wizard | FR-1 – FR-57 |
+| `builder.html` | Four-step creation wizard | FR-1 – FR-57 |
 | `insights.html` | The campaign data screen — Delivery / Responses / Impact for a feedback campaign, Delivery / Engagement / Impact for an announcement | FR-86 – FR-110 |
 | `settings.html` | Workspace settings — General / Delivery / Alerts | FR-63 |
+
+Each is a separate Vite entry, so the URLs are real page loads rather than routes.
 
 The prototype is **clickable, with real state**. Validation actually gates the wizard,
 the branching toggle populates the three bands, switching template warns before
@@ -48,28 +65,32 @@ feedback-only figure as covering both. The rating and completion-rate cards that
 there were exactly that mistake, and completion now rides on the Responses card's scope line
 where its base is stated.
 
-**Start here:** open `index.html` → *New Campaign* → walk the six steps → publish → open
+**Start here:** open `index.html` → *New Campaign* → walk the four steps → publish → open
 the resulting row.
 
 ---
 
 ## Design system
 
-`DESIGN.md` is the output of `npx getdesign@latest add supabase`, plus a **Dark product
-surface** section appended for this repository. The generated document describes
-Supabase's marketing track, which commits to a white canvas; a product console needs the
-dashboard dark scale, so that section defines the tokens actually used —
-`#121212` canvas, `#1c1c1c` panels, the `#2e2e2e` hairline ladder, `#ededed` type, and
-`#3ecf8e` kept scarce for the single filled CTA per view.
+### What it was
 
-Two additions the marketing brand has no answer for, both documented there:
+`DESIGN.md` is the output of `npx getdesign@latest add supabase`, plus a **Dark product
+surface** section appended for this repository — `#121212` canvas, `#1c1c1c` panels, the
+`#2e2e2e` hairline ladder, `#ededed` type, and `#3ecf8e` kept scarce for the single
+filled CTA per view. It is **superseded** and kept as the record of what was replaced.
+
+Two ideas from it survive the restyle, at new values:
 
 - **The rating ramp** — five stops, red → emerald, normalised to whichever rating
   element the campaign uses (star 1–5, NPS 1–5, NPS 1–10), so one colour means one thing
-  on every surface (FR-79, FR-89).
-- **The AI accent** — `#a78bfa`, reserved for machine inference. It appears nowhere in
-  the ramp and nowhere in the status palette, so a violet element is always a claim and
-  never a measurement (FR-91).
+  on every surface (FR-79, FR-89). It now has a set of stops per theme, and the
+  stylesheet owns them: `readPalette()` in `core.js` reads them back, because the ramp is
+  interpolated into markup as literal colours.
+- **The AI accent** — reserved for machine inference, `#a78bfa` then and `#7367e5` now.
+  It appears nowhere in the ramp and nowhere in the status palette, so a violet element is
+  always a claim and never a measurement (FR-91). The documentation chip holds the same
+  hex under its own token, `--docs-chip`, precisely so this rule keeps meaning what it
+  says.
 
 A third section, **Console settings and observability patterns**, documents the compositions
 taken from the Supabase dashboard's own settings and reporting screens — the settings panel and
@@ -78,38 +99,83 @@ metric card, and the charts' dashed rules and hover readout. The rule that matte
 counts are drawn from zero and rates are not, and a rate card prints the band it is scaled
 against rather than hiding the zoom.
 
-Tokens and primitives: `assets/css/supabase.css`.
+### What it is
+
+**The console runs on Kumo itself, in two themes.** The specification — colour, type,
+spacing, shell, every component, motion, and a map from the primitives it replaced — is
+[`docs/ui-guidelines-cloudflare-dark.md`](docs/ui-guidelines-cloudflare-dark.md).
+One stylesheet entry, `src/styles/app.css`, pulls in Kumo's styles, Tailwind, the token
+bridge and what little CSS the product still owns.
+
+**Dark is the default.** Light is the dashboard's own light scale, from Appendix B of the
+guideline, switched from **Settings → General → Appearance** and remembered per browser.
+The surfaces are measured; the three palettes that carry meaning — the semantic colours,
+the rating ramp and the chart series — are re-derived, because a palette tuned to sit on
+`#030303` falls under 3:1 against `#fbfbfb`.
+
+The values are not guesses and they are no longer copied: the components *are* Kumo's,
+and the tokens resolve live out of the package's own `@theme`. §11 of the guideline is
+the component-by-component map, the reconciliation showing which measured values Kumo
+confirmed and which it corrected, and — in §11.4b — the three places a Kumo component
+is the right answer and still needs composing rather than dropping in.
+
+```bash
+npx @cloudflare/kumo ls            # the catalogued components
+npx @cloudflare/kumo doc Button    # one component's props, sizes and variants
+```
+
+Note that `ls` reads a registry that is smaller than what the package exports; §11.3
+lists the eleven components missing from it.
+
+Work in progress on the restyle is handed over in [`docs/revamp.md`](docs/revamp.md) —
+where it stands, how to verify it, what is left, and which decisions are already settled.
 
 ---
 
 ## Layout
 
 ```
-index.html · builder.html · insights.html
-assets/
-  css/supabase.css     tokens + component primitives
-  js/
-    core.js            DOM helpers, icons, formatting, rating ramp, dialog/toast/dropdown
-    data.js            seeded campaigns, templates, segments, insights
-    store.js           draft model, variant reconciliation, step validation, persistence
-    shell.js           nav rail + context bar
-    dashboard.js       campaign list
-    builder.js         wizard frame, steps 1·2·3·5·6
-    content-step.js    step 4 — template picker, question logic, triggers
-    insights.js        the campaign data screen — tabs branch on campaign kind
-    settings.js        workspace settings — the console settings patterns
-    assistant.js       companion card — 320×288, streaming answers + the ask box
+index.html · builder.html · insights.html · settings.html   Vite entries
+src/
+  entries/           one per screen: mounts its page into #app
+  styles/
+    app.css          the entry: @source, Kumo, Tailwind, then the two below
+    tokens.css       InsightHub's token names onto Kumo's, resolved live
+    product.css      only what Kumo does not ship — §11.4's "(none)" list
+  app/
+    Shell.jsx        Kumo Sidebar + bar + tab strip + stat strip + footer
+    WizardShell.jsx  the builder's own chrome, keeping the rail beside it
+    ShellContext.jsx what a page tells the shell about its own chrome
+    NavRail · TopBar · TabStrip · StatStrip · SiteFooter · QuickSearch
+    dialogs · RenameDialog · settings-kit · wizard-kit
+    MetricCard · InsightChart · PhonePreview · DateField · Orb · Assistant
+  pages/
+    Campaigns.jsx    campaign list
+    Builder.jsx      wizard frame + builder/Step1 · Step2 · ContentStep · Step4
+    Insights.jsx     tabs branch on kind + insights/Delivery · Responses · Engagement · Impact
+    Settings.jsx     workspace settings
+  lib/
+    data.js          seeded campaigns, templates, segments, insights
+    store.js         draft model, variant reconciliation, step validation, persistence
+    useStore.js      the store, as React sees it
+    format · palette · persist · csv · insights-lib · icons · toast
     assistant-context.js  what the assistant can see
     assistant-answers.js  intent registry + answer composers
     assistant-insights.js what each panel's data says
     assistant-pointer.js  the cursor companion and its dwell
     assistant-orb.js      the Siri-style orb — idle and thinking
+scripts/
+  verify.mjs         loads every built screen in Chromium and fails on any error
+  revert-to-html.sh  restores the pre-port HTML prototype from its tag
 docs/
   prd-v5.md            the source PRD
   prd-coverage.md      FR-by-FR map, the 21 open decisions, what changed vs Magic Patterns
   insights-data-plan.md  every data point the campaign data screen can carry, by kind
   assistant.md         the companion card — what it is, and what it isn't
-DESIGN.md              Supabase design reference + dark product adaptation
+  ui-guidelines-cloudflare-dark.md  the design system: tokens, components, motion, both themes
+  revamp.md            the restyle handover — superseded by the port, kept as its record
+  revert-to-html.md    how to get the no-build-step prototype back, and what it costs
+DESIGN.md              the superseded Supabase system, kept as the record of what it replaced
 ```
 
 ---

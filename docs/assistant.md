@@ -2,9 +2,9 @@
 
 A companion card docked bottom-right on every screen. It reads the campaign
 data already in the prototype and answers questions about it, streaming the
-reply a word at a time. Open it from the **Assistant** entry in the nav rail,
-the buddy button in the corner, or `Ctrl + /`. Ask by clicking a follow-up, or
-by typing into the box at the foot of the card.
+reply a word at a time. Ask by typing, by taking one of the follow-ups it
+offers, or by resting the pointer on a panel. Open it from the **Assistant**
+entry in the nav rail, the buddy button in the corner, or `Ctrl + /`.
 
 The shape of the interaction is borrowed from
 [clicky](https://github.com/farzaa/clicky) — a small buddy that speaks first
@@ -26,6 +26,13 @@ questions it has composers for. It is a query engine wearing a chat interface,
 and the documentation says so plainly because the violet accent it renders in
 means "machine claim" — a prototype that implies more intelligence than it has
 would mislead exactly the audience this repository is built for.
+
+**The ask box does not change that.** Typed text is keyword-matched by
+`route()` to one of the eleven intents and reaches exactly the composers the
+follow-up buttons reach. Nothing is parsed, nothing is inferred, and a question
+it has no composer for falls back on the overview rather than dead-ending —
+which is `route()`'s behaviour as originally written, kept deliberately. Ask it
+about the weather and it will tell you about your campaigns.
 
 What it is *not* faking is the data. The answers are computed from
 `data.js` and the live store on every call, so changing the seed numbers
@@ -82,6 +89,13 @@ Two things, counted by reason rather than set outright:
 They overlap on purpose. A dwell fires *into* an answer, so the handover has to
 be seamless; and a dwell abandoned while an earlier answer is still streaming
 must not put the orbs back to sleep. Counting reasons is what makes both true.
+
+An answer arriving over one still streaming settles the turn it interrupts
+first. The stream's revealed words are state the transcript shares, so a turn
+still flagged as streaming with nothing behind it goes on reading from them —
+and the next answer lands in that turn as well as in its own, the same words
+twice on screen. What the interrupted turn had said stands as what it said,
+ellipsed; one that got no words out leaves the log.
 
 ### Waking and settling are not the same curve
 
@@ -163,7 +177,7 @@ not run the build.
 
 It also was not necessary. The React component's only job is to emit scoped CSS
 with a generated id; every prop it takes is a variable in a stylesheet. So the
-rules in `supabase.css` are the package's own — its conic gradients, its mask
+rules in `product.css` are the package's own — its conic gradients, its mask
 composite chain, its nine pinned blobs, its 1.96s lap, its ±30° hue drift under
 brightness 1.3 and saturate 1.2 — with the generated id replaced by the
 `.asst-card` selector.
@@ -248,6 +262,49 @@ still carries the state.
 
 ---
 
+## The ask box
+
+A port of the shadcn/Tailwind [`ai-input-with-search`](https://21st.dev)
+component: the two-tier shape, the textarea that grows with what you type up to
+a cap, `Enter` to send and `Shift + Enter` for a line break, and a send button
+that lights only once there is something to send. `Escape` clears a half-typed
+question before it closes anything — losing the card because you thought better
+of a question is the wrong amount of undo.
+
+### Why it is not the component
+
+The same reason border-beam is not the package, and the reason is worth stating
+once more because it will come up again. The component is React + TypeScript +
+Tailwind + framer-motion + lucide-react, and it expects a shadcn project with a
+`/components/ui` folder. This repository has no `package.json`, no
+`tsconfig.json`, no bundler and no React; `netlify.toml` publishes the root
+as-is, and the GitHub Pages workflow uploads the repo without a build step.
+Installing that toolchain to ship one input would rewrite the prototype and
+cost it one of its two live hosts.
+
+So the design is taken and the toolchain is not — the same trade already made
+for border-beam, and for lucide, whose icon *paths* are inlined in `core.js`
+without lucide the package. `useAutoResizeTextarea` is a dozen lines of DOM in
+`assistant.js`; the hook's own order is load-bearing and is kept: drop the field
+to its floor first so `scrollHeight` reports the content rather than the box it
+is already filling, then grow to it under the cap.
+
+### Two deviations, both deliberate
+
+**The file and web-search controls are gone.** The component carries a paperclip
+and a "Search the web" toggle. There is no network call anywhere in this
+prototype and nothing to attach a file to, and the whole point of the section
+above is that this card must never imply more capability than it has — a dead
+control here costs more than a missing one.
+
+**`sky-500` becomes violet.** FR-91 reserves `#a78bfa` for machine claims and
+the card is violet throughout. A blue accent would add a fourth colour to a
+system already running brand green, AI violet and the rating ramp, and would
+mean nothing in it. This is the same substitution the border beam's gold got,
+for the same reason.
+
+---
+
 ## The pointer
 
 Press **`?`**, or the target button in the card header, and a companion drops
@@ -271,6 +328,14 @@ follow-ups under each reading lead back to the intent registry. The companion
 wears the same orb as the card, so the dwell reads as consideration rather
 than as a wait: the ring says how long is left, the orb says the time is being
 spent on something.
+
+Wearing the same orb is also why the companion hides on the assistant's own
+surface. The card is the one place the cursor is certain to go — the answer is
+there, and so are the follow-ups — and a companion trailing onto it parks
+beside the header's orb, which reads as the assistant drawn twice. There is
+nothing there for it to do in any case: the card is not a panel. It keeps
+trailing while hidden, so leaving the card fades it back in where the cursor
+actually is.
 
 ### Why a dwell, and why a mode
 
@@ -331,44 +396,49 @@ otherwise leave the assistant describing a panel the reader cannot see.
 
 ---
 
+## The transcript
+
+Questions and replies stack in scrollback, so the card shows what was asked
+rather than only the last thing it said. Three things put a turn in the log:
+
+| Turn | Comes from |
+|---|---|
+| **you** | typed into the ask box, or the label of a follow-up you took |
+| **assistant** | a composed answer, streamed a word at a time |
+| **assistant**, labelled | a panel reading from the pointer, tagged with the panel's name |
+
+A follow-up echoes as a question because it *is* one — without it the log is a
+column of answers with nothing saying what prompted any of them. The pointer's
+readings carry a label because the header title only ever names the newest
+reply, so a reading three questions back would otherwise lose its subject.
+
+Opening the card still speaks first about what it can see, but only into an
+empty log: reopening mid-conversation shows the conversation rather than
+restating the overview on top of it. The log lives for as long as the document
+does — every screen here is its own page, so walking to Insights starts a fresh
+one, the same way the single answer used to be left behind.
+
 ## Layout
 
-The card is a fixed **320 × 288**. The answer region scrolls inside it, and the
-follow-ups and the composer stay pinned to the bottom edge, so an answer never
-changes the card's footprint or shifts the console behind it. While text streams, the view
-follows the caret; when the answer lands it settles back to the top so it reads
-from the first line. Whichever edge the content overflows is faded, so a cut
-line reads as "more this way" rather than as a clipped render.
+The card is a fixed **320 × 380** — it was 240 while it held one answer at a
+time, and a transcript with an ask box under it needs the extra 140 or the log
+is three lines deep. Still fixed, so the rule that number was chosen to keep
+still holds: the log scrolls inside the card and the follow-ups and ask box
+stay pinned to the bottom edge, so nothing the assistant says changes the
+card's footprint or shifts the console behind it.
+
+While text streams, the view follows the caret. When the answer lands, a reply
+taller than the card is pulled back to its own first line — the reason the
+single-answer card settled to the top — and one that fits stays down with the
+newest turn, which is what a transcript should do. Whichever edge the content
+overflows is faded, so a cut line reads as "more this way" rather than as a
+clipped render.
 
 It mounts on `document.body`, not `#app` — `renderShell()` replaces
 `#app.innerHTML` on every rerender, which is the same reason `toastHost()`
 lives there. `renderBuilder()` mounts it separately, because the wizard is
 full-screen focus mode and renders its own chrome instead of calling
 `renderShell()`.
-
----
-
-## The typed question
-
-The composer at the foot of the card routes through `route()` in
-`assistant-answers.js`, which matches the typed text against each intent's
-`keywords` and returns the first hit — falling back to `overview`, so it never
-dead-ends. The reply is then composed by the same function a follow-up button
-would have called, which is the point: **the box is a second way in, not a
-second answer engine.** It cannot print a figure the buttons would not also
-print, and it cannot answer a question no composer covers.
-
-That is a real ceiling, and the placeholder is deliberately narrow about it
-("Ask about this screen…") rather than inviting anything. The header takes the
-question verbatim once it is sent — with the box cleared, it is the only thing
-left saying what the answer below it answers.
-
-Two interactions the box shares a keyboard with:
-
-- **Escape** clears a half-typed question first, and only closes the card on a
-  second press. A modal still owns Escape outright while one is open.
-- **Arming the pointer** blurs the box, because the mouse has become the input
-  device; sending a typed question disarms the pointer for the same reason.
 
 ---
 
@@ -387,14 +457,15 @@ Two interactions the box shares a keyboard with:
 
 | File | Purpose |
 |---|---|
-| `assets/js/assistant.js` | the card, the state machine, the word-by-word reveal |
-| `assets/js/assistant-context.js` | what the assistant can see — page, campaign, tab, filters, draft |
-| `assets/js/assistant-answers.js` | the intent registry and the answer composers |
-| `assets/js/assistant-insights.js` | what each panel's data says — one composer per panel |
-| `assets/js/assistant-pointer.js` | the cursor companion, dwell detection and panel arming |
-| `assets/js/assistant-orb.js` | the Siri-style orb — the two states, the renderer, and the state broadcast |
+| `src/app/Assistant.jsx` | the card, the transcript, the ask box, the word-by-word reveal |
+| `src/app/Orb.jsx` | the React handle on the orb: hand it a node, take it back on unmount |
+| `src/lib/assistant-context.js` | what the assistant can see — page, campaign, tab, filters, draft |
+| `src/lib/assistant-answers.js` | the intent registry and the answer composers |
+| `src/lib/assistant-insights.js` | what each panel's data says — one composer per panel |
+| `src/lib/assistant-pointer.js` | the cursor companion, dwell detection and panel arming |
+| `src/lib/assistant-orb.js` | the Siri-style orb — the two states, the renderer, and the state broadcast |
 
-Styles live at the end of `assets/css/supabase.css` under *Assistant*.
+Styles live at the end of `src/styles/product.css` under *The assistant*.
 
 ---
 
@@ -423,11 +494,35 @@ by a response base.
 
 ## If you want a real model behind it
 
-The seam is already in place: replace the body of `answer()` in
-`assistant-answers.js` with a call to a proxy that holds the API key, and
-stream its tokens into `streamAnswer()` in place of the local word list. The
-context builder and the entire card carry over untouched — `snapshot()` is
-already the prompt payload.
+The seam is already in place, and the ask box is now the front of it: replace
+the body of `answer()` in `assistant-answers.js` with a call to a proxy that
+holds the API key, and stream its tokens into `streamAnswer()` in place of the
+local word list. `askText()` already carries the raw question rather than a
+routed intent id, so nothing above it changes. The context builder and the
+entire card carry over untouched — `snapshot()` is already the prompt payload.
+
+The one thing to delete on that day is `route()`: keyword matching exists
+because there is no model to do better, and leaving it in front of one would
+throw away the question before it was asked.
 
 That would mean adding a serverless function, since a key must never ship in a
-static bundle. GitHub Pages cannot run one; Netlify can.
+static bundle, and GitHub Pages cannot run one. That is a constraint to solve
+within, not a reason to move hosts: this project deploys to Pages and not to
+Netlify (see CLAUDE.md).
+
+
+---
+
+## After the Kumo port
+
+The card is React now; the orb and the pointer are not, and deliberately. Both are
+imperative animation modules with their own loops, and React's job around them is to
+hand them a node and take it back — `Orb.jsx` is the whole of that. Streaming moved
+into component state: a words array, an index, and the revealed prefix kept apart
+from the transcript so a re-render per word touches one string.
+
+One thing improved. `assistant-context.js` used to read the insights filters back out
+of the rendered `<select>` elements, because `filters` was module-private to
+insights.js and scraping the DOM was less coupling than reaching into another module.
+The page publishes them now, through `publishFilters()` — the same coupling with none
+of the guesswork about a control's rendered value being the state.

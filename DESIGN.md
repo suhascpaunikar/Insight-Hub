@@ -223,6 +223,13 @@ components:
     padding: 64px 24px
 ---
 
+> **Console restyle (Sep 2026):** the InsightHub console is being restyled to the
+> Cloudflare dashboard's dark mode. That specification, with measured values and a
+> migration map from the primitives in `assets/css/supabase.css`, is
+> [`docs/ui-guidelines-cloudflare-dark.md`](docs/ui-guidelines-cloudflare-dark.md).
+> Where it and this document disagree, it wins for the console; this document remains
+> the record of the Supabase-derived system it replaces.
+
 ## Overview
 
 Supabaze's design language is engineered for clarity above all else. The marketing surfaces sit on `{colors.canvas}` (pure white), with text rendered in `{colors.ink}` (`#171717` — near-black, never pure black). Across the entire system the only consistent chromatic event is the **emerald green primary** (`{colors.primary}` — `#3ecf8e`) — used as the filled CTA, occasional accent dot, and the signature highlight color in the wordmark. Everything else is a calibrated grey ladder from `#ededed` hairline-cool to `#171717` ink, with thin black-on-white typography doing most of the visual work.
@@ -589,7 +596,7 @@ the window's own low and high and prints that low and high where the dates would
 is stated, never hidden.
 
 A card whose figure covers only part of the list beneath it carries a **scope line**
-(`.metric-scope`) under the label saying which part — "5 feedback campaigns · 69% completed" over
+(`.ih-metric-scope`) under the label saying which part — "5 feedback campaigns · 69% completed" over
 a workspace that also runs announcements. It is a full-width row rather than a second line beside
 the label, because the legend sits there and would ellipsis away exactly the cards whose scope is
 worth reading. Where a number covers everything, the line says so rather than going blank: a
@@ -603,9 +610,11 @@ invented line beside three measured ones is the kind of chart that gets believed
 **Chart** (`.chart`) — dashed rules at rounded values behind the marks, with their labels in a
 left gutter rather than on top of the first bar, and a floating readout (`.chart-tip`) opened by
 hovering a column: a dot per series, the series name with its share, the value, and the point's
-date under a rule. Bars alone leave the reader estimating heights against nothing.
+date under a rule. Bars alone leave the reader estimating heights against nothing. It centres on
+the column it reads and then stops at the card's edges — at the first and last column a centred
+readout hangs half outside the card, and the scroll region clips what hangs out.
 
-**Word cloud** (`.cloud`) — two variables, two channels: **size is frequency, colour is the
+**Word cloud** (`.ih-cloud`) — two variables, two channels: **size is frequency, colour is the
 rating ramp**. A big red word is common *and* damaging; a big green one is what not to break.
 That pairing is the only reason to draw a cloud instead of a bar chart of the same numbers, and
 it is why the ramp is reused here rather than a decorative palette — a coloured word on this
@@ -622,3 +631,124 @@ Three rules the form needs to stay honest:
 
 A cloud is a filter with a shape — clicking a term drives the search box under it, and clicking
 it again clears it — so it is never the one panel on a screen you cannot act on.
+
+## Motion
+
+The marketing doc specifies no motion, and a console needs a scale for it as much as it needs
+one for spacing — otherwise every screen invents its own and a hover ends up the same length as
+a modal. Tokens: `assets/css/supabase.css`.
+
+| Token | Value | Used for |
+| --- | --- | --- |
+| `--motion-fast` | 120ms | Feedback that only changes colour — hover, focus, a menu opening |
+| `--motion-base` | 180ms | Anything that moves or resizes a box — toasts, arriving content |
+| `--motion-slow` | 320ms | A chart redrawing its whole series, and nothing else |
+| `--ease-out` | `cubic-bezier(0.22, 0.61, 0.36, 1)` | Everything; the system has no bounce |
+
+Four rules hold the scale together. **Nothing overshoots** — this is a console, and a spring on
+a status pill reads as a bug rather than as polish. **Nothing loops except while something is
+genuinely pending or genuinely happening** — the only looping animation in the product marks a
+Live campaign. **Anything that animates in animates out**: a toast that slides in and then
+disappears on a single frame reads as a glitch, not a dismissal. And **a close is not an open
+played backwards** — opening is an invitation and takes `--motion-base`; closing gets out of the
+way at `--motion-fast`, travelling less and scaling less far. Dropdowns, dialogs and toasts all
+follow that asymmetry.
+
+**Delay is an intent gate, never padding.** There are two, and both are gates. A tooltip waits
+80ms before appearing, so a cursor merely crossing the toolbar does not trail three of them. The
+collapsed nav rail waits **1.5s**, because there it is doing a different job: a collapsed item is
+an icon with no label, so the tooltip *is* the label rather than a hint about a control that
+already reads, and the strip is eight items tall — a cursor travelling it on the way to the page
+below would pull the whole column open behind it. Nothing waits before leaving: a dismissal is
+always instant, at either length.
+
+Motion is never the only carrier of a state change. Every transition here decorates a change
+that is already legible in text, colour or position, which is what makes the global
+`prefers-reduced-motion` block at the foot of the stylesheet safe: it stills travel, scale and
+loops, and the product loses nothing but the movement.
+
+**Range switch** (`.chart-plot[data-swap]`) — re-slicing the activity strip is the one
+interaction where a figure and the shape behind it change meaning at the same moment, so it is
+the one that earns a transition. The ranges are 7 and 24 columns, so there is nothing to morph
+between: the old plot leaves over `--motion-fast`, and the new series grows from its own
+baseline, one column behind the last.
+
+The stagger is **a fraction of `--motion-base`, not a fixed gap** — each column starts
+`--i / --n` of the way through it, so the wipe crosses the series in 180ms whether the series is
+7 columns or 24. A flat per-column gap makes the gesture as long as the data is, and that is what
+the two ranges used to disagree about: at 24 columns an 8ms count spanned 184ms and read as an
+edge travelling left to right, but at 7 columns it spanned 48ms — below the threshold where a
+sequence is legible — so the same animation read as the whole strip rising from the bottom at
+once. One chart is not allowed two entrances.
+
+**Status pulse** (`.pill[data-status="Live"] .dot`) — a ring expanding out of the Live dot on a
+2.4s loop, and the one piece of perpetual motion in the product. It is a pseudo-element animating
+transform and opacity rather than the dot's own `box-shadow`: a shadow animation repaints every
+frame, and this one runs for as long as the tab is open. No other status moves, because no other
+status is still happening.
+
+**Figures** (`countUp`) — a headline number tweens to its new value whenever the window behind it
+changes, so the figure and the chart it belongs to read as one event rather than two. Driven only
+by a deliberate change of range; a keystroke must never start one, or the figures would live
+permanently in flight.
+
+**Tab marker** (`.tab-pill`) — the active tab's underline travels rather than jumping. Every
+screen repaints by replacing `innerHTML`, so the marker is a new node on every render with no
+position to travel from; the last position is remembered per strip and replayed, which is what
+makes the move readable. Where the pill runs, the tab gives up its own `border-bottom` — two
+indicators under one tab is a bug.
+
+**Step states** (`.step[data-changed]`) — the stepper marks what changed, not what is.
+Arriving, the current marker wipes out from the centre and the badge settles; finishing, the badge
+pops as its number becomes a check; and reachability moves both ways, since clearing a required
+field can put later steps back out of reach and that is worth seeing too. Only steps whose state
+actually changed animate — `builder.js` remembers the previous states, because the stepper is
+rebuilt on every repaint and a fresh node has no previous value for a `transition` to run from.
+A first paint marks nothing: the stepper arrives with the page rather than changing.
+
+The current marker is a real element rather than the inset `box-shadow` it started as. A shadow
+cannot wipe; an element can.
+
+**Step travel** (`[data-step-page]`, `[data-step-ghost]`) — the builder's step body enters from
+the side it travelled from: forward from the right, back from the left, so the direction says
+which way you moved through the wizard. The step being left travels the other way at the same
+moment, which is what makes the pair read as a move rather than as an arrival on its own. It has
+to be lifted out of the tree to do it — the wizard repaints by replacing `#app` wholesale, so by
+the time the next step exists the previous one is already gone — and it is *moved* rather than
+copied, so the fields just filled in are still filled in for the beat it is still on screen.
+It leaves at `--motion-fast` against the entrance's `--motion-base`, and it is opaque: two steps
+of body copy dissolving through each other is unreadable, and this is a swap. Fired only by an
+actual step change, and never by clicking the step you are already on. The builder deliberately
+has **no** skeleton: a wizard step is a form being filled, not data arriving, and a wait between
+steps reads as lag.
+
+**Bars** (`.bar-fill[data-grow]`) — a distribution bar grows out of its track's left edge, one
+row behind the last, on a flat 8ms count: the campaign list and the Insights panels draw the same
+marks and should draw them the same way. This is the one place the flat gap is still right — a
+distribution's rows are a list whose length is the answer, not two framings of one series, so
+each block reads as one gesture at whatever length it happens to be rather than being stretched
+to a fixed one. Asked for rather than run
+on every paint, because the Responses tab repaints on every character typed into its search and
+sixty bars redrawing under the cursor is the failure mode. A tab, a filter and a band ask; a
+keystroke never does — the same rule that keeps `countUp` off the keystroke path.
+
+**Page to page** (`.app`, `body[data-leaving]`) — the prototype is four documents, so opening a
+campaign is a browser navigation and by default a hard cut: the list stays on screen until the
+insights page paints over it, with nothing to say the click landed. The page leaving fades over
+`--motion-fast` and the jump is held for exactly that long; the page arriving fades over
+`--motion-base`, keyed to the shell taking its class so it starts when there is something to show
+rather than when the document was parsed. Every in-app link goes the same way, so the rail and the
+back links behave like the campaign rows rather than being the two places that still cut.
+
+**Skeleton** (`.skel`) — what a section shows while its data is on the way. Every block is sized
+to the element it stands in for, measured against the real thing rather than guessed, so content
+lands into space already held and nothing below it moves. Deliberately flat: a skeleton that
+mimicked bars or a rating ramp would be fake data on screen, and for the second it is up a
+reader cannot tell it from the real thing. Blocks read as absence, which is what this is.
+
+A section holds its skeleton for 1–1.5s, once per section per browser-tab session, and only when
+it has something to load — an empty workspace and a campaign with no responses go straight to
+their zero states, because neither is waiting on anything. Settings panels do load, since a
+workspace's configuration is as much a fetch as its campaigns are. The chrome around the section stays
+put and stays live throughout: a reader who has just clicked Responses needs to see that
+Responses is selected, and blanking the control they used would read as the click having failed.
