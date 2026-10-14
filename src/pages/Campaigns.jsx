@@ -649,10 +649,54 @@ function RowMenu({ campaign: c, running, onAction }) {
    produced it. The range picker re-slices every figure and every shape. */
 
 const sum = (rows, key) => rows.reduce((total, row) => total + row[key], 0);
-/** The share of shown prompts that were finished, for one day. */
-const dayRate = (row) => (row.completed / (row.completed + row.abandoned)) * 100;
-/** A banded card's axis states its low and high instead of its dates. */
-const bandAxis = (values, fmt) => [`${fmt(Math.min(...values))} low`, `${fmt(Math.max(...values))} high`];
+
+/* What a campaign's status means for the portfolio bar. Paused, Stopped and
+   Completed are one segment: all three are campaigns that will send nothing
+   today, which is the only distinction the bar is making. */
+const PORTFOLIO = [
+  { label: 'Live', match: ['Live'], fill: 'var(--chart-1)' },
+  { label: 'Scheduled', match: ['Scheduled'], fill: 'var(--chart-1)', opacity: 0.45 },
+  { label: 'Draft', match: ['Draft'], fill: 'var(--foreground-muted)' },
+  { label: 'Not running', match: ['Paused', 'Stopped', 'Completed'], fill: 'var(--border-strong)' },
+];
+
+/**
+ * The portfolio, drawn as one stacked bar in the plot slot the other three
+ * cards give to a sparkline.
+ *
+ * A sparkline was the obvious thing here and the wrong one: nothing in this
+ * prototype records what was live on the 3rd of August, so a daily line would
+ * have been invented, and an invented line next to three measured ones is the
+ * kind of chart that gets believed. A composition needs no history — it is the
+ * list underneath, counted — and it shows the thing the value alone hides:
+ * how much of the workspace is switched off.
+ */
+function PortfolioBar({ campaigns }) {
+  const counted = PORTFOLIO
+    .map((state) => ({ ...state, count: campaigns.filter((c) => state.match.includes(c.status)).length }))
+    .filter((state) => state.count > 0);
+  const total = counted.reduce((t, state) => t + state.count, 0) || 1;
+  return (
+    <div className="ih-portfolio">
+      {counted.map((state) => (
+        // The segment is the trigger itself: Kumo's default trigger is a
+        // button that sizes to its content, and a percentage width inside it
+        // resolves against nothing.
+        <Tooltip
+          key={state.label}
+          content={`${count(state.count)} ${state.label.toLowerCase()}`}
+          render={
+            <span
+              className="ih-portfolio-seg"
+              aria-label={`${count(state.count)} ${state.label.toLowerCase()}`}
+              style={{ width: `${((state.count / total) * 100).toFixed(1)}%`, background: state.fill, opacity: state.opacity }}
+            />
+          }
+        />
+      ))}
+    </div>
+  );
+}
 
 function ActivityStrip({ campaigns, range, onRange }) {
   const rows = WORKSPACE_SERIES.slice(-RANGES[range].points);
@@ -664,9 +708,13 @@ function ActivityStrip({ campaigns, range, onRange }) {
   // Completion is measured against what was actually shown, not what was sent:
   // a delivery failure never reached a person and cannot be abandoned.
   const completionRate = started ? (completed / started) * 100 : 0;
-  const rating = rows.reduce((t, r) => t + r.rating, 0) / rows.length;
-  const live = campaigns.filter((c) => c.status === 'Live').length;
-  const paused = campaigns.filter((c) => c.status === 'Paused' || c.status === 'Stopped').length;
+  const reached = sum(rows, 'reach');
+  const optOuts = sum(rows, 'optOuts');
+  const byStatus = (...states) => campaigns.filter((c) => states.includes(c.status)).length;
+  const live = byStatus('Live');
+  const scheduled = byStatus('Scheduled');
+  const drafts = byStatus('Draft');
+  const feedbackCount = campaigns.filter(isFeedback).length;
   const axis = [rows[0].label, rows[rows.length - 1].label];
 
   return (
@@ -691,8 +739,13 @@ function ActivityStrip({ campaigns, range, onRange }) {
       </div>
 
       <div className="ih-metric-grid">
+        {/* Prompts sent and people reached hold for everything that sends.
+            The one card built on answers says on its own face that
+            announcements are outside it — a workspace running both kinds will
+            otherwise read a feedback-only figure as covering both. */}
         <MetricCard
           name="Prompts sent"
+          scope={{ text: 'All campaigns' }}
           legend={[{ label: 'Failed', tone: 'danger' }]}
           value={{ text: count(sent) }}
           subs={[count(failed)]}
@@ -703,7 +756,26 @@ function ActivityStrip({ campaigns, range, onRange }) {
           ]}
         />
         <MetricCard
+          name="People reached"
+          scope={{
+            text: 'Unique people',
+            tip: 'A prompt is a send; a person can be sent several. Reach counts people, and always trails prompts sent',
+          }}
+          legend={[{ label: 'Opted out', tone: 'warning' }]}
+          value={{ text: count(reached) }}
+          subs={[count(optOuts)]}
+          rows={rows} axis={axis}
+          series={[
+            { label: 'Stayed opted in', of: (r) => r.reach - r.optOuts, fill: 'var(--chart-1)', opacity: '.55' },
+            { label: 'Opted out', of: (r) => r.optOuts, fill: 'var(--warning)' },
+          ]}
+        />
+        <MetricCard
           name="Responses"
+          scope={{
+            text: `${count(feedbackCount)} feedback campaign${feedbackCount === 1 ? '' : 's'} · ${percent(completionRate, 0)} completed`,
+            tip: 'Announcements collect no answers, so they are outside this figure — they appear in prompts sent and people reached',
+          }}
           legend={[{ label: 'Abandoned', tone: 'warning' }]}
           value={{ text: count(completed) }}
           subs={[count(abandoned)]}
@@ -713,30 +785,20 @@ function ActivityStrip({ campaigns, range, onRange }) {
             { label: 'Abandoned', of: (r) => r.abandoned, fill: 'var(--warning)' },
           ]}
         />
+        {/* A state, not a sum over the window — so it reports right now, and
+            draws the portfolio rather than a series nobody recorded. */}
         <MetricCard
-          name="Completion rate"
-          value={{ text: percent(completionRate, 0) }}
-          subs={[`${count(live)} live`]}
-          rows={rows} band
-          axis={bandAxis(rows.map(dayRate), (v) => percent(v, 0))}
-          series={[{
-            label: 'Completion', of: dayRate, read: (r) => percent(dayRate(r), 0),
-            fill: 'var(--chart-1)', opacity: '.75',
-          }]}
-        />
-        <MetricCard
-          name="Average rating"
-          // On the shared ramp, so this number means what it means everywhere else.
-          value={{ text: rating.toFixed(1), color: ratingColor(rating, 10) }}
-          subs={[`${count(paused)} held`]}
-          rows={rows} band
-          axis={bandAxis(rows.map((r) => r.rating), (v) => v.toFixed(1))}
-          // Each bar takes its own point's ramp colour: the trend is readable
-          // as colour before the heights are read as a shape.
-          series={[{
-            label: 'Rating', of: (r) => r.rating, read: (r) => r.rating.toFixed(1),
-            fill: (r) => ratingColor(r.rating, 10),
-          }]}
+          name="Campaigns running"
+          scope={{
+            text: `Live now, of ${count(campaigns.length)} in the workspace`,
+            tip: 'The other three cards sum the window. This one is a state, so it reports right now',
+          }}
+          legend={[{ label: 'Not running', tone: 'muted' }]}
+          value={{ text: count(live) }}
+          subs={[`${count(scheduled)} sched`, `${count(drafts)} draft`]}
+          rows={rows}
+          axis={['Live · scheduled · draft', 'Not running']}
+          plot={<PortfolioBar campaigns={campaigns} />}
         />
       </div>
     </section>

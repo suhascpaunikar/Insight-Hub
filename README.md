@@ -35,7 +35,7 @@ scripts/revert-to-html.sh --check                          # what reverting woul
 
 | URL | Screen | Requirements |
 |---|---|---|
-| `index.html` | Campaign dashboard — activity strip + campaign list | FR-71 – FR-85 |
+| `index.html` | Campaign dashboard — workspace activity strip + campaign list | FR-71 – FR-85 |
 | `builder.html` | Four-step creation wizard | FR-1 – FR-57 |
 | `insights.html` | The campaign data screen — Delivery / Responses / Impact for a feedback campaign, Delivery / Engagement / Impact for an announcement | FR-86 – FR-110 |
 | `settings.html` | Workspace settings — General / Delivery / Alerts | FR-63 |
@@ -56,6 +56,14 @@ row and the publish summary, and is what the assistant answers *"what is this ca
 for"* from. The wizard opens with the nav rail collapsed to its icon strip, since the
 Content step wants the width; expanding it is one click and the wizard remembers that
 separately from the console.
+
+The dashboard's **activity strip** reports the workspace, not one kind of campaign in it.
+Prompts sent and people reached hold for everything that sends; *Campaigns running* is the
+portfolio at its real proportions; and the one card built on answers says on its own face that
+announcements are outside it, because a workspace running both kinds will otherwise read a
+feedback-only figure as covering both. The rating and completion-rate cards that used to sit
+there were exactly that mistake, and completion now rides on the Responses card's scope line
+where its base is stated.
 
 **Start here:** open `index.html` → *New Campaign* → walk the four steps → publish → open
 the resulting row.
@@ -178,7 +186,11 @@ A companion card docked bottom-right on every screen, in the shape of
 [clicky](https://github.com/farzaa/clicky): it speaks first about whatever is
 on screen, streams the answer a word at a time, and offers the next question
 rather than waiting for one. Open it from **Assistant** in the nav rail, the
-buddy button in the corner, or `Ctrl + /`.
+buddy button in the corner, or `Ctrl + /`. Ask by clicking a follow-up, or by
+typing into the box at the foot of the card — a typed question routes through
+the same keyword matcher the follow-ups use, so the box is a second way in
+rather than a second answer engine, and it cannot print a figure the buttons
+would not also print.
 
 Its face is a Siri-style liquid orb with two states: **idle** — slow,
 desaturated, barely breathing — and **thinking**, seven times faster and

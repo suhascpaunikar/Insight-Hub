@@ -506,6 +506,23 @@ body {
 .ih-metric-key i { width: 5px; height: 5px; border-radius: var(--radius-full); background: currentColor; }
 .ih-metric-key[data-tone="warning"] { color: var(--warning); }
 .ih-metric-key[data-tone="danger"] { color: var(--destructive); }
+.ih-metric-key[data-tone="muted"] { color: var(--foreground-lighter); }
+.ih-metric-key[data-tone="muted"] i { background: var(--border-strong); }
+/* What population the figure covers — its own row, so the legend beside the
+   name never squeezes it into an ellipsis. */
+.ih-metric-scope {
+  align-self: flex-start; max-width: 100%; margin-top: 2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--fs-xs); color: var(--foreground-lighter);
+}
+.ih-metric-scope-tip {
+  cursor: help; text-decoration: underline dotted var(--border-strong); text-underline-offset: 3px;
+}
+
+/* Campaigns running: the portfolio at its real proportions, in the slot the
+   other cards give to a sparkline. Bottom-aligned to the same 40px band. */
+.ih-portfolio { display: flex; align-items: flex-end; gap: 2px; height: 40px; }
+.ih-portfolio-seg { display: block; height: 22px; min-width: 4px; border-radius: 2px; }
 .ih-metric-figures {
   display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-md); margin-top: 6px;
 }
@@ -2141,3 +2158,34 @@ body[data-asst-pointer="true"] [data-insight][data-insight-armed] {
      the blocks simply land. */
   .ih-reveal > * { animation: none; }
 }
+
+/* ==========================================================================
+   The open-text word cloud (FR-101).
+
+   Size is mention count (on √count), colour is the rating ramp. Selection is
+   a ring, never a colour: a term's colour is its rating, and overriding it to
+   say "selected" would print a rating the term does not have.
+   ========================================================================== */
+
+.ih-cloud {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px;
+  padding: var(--sp-md) var(--sp-lg) var(--sp-lg);
+}
+.ih-cloud-term {
+  padding: 1px 5px; border: 0; border-radius: var(--radius-sm); background: none;
+  font: inherit; font-weight: 500; line-height: 1.15; letter-spacing: -0.01em; cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-out);
+}
+.ih-cloud-term:hover { background: var(--surface-200); }
+.ih-cloud-term[aria-pressed="true"] { background: var(--surface-200); box-shadow: inset 0 0 0 1px var(--border-strong); }
+.ih-cloud-term:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.ih-cloud-ramp {
+  display: inline-flex; align-items: center; gap: 6px; flex: none;
+  font-size: var(--fs-xs); color: var(--foreground-muted);
+}
+.ih-cloud-ramp i { display: block; width: 72px; height: 6px; border-radius: var(--radius-full); }
+
+/* Response detail: a repeat respondent's other verbatims. */
+.ih-also-from { display: flex; align-items: flex-start; gap: 10px; }
+.ih-also-from .ih-rating-val { flex: none; font-size: 14px; }
+.ih-select-all { user-select: all; }

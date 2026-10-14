@@ -353,12 +353,12 @@ A pointer that cannot hover has no dwell, so on touch a tap stands in for it.
 
 ### The panels
 
-Nine, across the three insights tabs:
+Ten, across the three insights tabs:
 
 | Tab | Panels |
 |---|---|
 | Delivery | delivery funnel, delivery over time, failure reasons |
-| Responses | the rating question, follow-up by band, open text |
+| Responses | the rating question, follow-up by band, the word cloud, open text |
 | Impact | score drivers, variant comparison, intelligent A/B weighting |
 
 To add one, put `data-insight="key"` on its container and write a composer in

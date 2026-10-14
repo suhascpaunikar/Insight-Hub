@@ -10,7 +10,7 @@
    number and the shape can never disagree.
    ========================================================================== */
 import { useState, useRef } from 'react';
-import { LayerCard } from '@cloudflare/kumo';
+import { LayerCard, Tooltip } from '@cloudflare/kumo';
 import { ChartTip } from './ChartTip.jsx';
 import { count } from '../lib/format.js';
 
@@ -19,19 +19,27 @@ import { count } from '../lib/format.js';
  * the whole story, and drawing it from zero flattens it into a wall of equal
  * bars. `band` scales those against the window's own low and high, and the
  * axis prints that low and high so the zoom is stated, not hidden.
+ *
+ * `scope` is the line that says what population the figure covers. It is not
+ * decoration: the strip reports a workspace running two kinds of campaign, and
+ * a number drawn from only one of them has to say so on its own card, next to
+ * the number, or it will be read as covering both.
+ *
+ * `plot` replaces the sparkline for a card whose figure is a state rather than
+ * a sum over the window — there is no series to draw, so it brings its own.
  */
-export function MetricCard({ name, legend = [], value, subs = [], rows, series, axis, band }) {
+export function MetricCard({ name, scope, legend = [], value, subs = [], rows, series = [], axis, band, plot }) {
   const [reading, setReading] = useState(null);
   // The column under the pointer, for the readout to measure itself against.
   const colRef = useRef(null);
 
   const total = (row) => series.reduce((t, s) => t + s.of(row), 0);
-  const values = rows.map(total);
+  const values = series.length ? rows.map(total) : [0];
   const floor = band ? Math.min(...values) * 0.985 : 0;
   const peak = Math.max(...values);
   const span = peak - floor || 1;
 
-  const columns = rows.map((row, i) => {
+  const columns = (series.length ? rows : []).map((row, i) => {
     // What the readout says for this column: one line per series, in the ink
     // the series is drawn in.
     const readout = series.map((s) => ({
@@ -65,6 +73,16 @@ export function MetricCard({ name, legend = [], value, subs = [], rows, series, 
           ))}
         </span>
       </div>
+      {/* Its own row rather than a second line under the name: the legend
+          sits beside the name and would squeeze the scope into an ellipsis
+          exactly on the cards whose scope is the thing worth reading. */}
+      {scope && (scope.tip ? (
+        <Tooltip content={scope.tip} render={<span className="ih-metric-scope ih-metric-scope-tip" />}>
+          {scope.text}
+        </Tooltip>
+      ) : (
+        <span className="ih-metric-scope">{scope.text}</span>
+      ))}
       <div className="ih-metric-figures">
         <span className="ih-metric-value" style={value.color ? { color: value.color } : undefined}>
           {value.text}
@@ -72,33 +90,35 @@ export function MetricCard({ name, legend = [], value, subs = [], rows, series, 
         <span className="ih-metric-sub">{subs.map((s) => <b key={s}>{s}</b>)}</span>
       </div>
       <div className="ih-metric-plot">
-        {/* mouseleave on the plot rather than mouseenter per column: the
-            columns are 3px apart, and entering each one separately makes the
-            readout flicker as the pointer crosses the gaps. */}
-        <div
-          className="ih-chart-plot"
-          data-reading={open ? 'true' : undefined}
-          aria-hidden="true"
-          onMouseLeave={() => setReading(null)}
-        >
-          {columns.map((col) => (
-            <span
-              className="ih-chart-col"
-              key={col.i}
-              ref={reading === col.i ? colRef : null}
-              data-on={reading === col.i ? '' : undefined}
-              onMouseEnter={() => setReading(col.i)}
-            >
-              {col.segs.map((seg, j) => (
-                <span
-                  className="ih-chart-seg"
-                  key={j}
-                  style={{ height: `${seg.height.toFixed(1)}px`, background: seg.fill, opacity: seg.opacity }}
-                />
-              ))}
-            </span>
-          ))}
-        </div>
+        {plot || (
+          /* mouseleave on the plot rather than mouseenter per column: the
+              columns are 3px apart, and entering each one separately makes the
+              readout flicker as the pointer crosses the gaps. */
+          <div
+            className="ih-chart-plot"
+            data-reading={open ? 'true' : undefined}
+            aria-hidden="true"
+            onMouseLeave={() => setReading(null)}
+          >
+            {columns.map((col) => (
+              <span
+                className="ih-chart-col"
+                key={col.i}
+                ref={reading === col.i ? colRef : null}
+                data-on={reading === col.i ? '' : undefined}
+                onMouseEnter={() => setReading(col.i)}
+              >
+                {col.segs.map((seg, j) => (
+                  <span
+                    className="ih-chart-seg"
+                    key={j}
+                    style={{ height: `${seg.height.toFixed(1)}px`, background: seg.fill, opacity: seg.opacity }}
+                  />
+                ))}
+              </span>
+            ))}
+          </div>
+        )}
         <div className="ih-metric-axis"><span>{axis[0]}</span><span>{axis[1]}</span></div>
         {/* Lifted clear of the plot rather than placed inside it: the card's
             band of bars is 40px and the readout is nearer a hundred, so no
